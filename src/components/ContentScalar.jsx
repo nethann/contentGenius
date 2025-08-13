@@ -164,7 +164,7 @@ const ContentScalar = () => {
     return new Promise((resolve) => {
       const video = document.createElement("video");
       video.src = URL.createObjectURL(videoFile);
-      video.muted = false;
+      video.muted = true;
       video.currentTime = startTime;
 
       const SpeechRecognition =
@@ -301,7 +301,7 @@ const ContentScalar = () => {
       // Step 2: Generate captions from video audio
       setCurrentStep("Extracting audio and generating captions...");
 
-      // Try to generate captions from actual video audio
+      // Try to generate captions from actual video audio (muted during generation)
       let videoCaptions = [];
       if (file.type.startsWith("video") && speechSupported) {
         try {
@@ -665,7 +665,7 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
         };
       }
     }
-    let isRealtimeCaptionsActive = false;
+    let isRealtimeCaptionsActive = true; // Start with captions enabled by default
 
     // Update realtime captions overlay
     const updateRealtimeCaptions = () => {
@@ -681,6 +681,29 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
         realtimeCaptionsOverlay.style.opacity = "0";
       }
     };
+
+    // Initialize real-time captions as active by default
+    if (speechSupported && recognitionRef.current) {
+      speechToggleBtn.style.background = "rgba(0,255,136,0.6)";
+      speechToggleBtn.innerHTML = "Mic";
+      video.muted = false;
+      realtimeCaptionsOverlay.style.opacity = "0.7";
+      subtitleOverlay.style.opacity = "0.3";
+      
+      // Auto-start speech recognition when modal opens
+      setTimeout(() => {
+        if (recognitionRef.current && !isListening) {
+          try {
+            recognitionRef.current.start();
+            setIsListening(true);
+            setRealtimeCaptions("");
+            console.log("Real-time captions auto-activated");
+          } catch (error) {
+            console.error("Error auto-starting speech recognition:", error);
+          }
+        }
+      }, 500);
+    }
 
     // Toggle speech recognition
     const toggleSpeechRecognition = () => {
@@ -962,6 +985,12 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
 
     // Initialize realtime captions display
     updateRealtimeCaptions();
+    
+    // Update initial caption state based on default active state
+    if (isRealtimeCaptionsActive && speechSupported) {
+      realtimeCaptionsOverlay.style.opacity = "0.7";
+      subtitleOverlay.style.opacity = "0.3";
+    }
 
     // Add title
     const title = document.createElement("h3");
