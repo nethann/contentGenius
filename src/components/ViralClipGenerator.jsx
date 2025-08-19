@@ -1122,7 +1122,7 @@ const ViralClipGenerator = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="content-scalar min-h-screen">
       {/* Header */}
       <header className="viral-clip-header">
         <div className="viral-clip-header-content">
@@ -1149,48 +1149,48 @@ const ViralClipGenerator = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="content-scalar-container">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">
+        <div className="content-scalar-header">
+          <h1 className="content-scalar-title">
             AI-Powered Video Analysis
           </h1>
-          <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+          <p className="content-scalar-description">
             Upload your content and we'll extract viral moments with attention-grabbing subtitles
           </p>
         </div>
 
         {/* Error Display */}
         {error && (
-          <div className="max-w-4xl mx-auto mb-6">
-            <div className="bg-red-900/30 border border-red-500 rounded-lg p-4 flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400" />
-              <span className="text-red-200">{error}</span>
+          <div className="error-container">
+            <div className="error-alert">
+              <AlertCircle className="error-icon" />
+              <span className="error-text">{error}</span>
             </div>
           </div>
         )}
 
         {/* Upload Section */}
-        <div className="max-w-4xl mx-auto">
+        <div className="upload-container">
           {!file ? (
             <div
-              className="border-2 border-dashed border-gray-600 rounded-lg p-12 text-center bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-gray-700"
+              className="upload-zone"
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">
+              <Upload className="upload-icon" />
+              <h3 className="upload-title">
                 Upload Your Content
               </h3>
-              <p className="text-gray-400 mb-4">
+              <p className="upload-subtitle">
                 Drop your MP4 video, MP3 audio, or WAV file here
               </p>
-              <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
-                <div className="flex items-center gap-1">
-                  <FileVideo className="w-4 h-4" />
+              <div className="upload-file-types">
+                <div className="upload-file-type">
+                  <FileVideo className="upload-file-type-icon" />
                   <span>MP4 Video</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <FileAudio className="w-4 h-4" />
+                <div className="upload-file-type">
+                  <FileAudio className="upload-file-type-icon" />
                   <span>MP3/WAV Audio</span>
                 </div>
               </div>
@@ -1199,32 +1199,32 @@ const ViralClipGenerator = () => {
                 type="file"
                 accept=".mp4,.mp3,.wav,audio/mpeg,video/mp4,audio/wav"
                 onChange={handleFileUpload}
-                className="hidden"
+                className="upload-input"
               />
             </div>
           ) : (
             <div>
               {/* Processing State */}
               {processing && (
-                <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mx-auto mb-4"></div>
-                  <h3 className="text-xl font-semibold text-white mb-2">Processing...</h3>
-                  <p className="text-gray-300 mb-4">{currentStep}</p>
-                  <div className="w-full bg-gray-600 rounded-full h-2 mb-4">
+                <div className="processing-container">
+                  <div className="processing-spinner"></div>
+                  <h3 className="processing-title">Processing...</h3>
+                  <p className="processing-status">{currentStep}</p>
+                  <div className="processing-progress-bar">
                     <div
-                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                      className="processing-progress-fill"
                       style={{ width: `${progress}%` }}
                     ></div>
                   </div>
-                  <p className="text-gray-400">{progress}% complete</p>
+                  <p className="processing-percentage">{progress}% complete</p>
                 </div>
               )}
 
               {/* Analysis Complete State */}
               {analysisComplete && extractedMoments.length > 0 && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-2xl font-bold text-white">
+                <div className="analysis-complete">
+                  <div className="analysis-header">
+                    <h3 className="analysis-title">
                       Speech Segments Found: {extractedMoments.length}
                     </h3>
                     <button
@@ -1235,35 +1235,32 @@ const ViralClipGenerator = () => {
                         setProgress(0);
                         setError(null);
                       }}
-                      className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                      className="analysis-new-file"
                     >
                       Upload New File
                     </button>
                   </div>
                   
-                  <div className="grid gap-4">
+                  <div className="segments-grid">
                     {extractedMoments.map((moment) => (
-                      <div
-                        key={moment.id}
-                        className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                      
-                        <div className="flex justify-between items-start mb-4">
-                          <div className="flex-1">
-                            <h4 className="text-lg font-semibold text-white mb-2">
+                      <div key={moment.id} className="segment-card">
+                        <div className="segment-header">
+                          <div className="segment-info">
+                            <h4 className="segment-title">
                               Segment #{moment.id}
                             </h4>
-                            <p className="text-gray-300 text-sm mb-2">
+                            <p className="segment-time">
                               {moment.startTime} - {moment.endTime} ({moment.duration})
                             </p>
-                            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-3">
-                              <p className="text-blue-200 text-sm">
+                            <div className="segment-transcript-preview">
+                              <p className="segment-transcript-label">
                                 <strong>Transcript:</strong> "{moment.transcript}"
                               </p>
                             </div>
                           </div>
                         </div>
                         
-                        <div className="flex gap-3">
+                        <div className="segment-actions">
                           <button
                             onClick={() => {
                               if (moment.clipGenerated) {
@@ -1273,24 +1270,24 @@ const ViralClipGenerator = () => {
                               }
                             }}
                             disabled={clipProgress[moment.id] !== undefined}
-                            className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                            className="segment-action-primary"
                           >
                             {clipProgress[moment.id] !== undefined ? (
                               <span>Generating... {clipProgress[moment.id]}%</span>
                             ) : moment.clipGenerated ? (
-                              <span className="flex items-center gap-1"><Play className="w-4 h-4" />View Clip</span>
+                              <span className="flex items-center gap-1"><Play className="segment-action-icon" />View Clip</span>
                             ) : (
-                              <span className="flex items-center gap-1"><Scissors className="w-4 h-4" />Generate Clip</span>
+                              <span className="flex items-center gap-1"><Scissors className="segment-action-icon" />Generate Clip</span>
                             )}
                           </button>
                           
                           {moment.clipGenerated && moment.subtitles && moment.subtitles.length > 0 && (
                             <button
                               onClick={() => downloadVideoWithSubtitles(moment)}
-                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                              className="segment-action-secondary"
                               title="Download video with subtitles"
                             >
-                              <Download className="w-4 h-4" />
+                              <Download className="segment-action-icon" />
                               Download
                             </button>
                           )}
