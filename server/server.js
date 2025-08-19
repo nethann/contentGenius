@@ -155,6 +155,129 @@ app.post('/api/upload', upload.single('video'), async (req, res) => {
   }
 });
 
+// Generate video with embedded subtitles
+async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles, outputPath) {
+  return new Promise(async (resolve, reject) => {
+    // Ensure output directory exists
+    const outputDir = dirname(outputPath);
+    fs.ensureDirSync(outputDir);
+    
+    console.log(`🎬 Processing video: ${videoPath}`);
+    console.log(`💾 Output: ${outputPath}`);
+    console.log(`⏱️ Time: ${startTime}s - ${endTime}s`);
+
+    if (!subtitles || subtitles.length === 0) {
+      console.log('⚠️ No subtitles provided, creating video without subtitles');
+      // Create video without subtitles
+      ffmpeg(videoPath)
+        .seekInput(startTime)
+        .duration(endTime - startTime)
+        .videoCodec('libx264')
+        .audioCodec('aac')
+        .outputOptions(['-preset fast', '-crf 23', '-movflags +faststart'])
+        .format('mp4')
+        .output(outputPath)
+        .on('end', () => {
+          console.log(`✅ Video generated: ${outputPath}`);
+          resolve(outputPath);
+        })
+        .on('error', (err) => {
+          console.error('❌ FFmpeg error:', err);
+          reject(err);
+        })
+        .run();
+      return;
+    }
+
+    // Create SRT subtitle file
+    console.log(`📝 Creating SRT file for ${subtitles.length} subtitle segments`);
+    let srtContent = '';
+    subtitles.forEach((subtitle, index) => {
+      const startSrt = formatTimeToSrt(subtitle.start);
+      const endSrt = formatTimeToSrt(subtitle.end);
+      const cleanText = subtitle.text.replace(/[\r\n]+/g, ' ').trim();
+      srtContent += `${index + 1}\n${startSrt} --> ${endSrt}\n${cleanText}\n\n`;
+    });
+
+    const srtPath = join(tempDir, `subtitles-${uuidv4()}.srt`);
+    
+    try {
+      fs.writeFileSync(srtPath, srtContent, 'utf8');
+      console.log(`✅ SRT file created: ${srtPath}`);
+    } catch (srtError) {
+      console.error('❌ SRT creation error:', srtError);
+      reject(srtError);
+      return;
+    }
+
+    // For Windows, we need to escape the path properly
+    const isWindows = process.platform === 'win32';
+    let subtitleFilter;
+    
+    if (isWindows) {
+      // Windows path handling - use forward slashes and escape colons
+      const windowsSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
+      subtitleFilter = `subtitles='${windowsSrtPath}':force_style='FontSize=24,PrimaryColour=&Hffffff,OutlineColour=&H000000,Outline=2'`;
+    } else {
+      subtitleFilter = `subtitles='${srtPath}':force_style='FontSize=24,PrimaryColour=&Hffffff,OutlineColour=&H000000,Outline=2'`;
+    }
+
+    console.log(`🎨 Using subtitle filter: ${subtitleFilter}`);
+
+    ffmpeg(videoPath)
+      .seekInput(startTime)
+      .duration(endTime - startTime)
+      .videoCodec('libx264')
+      .audioCodec('aac')
+      .outputOptions([
+        '-preset fast',
+        '-crf 23',
+        '-movflags +faststart',
+        '-vf', subtitleFilter
+      ])
+      .format('mp4')
+      .output(outputPath)
+      .on('start', (commandLine) => {
+        console.log('🚀 FFmpeg command:', commandLine);
+      })
+      .on('stderr', (stderrLine) => {
+        console.log('FFmpeg:', stderrLine);
+      })
+      .on('end', async () => {
+        // Clean up SRT file
+        try {
+          await fs.remove(srtPath);
+          console.log('🗑️ Cleaned up SRT file');
+        } catch (e) {
+          console.warn('SRT cleanup warning:', e.message);
+        }
+        console.log(`✅ Video with embedded subtitles generated: ${outputPath}`);
+        resolve(outputPath);
+      })
+      .on('error', async (err) => {
+        // Clean up SRT file on error
+        try {
+          await fs.remove(srtPath);
+        } catch (e) {
+          console.warn('SRT cleanup warning:', e.message);
+        }
+        console.error('❌ FFmpeg video generation error:', err);
+        reject(err);
+      })
+      .run();
+  });
+}
+
+// Format time for SRT format (HH:MM:SS,mmm)
+function formatTimeToSrt(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const milliseconds = Math.floor((seconds % 1) * 1000);
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
+}
+
 // Transcribe video segment
 app.post('/api/transcribe-segment', async (req, res) => {
   try {
@@ -230,6 +353,58 @@ app.post('/api/transcribe-segment', async (req, res) => {
     console.error('Transcription error:', error);
     res.status(500).json({ 
       error: 'Transcription failed', 
+      details: error.message 
+    });
+  }
+});
+
+// Generate and download video with subtitles
+app.post('/api/download-video', async (req, res) => {
+  try {
+    const { filename, startTime, endTime, subtitles, segmentId } = req.body;
+
+    if (!filename || startTime === undefined || endTime === undefined) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    const videoPath = join(uploadDir, filename);
+    const outputPath = join(tempDir, `video-segment-${segmentId}-${uuidv4()}.mp4`);
+
+    // Check if video file exists
+    if (!await fs.pathExists(videoPath)) {
+      return res.status(404).json({ error: 'Video file not found' });
+    }
+
+    console.log(`🎬 Generating video for segment ${segmentId}: ${startTime}s - ${endTime}s`);
+
+    // Generate video with subtitles
+    await generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles || [], outputPath);
+
+    // Send the video file for download
+    res.download(outputPath, `segment-${segmentId}.mp4`, async (err) => {
+      if (err) {
+        console.error('Download error:', err);
+      }
+      
+      // Clean up the temporary files after download
+      setTimeout(async () => {
+        try {
+          await fs.remove(outputPath);
+          const srtPath = outputPath.replace('.mp4', '.srt');
+          if (await fs.pathExists(srtPath)) {
+            await fs.remove(srtPath);
+          }
+          console.log(`🗑️ Cleaned up temporary files`);
+        } catch (cleanupError) {
+          console.error('Cleanup error:', cleanupError);
+        }
+      }, 5000); // Wait 5 seconds before cleanup
+    });
+
+  } catch (error) {
+    console.error('Download video error:', error);
+    res.status(500).json({ 
+      error: 'Video download failed', 
       details: error.message 
     });
   }

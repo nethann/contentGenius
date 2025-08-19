@@ -201,27 +201,19 @@ const ContentScalar = () => {
     const captionsOverlay = document.createElement("div");
     captionsOverlay.style.cssText = `
       position: absolute; bottom: 15px; left: 15px; right: 15px;
-      background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(20,20,40,0.9));
-      color: white; padding: 20px; border-radius: 16px; 
-      font-size: 18px; font-weight: 600; text-align: center; 
-      min-height: 90px; max-height: 140px; overflow-y: auto;
-      display: flex; flex-direction: column; justify-content: center; 
-      line-height: 1.5; letter-spacing: 0.3px;
-      text-shadow: 2px 2px 6px rgba(0,0,0,0.9);
-      border: 2px solid rgba(96,0,255,0.3);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-      backdrop-filter: blur(10px);
+      color: white; padding: 8px 12px; border-radius: 6px; 
+      font-size: 20px; font-weight: 600; text-align: center; 
+      line-height: 1.3; letter-spacing: 0.3px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8), -1px -1px 2px rgba(0,0,0,0.8);
       opacity: 1; transition: all 0.3s ease;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      pointer-events: none;
     `;
     
     // Show transcript or captions based on what's available
     if (moment.transcribed && moment.transcript) {
       captionsOverlay.innerHTML = `
-        <div style="color: #60f; font-size: 14px; opacity: 0.8; margin-bottom: 8px;">
-          🎤 Transcribed
-        </div>
-        <div style="color: white; font-size: 16px;">
+        <div style="color: white; font-size: 18px;">
           ${moment.transcript}
         </div>
       `;
@@ -242,11 +234,12 @@ const ContentScalar = () => {
     `;
 
     const playBtn = document.createElement("button");
-    playBtn.innerHTML = "Play";
+    playBtn.innerHTML = "▶";
     playBtn.style.cssText = `
       background: #8b5cf6; border: none; color: white; 
       width: 50px; height: 50px; border-radius: 50%; font-size: 18px;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background-color 0.3s ease;
     `;
 
     const progressBar = document.createElement("div");
@@ -269,12 +262,23 @@ const ContentScalar = () => {
 
     // Close button (removed speech toggle button since captions are automatic)
 
+    const downloadBtn = document.createElement("button");
+    downloadBtn.innerHTML = "⬇";
+    downloadBtn.style.cssText = `
+      position: absolute; top: 20px; right: 80px; 
+      background: rgba(0,128,0,0.8); border: none; color: white; 
+      font-size: 18px; width: 45px; height: 45px; border-radius: 50%; 
+      cursor: pointer; backdrop-filter: blur(10px);
+      transition: background-color 0.3s ease;
+    `;
+    downloadBtn.title = "Download video with subtitles";
+
     const closeBtn = document.createElement("button");
-    closeBtn.innerHTML = "Close";
+    closeBtn.innerHTML = "✕";
     closeBtn.style.cssText = `
       position: absolute; top: 20px; right: 20px; 
       background: rgba(255,255,255,0.2); border: none; color: white; 
-      font-size: 24px; width: 45px; height: 45px; border-radius: 50%; 
+      font-size: 20px; width: 45px; height: 45px; border-radius: 50%; 
       cursor: pointer; backdrop-filter: blur(10px);
     `;
 
@@ -289,19 +293,13 @@ const ContentScalar = () => {
       
       if (currentCaption) {
         captionsOverlay.innerHTML = `
-          <div style="color: #60f; font-size: 14px; opacity: 0.8; margin-bottom: 8px;">
-            🎤 Live Captions
-          </div>
-          <div style="color: white; font-size: 18px; font-weight: bold;">
+          <div style="color: white; font-size: 20px; font-weight: bold;">
             ${currentCaption.text}
           </div>
         `;
       } else if (moment.transcript) {
         captionsOverlay.innerHTML = `
-          <div style="color: #60f; font-size: 14px; opacity: 0.8; margin-bottom: 8px;">
-            📝 Full Transcript
-          </div>
-          <div style="color: white; font-size: 16px; opacity: 0.9;">
+          <div style="color: white; font-size: 18px; opacity: 0.9;">
             ${moment.transcript}
           </div>
         `;
@@ -336,7 +334,8 @@ const ContentScalar = () => {
     const togglePlay = () => {
       if (isPlaying) {
         video.pause();
-        playBtn.innerHTML = "Play";
+        playBtn.innerHTML = "▶";
+        playBtn.style.backgroundColor = "#8b5cf6";
         isPlaying = false;
       } else {
         // Ensure we start at the right time
@@ -347,7 +346,8 @@ const ContentScalar = () => {
           video.currentTime = moment.startTimeSeconds;
         }
         video.play();
-        playBtn.innerHTML = "Pause";
+        playBtn.innerHTML = "⏸";
+        playBtn.style.backgroundColor = "#f59e0b";
         isPlaying = true;
       }
     };
@@ -357,7 +357,8 @@ const ContentScalar = () => {
       // Ensure we stay within the viral moment timeframe
       if (video.currentTime >= moment.endTimeSeconds) {
         video.pause();
-        playBtn.innerHTML = "Play";
+        playBtn.innerHTML = "▶";
+        playBtn.style.backgroundColor = "#8b5cf6";
         isPlaying = false;
         video.currentTime = moment.startTimeSeconds;
       }
@@ -410,8 +411,61 @@ const ContentScalar = () => {
       );
     };
 
+    // Download video with subtitles
+    const downloadVideo = async () => {
+      if (!moment.subtitles || moment.subtitles.length === 0) {
+        alert('No subtitles available for download');
+        return;
+      }
+
+      try {
+        downloadBtn.innerHTML = '⟳';
+        downloadBtn.disabled = true;
+        downloadBtn.style.backgroundColor = 'rgba(128,128,128,0.8)';
+
+        const response = await fetch(`${API_URL}/download-video`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            filename: uploadedFileInfo.filename,
+            startTime: moment.startTimeSeconds,
+            endTime: moment.endTimeSeconds,
+            subtitles: moment.subtitles,
+            segmentId: moment.id
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Download failed');
+        }
+
+        // Create a blob from the response and trigger download
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `segment-${moment.id}-with-subtitles.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        console.log('✅ Video downloaded successfully');
+      } catch (error) {
+        console.error('Download error:', error);
+        alert('Download failed: ' + error.message);
+      } finally {
+        downloadBtn.innerHTML = '⬇';
+        downloadBtn.disabled = false;
+        downloadBtn.style.backgroundColor = 'rgba(0,128,0,0.8)';
+      }
+    };
+
     // Event listeners
     playBtn.onclick = togglePlay;
+    downloadBtn.onclick = downloadVideo;
 
     // Keyboard controls
     const handleKeyPress = (e) => {
@@ -471,6 +525,7 @@ const ContentScalar = () => {
 
     videoContainer.appendChild(video);
     videoContainer.appendChild(captionsOverlay);
+    modal.appendChild(downloadBtn);
     modal.appendChild(closeBtn);
     modal.appendChild(title);
     modal.appendChild(videoContainer);
@@ -487,6 +542,59 @@ const ContentScalar = () => {
 
     // Show the clip modal instead of downloading
     showVideoClipModal(moment);
+  };
+
+  const downloadVideoWithSubtitles = async (moment) => {
+    if (!moment.subtitles || moment.subtitles.length === 0) {
+      alert('No subtitles available for download');
+      return;
+    }
+
+    try {
+      setCurrentStep(`Generating video with subtitles for segment ${moment.id}...`);
+      setProcessing(true);
+
+      const response = await fetch(`${API_URL}/download-video`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          filename: uploadedFileInfo.filename,
+          startTime: moment.startTimeSeconds,
+          endTime: moment.endTimeSeconds,
+          subtitles: moment.subtitles,
+          segmentId: moment.id
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+
+      // Create a blob from the response and trigger download
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `segment-${moment.id}-with-subtitles.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      console.log('✅ Video downloaded successfully');
+      setCurrentStep('Download completed!');
+      
+      // Hide processing state after a short delay
+      setTimeout(() => {
+        setProcessing(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Download error:', error);
+      setError(`Download failed: ${error.message}`);
+      setProcessing(false);
+    }
   };
 
   const previewClip = (moment) => {
@@ -1075,25 +1183,38 @@ const ContentScalar = () => {
                           </div>
                         </div>
                         
-                        <button
-                          onClick={() => {
-                            if (moment.clipGenerated) {
-                              showVideoClipModal(moment);
-                            } else {
-                              generateVideoClip(moment);
-                            }
-                          }}
-                          disabled={clipProgress[moment.id] !== undefined}
-                          className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
-                        >
-                          {clipProgress[moment.id] !== undefined ? (
-                            <span>Generating... {clipProgress[moment.id]}%</span>
-                          ) : moment.clipGenerated ? (
-                            "▶️ View Clip"
-                          ) : (
-                            "🎬 Generate Clip"
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => {
+                              if (moment.clipGenerated) {
+                                showVideoClipModal(moment);
+                              } else {
+                                generateVideoClip(moment);
+                              }
+                            }}
+                            disabled={clipProgress[moment.id] !== undefined}
+                            className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                          >
+                            {clipProgress[moment.id] !== undefined ? (
+                              <span>Generating... {clipProgress[moment.id]}%</span>
+                            ) : moment.clipGenerated ? (
+                              <span className="flex items-center gap-1"><Play className="w-4 h-4" />View Clip</span>
+                            ) : (
+                              <span className="flex items-center gap-1"><Scissors className="w-4 h-4" />Generate Clip</span>
+                            )}
+                          </button>
+                          
+                          {moment.clipGenerated && moment.subtitles && moment.subtitles.length > 0 && (
+                            <button
+                              onClick={() => downloadVideoWithSubtitles(moment)}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                              title="Download video with subtitles"
+                            >
+                              <Download className="w-4 h-4" />
+                              Download
+                            </button>
                           )}
-                        </button>
+                        </div>
                       </div>
                     ))}
                   </div>
