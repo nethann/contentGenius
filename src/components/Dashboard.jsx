@@ -1,49 +1,235 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Zap, LogOut, User } from 'lucide-react';
-import ContentScalar from './ContentScalar';
+import { 
+  Zap, 
+  LogOut, 
+  Video, 
+  Scissors, 
+  TrendingUp, 
+  Sparkles,
+  Clock,
+  Users,
+  BarChart3,
+  Settings
+} from 'lucide-react';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
-  const handleLogout = async () => {
-    await signOut();
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
+
+  const features = [
+    {
+      id: 'viral-clips',
+      title: 'Viral Clip Generator',
+      description: 'AI finds viral moments and adds attention-grabbing subtitles',
+      icon: Video,
+      color: 'purple',
+      available: true,
+      comingSoon: false,
+      route: '/app/viral-clips'
+    },
+    {
+      id: 'trending-analyzer',
+      title: 'Trending Analyzer',
+      description: 'Analyze what content is trending across platforms',
+      icon: TrendingUp,
+      color: 'blue',
+      available: false,
+      comingSoon: true,
+      route: '/app/trending'
+    },
+    {
+      id: 'content-scheduler',
+      title: 'Content Scheduler',
+      description: 'Schedule and automate your content publishing',
+      icon: Clock,
+      color: 'green',
+      available: false,
+      comingSoon: true,
+      route: '/app/scheduler'
+    },
+    {
+      id: 'audience-insights',
+      title: 'Audience Insights',
+      description: 'Deep analytics on your audience engagement',
+      icon: Users,
+      color: 'orange',
+      available: false,
+      comingSoon: true,
+      route: '/app/insights'
+    },
+    {
+      id: 'performance-tracker',
+      title: 'Performance Tracker',
+      description: 'Track your content performance across platforms',
+      icon: BarChart3,
+      color: 'red',
+      available: false,
+      comingSoon: true,
+      route: '/app/performance'
+    },
+    {
+      id: 'ai-enhancer',
+      title: 'AI Content Enhancer',
+      description: 'Enhance your content with AI-powered suggestions',
+      icon: Sparkles,
+      color: 'yellow',
+      available: false,
+      comingSoon: true,
+      route: '/app/enhancer'
+    }
+  ];
+
+  const handleFeatureClick = (feature) => {
+    if (feature.available) {
+      navigate(feature.route);
+    }
+  };
+
+  const getColorClasses = (color) => {
+    const colors = {
+      purple: 'from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800',
+      blue: 'from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800',
+      green: 'from-green-500 to-green-700 hover:from-green-600 hover:to-green-800',
+      orange: 'from-orange-500 to-orange-700 hover:from-orange-600 hover:to-orange-800',
+      red: 'from-red-500 to-red-700 hover:from-red-600 hover:to-red-800',
+      yellow: 'from-yellow-500 to-yellow-700 hover:from-yellow-600 hover:to-yellow-800'
+    };
+    return colors[color] || colors.purple;
   };
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      {/* Top Navigation Bar */}
-      <nav className="bg-gray-800 border-b border-gray-700 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <Zap className="w-8 h-8 text-yellow-400" />
-              <span className="text-2xl font-bold text-white">Content Scalar</span>
+    <div className="dashboard-container">
+      {/* Header */}
+      <header className="dashboard-header">
+        <div className="dashboard-header-content">
+          <div className="dashboard-logo">
+            <Zap className="w-8 h-8 text-yellow-400" />
+            <span className="dashboard-logo-text">Content Scalar</span>
+          </div>
+          
+          <div className="dashboard-user-section">
+            <div className="dashboard-user-info">
+              <span className="dashboard-user-name">
+                Welcome, {user?.user_metadata?.full_name || user?.email || 'User'}
+              </span>
             </div>
+            <button
+              onClick={handleSignOut}
+              className="dashboard-signout-btn"
+              title="Sign Out"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </header>
 
-            {/* User Menu */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-white">
-                <User className="w-5 h-5 text-gray-400" />
-                <span className="text-sm">{user?.email}</span>
+      {/* Main Content */}
+      <main className="dashboard-main">
+        <div className="dashboard-content">
+          <div className="dashboard-welcome">
+            <h1 className="dashboard-title">
+              Welcome to Your Content Studio
+            </h1>
+            <p className="dashboard-subtitle">
+              Create viral content with AI-powered tools designed for content creators
+            </p>
+          </div>
+
+          {/* Feature Cards Grid */}
+          <div className="dashboard-grid">
+            {features.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <div
+                  key={feature.id}
+                  onClick={() => handleFeatureClick(feature)}
+                  className={`dashboard-card ${
+                    feature.available 
+                      ? 'dashboard-card-available' 
+                      : 'dashboard-card-disabled'
+                  }`}
+                >
+                  <div className={`dashboard-card-gradient bg-gradient-to-br ${getColorClasses(feature.color)}`}>
+                    <div className="dashboard-card-content">
+                      <div className="dashboard-card-header">
+                        <div className="dashboard-card-icon">
+                          <Icon className="w-6 h-6" />
+                        </div>
+                        {feature.comingSoon && (
+                          <span className="dashboard-coming-soon">
+                            Coming Soon
+                          </span>
+                        )}
+                      </div>
+                      
+                      <h3 className="dashboard-card-title">
+                        {feature.title}
+                      </h3>
+                      
+                      <p className="dashboard-card-description">
+                        {feature.description}
+                      </p>
+                      
+                      {feature.available && (
+                        <div className="dashboard-card-action">
+                          <span className="dashboard-card-action-text">
+                            Get Started →
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Quick Stats */}
+          <div className="dashboard-stats">
+            <div className="dashboard-stats-card">
+              <div className="dashboard-stats-icon">
+                <Video className="w-5 h-5" />
               </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
+              <div className="dashboard-stats-content">
+                <span className="dashboard-stats-number">0</span>
+                <span className="dashboard-stats-label">Videos Processed</span>
+              </div>
+            </div>
+            
+            <div className="dashboard-stats-card">
+              <div className="dashboard-stats-icon">
+                <Scissors className="w-5 h-5" />
+              </div>
+              <div className="dashboard-stats-content">
+                <span className="dashboard-stats-number">0</span>
+                <span className="dashboard-stats-label">Clips Generated</span>
+              </div>
+            </div>
+            
+            <div className="dashboard-stats-card">
+              <div className="dashboard-stats-icon">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <div className="dashboard-stats-content">
+                <span className="dashboard-stats-number">0</span>
+                <span className="dashboard-stats-label">Viral Moments</span>
+              </div>
             </div>
           </div>
         </div>
-      </nav>
-
-      {/* Main Content - ContentScalar Component */}
-      <div className="relative">
-        <ContentScalar />
-      </div>
+      </main>
     </div>
   );
 };

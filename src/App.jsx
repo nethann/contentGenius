@@ -5,6 +5,7 @@ import Homepage from './components/Homepage';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
+import ViralClipGenerator from './components/ViralClipGenerator';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
@@ -25,6 +26,15 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/app/viral-clips" 
+              element={
+                <ProtectedRoute>
+                  <ViralClipGenerator />
                 </ProtectedRoute>
               } 
             />
