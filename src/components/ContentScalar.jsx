@@ -15,6 +15,38 @@ import {
 const ContentScalar = () => {
   const [file, setFile] = useState(null);
   const [processing, setProcessing] = useState(false);
+
+  // Client-side function to highlight attention-grabbing words (mirrors server-side logic)
+  const highlightAttentionWordsClient = (text) => {
+    let highlightedText = text.replace(/[\r\n]+/g, ' ').trim();
+    
+    const attentionWords = [
+      'FASTER', 'NEVER', 'ALWAYS', 'MUST', 'CRITICAL', 'URGENT', 'IMPORTANT', 'WARNING',
+      'BREAKTHROUGH', 'REVOLUTIONARY', 'AMAZING', 'INCREDIBLE', 'SHOCKING', 'UNBELIEVABLE',
+      'SECRET', 'EXPOSED', 'REVEALED', 'HIDDEN', 'TRUTH', 'LIES', 'SCAM', 'FRAUD',
+      'BILLION', 'MILLION', 'THOUSANDS', 'HUNDREDS', 'PERCENT', 'MONEY', 'PROFIT',
+      'FREE', 'NOW', 'TODAY', 'IMMEDIATELY', 'INSTANT', 'QUICK', 'FAST', 'RAPID',
+      'GUARANTEED', 'PROVEN', 'SCIENTIFIC', 'EXPERT', 'PROFESSIONAL', 'AUTHORITY',
+      'MISTAKE', 'ERROR', 'WRONG', 'FAIL', 'FAILURE', 'DISASTER', 'CATASTROPHE',
+      'SUCCESS', 'WIN', 'VICTORY', 'CHAMPION', 'WINNER', 'BEST', 'TOP', 'ULTIMATE',
+      'EXCLUSIVE', 'LIMITED', 'RARE', 'UNIQUE', 'SPECIAL', 'PREMIUM', 'VIP',
+      'DANGEROUS', 'RISKY', 'SAFE', 'SECURE', 'PROTECTED', 'GUARANTEE'
+    ];
+    
+    // Apply red highlighting to attention words
+    attentionWords.forEach(word => {
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      highlightedText = highlightedText.replace(regex, `<span style="color: red; font-weight: bold;">${word}</span>`);
+    });
+    
+    // Highlight numbers and percentages
+    highlightedText = highlightedText.replace(/\b\d+(\.\d+)?\s*%\b/g, '<span style="color: red; font-weight: bold;">$&</span>');
+    highlightedText = highlightedText.replace(/\b\d+x\b/gi, '<span style="color: red; font-weight: bold;">$&</span>');
+    // Fixed: Only highlight complete money amounts, not standalone $ symbols
+    highlightedText = highlightedText.replace(/\$\d+(?:,\d{3})*(?:\.\d{2})?\b/g, '<span style="color: red; font-weight: bold;">$&</span>');
+    
+    return highlightedText;
+  };
   const [extractedMoments, setExtractedMoments] = useState([]);
   const [progress, setProgress] = useState(0);
   const [analysisComplete, setAnalysisComplete] = useState(false);
@@ -128,6 +160,7 @@ const ContentScalar = () => {
               ...m,
               transcript: transcriptionResult.transcript,
               subtitles: transcriptionResult.captions,
+              highlightedSubtitles: transcriptionResult.highlightedCaptions,
               clipGenerated: true,
               transcribed: true,
               wordCount: transcriptionResult.wordCount
@@ -284,10 +317,11 @@ const ContentScalar = () => {
 
     // Caption display system for backend transcripts
     const updateCaptions = () => {
-      if (!moment.subtitles || moment.subtitles.length === 0) return;
+      const highlightedSubtitles = moment.highlightedSubtitles || moment.subtitles;
+      if (!highlightedSubtitles || highlightedSubtitles.length === 0) return;
       
       const currentTime = video.currentTime - moment.startTimeSeconds;
-      const currentCaption = moment.subtitles.find(caption => 
+      const currentCaption = highlightedSubtitles.find(caption => 
         currentTime >= caption.start && currentTime <= caption.end
       );
       
@@ -298,9 +332,11 @@ const ContentScalar = () => {
           </div>
         `;
       } else if (moment.transcript) {
+        // Apply highlighting to full transcript as well for when no specific caption is active
+        const highlightedTranscript = highlightAttentionWordsClient(moment.transcript);
         captionsOverlay.innerHTML = `
           <div style="color: white; font-size: 18px; opacity: 0.9;">
-            ${moment.transcript}
+            ${highlightedTranscript}
           </div>
         `;
       }

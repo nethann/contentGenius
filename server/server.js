@@ -189,14 +189,14 @@ async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitl
       return;
     }
 
-    // Create SRT subtitle file
+    // Create SRT subtitle file with attention-grabbing highlights
     console.log(`📝 Creating SRT file for ${subtitles.length} subtitle segments`);
     let srtContent = '';
     subtitles.forEach((subtitle, index) => {
       const startSrt = formatTimeToSrt(subtitle.start);
       const endSrt = formatTimeToSrt(subtitle.end);
-      const cleanText = subtitle.text.replace(/[\r\n]+/g, ' ').trim();
-      srtContent += `${index + 1}\n${startSrt} --> ${endSrt}\n${cleanText}\n\n`;
+      const highlightedText = highlightAttentionWords(subtitle.text);
+      srtContent += `${index + 1}\n${startSrt} --> ${endSrt}\n${highlightedText}\n\n`;
     });
 
     const srtPath = join(tempDir, `subtitles-${uuidv4()}.srt`);
@@ -278,6 +278,39 @@ function formatTimeToSrt(seconds) {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
 }
 
+// Apply attention-grabbing highlights to text
+function highlightAttentionWords(text) {
+  let highlightedText = text.replace(/[\r\n]+/g, ' ').trim();
+  
+  // Words/phrases that should be highlighted in red for attention
+  const attentionWords = [
+    'FASTER', 'NEVER', 'ALWAYS', 'MUST', 'CRITICAL', 'URGENT', 'IMPORTANT', 'WARNING',
+    'BREAKTHROUGH', 'REVOLUTIONARY', 'AMAZING', 'INCREDIBLE', 'SHOCKING', 'UNBELIEVABLE',
+    'SECRET', 'EXPOSED', 'REVEALED', 'HIDDEN', 'TRUTH', 'LIES', 'SCAM', 'FRAUD',
+    'BILLION', 'MILLION', 'THOUSANDS', 'HUNDREDS', 'PERCENT', 'MONEY', 'PROFIT',
+    'FREE', 'NOW', 'TODAY', 'IMMEDIATELY', 'INSTANT', 'QUICK', 'FAST', 'RAPID',
+    'GUARANTEED', 'PROVEN', 'SCIENTIFIC', 'EXPERT', 'PROFESSIONAL', 'AUTHORITY',
+    'MISTAKE', 'ERROR', 'WRONG', 'FAIL', 'FAILURE', 'DISASTER', 'CATASTROPHE',
+    'SUCCESS', 'WIN', 'VICTORY', 'CHAMPION', 'WINNER', 'BEST', 'TOP', 'ULTIMATE',
+    'EXCLUSIVE', 'LIMITED', 'RARE', 'UNIQUE', 'SPECIAL', 'PREMIUM', 'VIP',
+    'DANGEROUS', 'RISKY', 'SAFE', 'SECURE', 'PROTECTED', 'GUARANTEE'
+  ];
+  
+  // Apply red highlighting to attention words
+  attentionWords.forEach(word => {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+    highlightedText = highlightedText.replace(regex, `<font color="red"><b>${word}</b></font>`);
+  });
+  
+  // Highlight numbers and percentages (fixed money regex)
+  highlightedText = highlightedText.replace(/\b\d+(\.\d+)?\s*%\b/g, '<font color="red"><b>$&</b></font>');
+  highlightedText = highlightedText.replace(/\b\d+x\b/gi, '<font color="red"><b>$&</b></font>');
+  // Fixed: Only highlight complete money amounts, not standalone $ symbols
+  highlightedText = highlightedText.replace(/\$\d+(?:,\d{3})*(?:\.\d{2})?\b/g, '<font color="red"><b>$&</b></font>');
+  
+  return highlightedText;
+}
+
 // Transcribe video segment
 app.post('/api/transcribe-segment', async (req, res) => {
   try {
@@ -308,16 +341,24 @@ app.post('/api/transcribe-segment', async (req, res) => {
 
     // Generate word-level timestamps for captions
     const captions = [];
+    const highlightedCaptions = [];
     if (transcription.words && transcription.words.length > 0) {
       // Group words into caption chunks (3-8 words each)
       const wordsPerCaption = 6;
       for (let i = 0; i < transcription.words.length; i += wordsPerCaption) {
         const wordGroup = transcription.words.slice(i, i + wordsPerCaption);
         if (wordGroup.length > 0) {
+          const captionText = wordGroup.map(w => w.word).join(' ');
           captions.push({
             start: wordGroup[0].start,
             end: wordGroup[wordGroup.length - 1].end,
-            text: wordGroup.map(w => w.word).join(' ')
+            text: captionText
+          });
+          // Also create highlighted version for preview
+          highlightedCaptions.push({
+            start: wordGroup[0].start,
+            end: wordGroup[wordGroup.length - 1].end,
+            text: highlightAttentionWords(captionText)
           });
         }
       }
@@ -332,11 +373,18 @@ app.post('/api/transcribe-segment', async (req, res) => {
         const wordGroup = words.slice(i, i + wordsPerCaption);
         const captionStart = i / wordsPerSecond;
         const captionEnd = Math.min((i + wordsPerCaption) / wordsPerSecond, duration);
+        const captionText = wordGroup.join(' ');
         
         captions.push({
           start: captionStart,
           end: captionEnd,
-          text: wordGroup.join(' ')
+          text: captionText
+        });
+        // Also create highlighted version for preview
+        highlightedCaptions.push({
+          start: captionStart,
+          end: captionEnd,
+          text: highlightAttentionWords(captionText)
         });
       }
     }
@@ -346,6 +394,7 @@ app.post('/api/transcribe-segment', async (req, res) => {
       segmentId,
       transcript: transcription.text,
       captions,
+      highlightedCaptions,
       wordCount: transcription.words ? transcription.words.length : transcription.text.split(' ').length
     });
 
