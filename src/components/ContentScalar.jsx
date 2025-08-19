@@ -13,12 +13,6 @@ import {
 } from "lucide-react";
 
 const ContentScalar = () => {
-  // Check if Web Speech API is supported
-  React.useEffect(() => {
-    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
-      setSpeechSupported(true);
-    }
-  }, []);
   const [file, setFile] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [extractedMoments, setExtractedMoments] = useState([]);
@@ -28,257 +22,72 @@ const ContentScalar = () => {
   const [error, setError] = useState(null);
   const [generatingClips, setGeneratingClips] = useState(false);
   const [clipProgress, setClipProgress] = useState({});
-  const [isListening, setIsListening] = useState(false);
-  const [realtimeCaptions, setRealtimeCaptions] = useState("");
-  const [speechSupported, setSpeechSupported] = useState(false);
+  const [uploadedFileInfo, setUploadedFileInfo] = useState(null);
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
-  const recognitionRef = useRef(null);
 
-  // Initialize speech recognition
-  const initializeSpeechRecognition = () => {
-    if (!speechSupported) return null;
-    
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    
-    recognition.onresult = (event) => {
-      let finalTranscript = "";
-      let interimTranscript = "";
-      
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        } else {
-          interimTranscript += transcript;
-        }
-      }
-      
-      setRealtimeCaptions(finalTranscript + interimTranscript);
-    };
-    
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error:", event.error);
-      setIsListening(false);
-    };
-    
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-    
-    return recognition;
-  };
+  // API URL for backend
+  const API_URL = 'http://localhost:3001/api';
 
-  const startListening = () => {
-    if (!speechSupported || !recognitionRef.current) return;
-    
-    try {
-      recognitionRef.current.start();
-      setIsListening(true);
-      setRealtimeCaptions("");
-    } catch (error) {
-      console.error("Error starting speech recognition:", error);
-    }
-  };
 
-  const stopListening = () => {
-    if (recognitionRef.current && isListening) {
-      try {
-        recognitionRef.current.stop();
-        setIsListening(false);
-      } catch (error) {
-        console.error("Error stopping speech recognition:", error);
-      }
-    }
-  };
 
-  // Extract audio from video and generate captions
-  const extractAudioFromVideo = async (videoFile, startTime, endTime) => {
-    return new Promise((resolve, reject) => {
-      const video = document.createElement("video");
-      const audioContext = new (window.AudioContext ||
-        window.webkitAudioContext)();
-
-      video.src = URL.createObjectURL(videoFile);
-      video.crossOrigin = "anonymous";
-      video.muted = true;
-
-      video.onloadedmetadata = () => {
-        video.currentTime = startTime;
-      };
-
-      video.onseeked = () => {
-        const mediaElementSource = audioContext.createMediaElementSource(video);
-        const analyser = audioContext.createAnalyser();
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-        mediaElementSource.connect(analyser);
-        analyser.connect(audioContext.destination);
-
-        const audioData = [];
-        const sampleRate = audioContext.sampleRate;
-        const duration = endTime - startTime;
-
-        video.play();
-
-        const collectAudio = () => {
-          if (video.currentTime >= endTime || video.ended) {
-            video.pause();
-            URL.revokeObjectURL(video.src);
-            resolve({ audioData, sampleRate, duration });
-            return;
-          }
-
-          analyser.getByteFrequencyData(dataArray);
-          audioData.push(...dataArray);
-
-          requestAnimationFrame(collectAudio);
-        };
-
-        collectAudio();
-      };
-
-      video.onerror = () => {
-        reject(new Error("Failed to load video for audio extraction"));
-      };
-    });
-  };
-
-  // Generate captions from video audio using Web Speech API
-  const generateCaptionsFromVideoAudio = async (
-    videoFile,
-    startTime,
-    endTime
-  ) => {
-    if (!speechSupported) {
-      console.warn("Speech recognition not supported");
-      return [];
-    }
-
-    return new Promise((resolve) => {
-      const video = document.createElement("video");
-      video.src = URL.createObjectURL(videoFile);
-      video.muted = true;
-      video.currentTime = startTime;
-
-      const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
-
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = "en-US";
-
-      const captions = [];
-      let currentCaption = { start: 0, text: "", interim: "" };
-
-      recognition.onresult = (event) => {
-        const currentTime = video.currentTime - startTime;
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-
-          if (event.results[i].isFinal) {
-            // Finalize the current caption
-            if (currentCaption.text || currentCaption.interim) {
-              captions.push({
-                start: currentCaption.start,
-                end: currentTime,
-                text: (currentCaption.text + " " + transcript).trim(),
-              });
-            }
-
-            // Start new caption
-            currentCaption = { start: currentTime, text: "", interim: "" };
-          } else {
-            // Update interim text
-            currentCaption.interim = transcript;
-            if (!currentCaption.text) {
-              currentCaption.start = currentTime;
-            }
-          }
-        }
-      };
-
-      video.onloadedmetadata = () => {
-        video.play();
-        recognition.start();
-      };
-
-      video.ontimeupdate = () => {
-        if (video.currentTime >= endTime) {
-          video.pause();
-          recognition.stop();
-
-          // Add final caption if exists
-          if (currentCaption.text || currentCaption.interim) {
-            captions.push({
-              start: currentCaption.start,
-              end: video.currentTime - startTime,
-              text: (currentCaption.text + " " + currentCaption.interim).trim(),
-            });
-          }
-
-          URL.revokeObjectURL(video.src);
-          resolve(captions);
-        }
-      };
-
-      recognition.onerror = (event) => {
-        console.error("Speech recognition error:", event.error);
-        video.pause();
-        URL.revokeObjectURL(video.src);
-        resolve([]);
-      };
-
-      // Fallback timeout
-      setTimeout(() => {
-        if (!video.paused) {
-          video.pause();
-          recognition.stop();
-          URL.revokeObjectURL(video.src);
-          resolve(captions);
-        }
-      }, (endTime - startTime + 5) * 1000);
-    });
-  };
-
-  const handleFileUpload = (event) => {
+  const handleFileUpload = async (event) => {
     const uploadedFile = event.target.files[0];
-    if (uploadedFile) {
-      const validTypes = [
-        "video/mp4",
-        "audio/mp3",
-        "audio/mpeg",
-        "video/quicktime",
-        "audio/wav",
-      ];
-      if (validTypes.includes(uploadedFile.type)) {
-        setFile(uploadedFile);
-        setExtractedMoments([]);
-        setAnalysisComplete(false);
-        setProgress(0);
-        setError(null);
+    if (!uploadedFile) return;
 
-        // Auto-start AI analysis after file upload
-        setTimeout(() => {
-          analyzeContentWithAI(uploadedFile);
-        }, 500);
-      } else {
-        setError("Please upload an MP4 video, MP3 audio, or WAV file");
+    const validTypes = [
+      "video/mp4",
+      "audio/mp3", 
+      "audio/mpeg",
+      "video/quicktime",
+      "audio/wav",
+    ];
+
+    if (!validTypes.includes(uploadedFile.type)) {
+      setError("Please upload an MP4 video, MP3 audio, or WAV file");
+      return;
+    }
+
+    setFile(uploadedFile);
+    setExtractedMoments([]);
+    setAnalysisComplete(false);
+    setProgress(0);
+    setError(null);
+    setProcessing(true);
+    setCurrentStep("Uploading file to server...");
+
+    try {
+      // Upload file to backend
+      const formData = new FormData();
+      formData.append('video', uploadedFile);
+
+      const response = await fetch(`${API_URL}/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
       }
+
+      const result = await response.json();
+      setUploadedFileInfo(result.file);
+      
+      // Auto-start analysis after upload
+      setTimeout(() => {
+        analyzeContent(result.file);
+      }, 500);
+      
+    } catch (error) {
+      console.error('Upload error:', error);
+      setError(`Upload failed: ${error.message}`);
+      setProcessing(false);
     }
   };
 
   const generateVideoClip = async (moment) => {
-    if (!file) {
-      setError("No file available for clip generation");
+    if (!uploadedFileInfo) {
+      setError("No uploaded file available");
       return;
     }
 
@@ -286,189 +95,42 @@ const ContentScalar = () => {
     setClipProgress({ ...clipProgress, [moment.id]: 0 });
 
     try {
-      // Step 1: Parse timestamps
-      const parseTime = (timeStr) => {
-        const parts = timeStr.split(":").map(Number);
-        return parts.length === 2 ? parts[0] * 60 + parts[1] : parts[0];
-      };
+      setCurrentStep(`Transcribing segment ${moment.id}...`);
+      setClipProgress((prev) => ({ ...prev, [moment.id]: 20 }));
 
-      const startTime = parseTime(moment.startTime);
-      const endTime = parseTime(moment.endTime);
-      const duration = endTime - startTime;
+      // Call backend to transcribe this segment
+      const response = await fetch(`${API_URL}/transcribe-segment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          filename: uploadedFileInfo.filename,
+          startTime: moment.startTimeSeconds,
+          endTime: moment.endTimeSeconds,
+          segmentId: moment.id
+        })
+      });
 
-      setClipProgress((prev) => ({ ...prev, [moment.id]: 30 }));
+      setClipProgress((prev) => ({ ...prev, [moment.id]: 60 }));
 
-      // Step 2: Generate captions from video audio
-      setCurrentStep("Extracting audio and generating captions...");
-
-      // Try to generate captions from actual video audio (muted during generation)
-      let videoCaptions = [];
-      if (file.type.startsWith("video") && speechSupported) {
-        try {
-          videoCaptions = await generateCaptionsFromVideoAudio(
-            file,
-            startTime,
-            endTime
-          );
-          console.log("Generated video captions:", videoCaptions);
-        } catch (error) {
-          console.warn("Failed to generate captions from video audio:", error);
-        }
+      if (!response.ok) {
+        throw new Error('Transcription failed');
       }
 
-      setClipProgress((prev) => ({ ...prev, [moment.id]: 50 }));
-
-      // Step 3: Generate AI subtitles as fallback or enhancement
-      setCurrentStep("Generating AI subtitles...");
-
-      let subtitles = [];
-      try {
-        const subtitleResponse = await fetch(
-          "https://api.groq.com/openai/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY || "your-api-key-here"}`,
-            },
-            body: JSON.stringify({
-              model: "llama-3.1-70b-versatile",
-              max_tokens: 1000,
-              messages: [
-                {
-                  role: "user",
-                  content: `Generate natural speech-timed subtitles for this viral moment: "${moment.title}"
-
-Context: ${moment.description}
-Full Transcript: "${moment.transcript}"
-Duration: ${duration} seconds (30-second clip)
-
-Break the transcript into natural speech segments with realistic timing. Each subtitle should be 3-8 words and timed at normal speaking pace (~2.5 words per second). Use the EXACT text from the transcript.
-
-Create subtitles that sync with natural speech patterns. Respond with ONLY valid JSON:
-
-{
-  "subtitles": [
-    {
-      "start": 0.0,
-      "end": 2.8,
-      "text": "So I'm standing there thinking"
-    },
-    {
-      "start": 3.0,
-      "end": 6.2,
-      "text": "this can't be real, and then"
-    },
-    {
-      "start": 6.4,
-      "end": 9.5,
-      "text": "oh my god, you're not gonna"
-    }
-  ]
-}
-
-Use natural speech timing and the ${moment.category} category flow. DO NOT include any text outside the JSON.`,
-                },
-              ],
-            }),
-          }
-        );
-
-        if (subtitleResponse.ok) {
-          const subtitleData = await subtitleResponse.json();
-          let responseText = subtitleData.choices[0].message.content;
-          responseText = responseText
-            .replace(/```json\s?/g, "")
-            .replace(/```\s?/g, "")
-            .trim();
-          try {
-            const parsedSubs = JSON.parse(responseText);
-            subtitles = parsedSubs.subtitles || [];
-          } catch (parseError) {
-            console.warn("Subtitle parsing failed, using fallback");
-          }
-        }
-      } catch (apiError) {
-        console.warn("API request failed, using fallback subtitles");
-      }
-
-      // Use video captions if available, otherwise fallback subtitles
-      if (videoCaptions.length > 0) {
-        subtitles = videoCaptions.map((caption) => ({
-          start: caption.start,
-          end: caption.end,
-          text: caption.text,
-        }));
-      } else if (subtitles.length === 0) {
-        const words = moment.transcript.split(" ");
-
-        // Natural speech is about 150-200 words per minute, so ~2.5-3.3 words per second
-        // For 30 seconds, that's about 75-100 words total
-        const wordsPerSecond = 2.8; // Average comfortable speaking pace
-        const maxWordsPerSubtitle = 8; // Maximum words to show at once
-
-        subtitles = [];
-        let currentStart = 0;
-
-        for (let i = 0; i < words.length; i += maxWordsPerSubtitle) {
-          const subtitleWords = words.slice(i, i + maxWordsPerSubtitle);
-          const wordCount = subtitleWords.length;
-          const segmentDuration = Math.max(2, wordCount / wordsPerSecond); // Minimum 2 seconds per subtitle
-
-          const start = currentStart;
-          const end = Math.min(currentStart + segmentDuration, duration - 0.5);
-
-          if (subtitleWords.length > 0 && start < duration) {
-            subtitles.push({
-              start: start,
-              end: end,
-              text: subtitleWords.join(" "),
-            });
-
-            currentStart = end + 0.2; // Small gap between subtitles
-          }
-        }
-
-        // If we have extra time, extend the last subtitle
-        if (
-          subtitles.length > 0 &&
-          subtitles[subtitles.length - 1].end < duration - 2
-        ) {
-          subtitles[subtitles.length - 1].end = duration;
-        }
-
-        // Ensure we have at least some subtitles
-        if (subtitles.length === 0) {
-          subtitles = [
-            {
-              start: 0,
-              end: duration * 0.5,
-              text: moment.transcript.slice(0, 60) || "Check out this moment!",
-            },
-            {
-              start: duration * 0.5,
-              end: duration,
-              text: moment.transcript.slice(60) || "Don't miss this!",
-            },
-          ];
-        }
-      }
-
+      const transcriptionResult = await response.json();
       setClipProgress((prev) => ({ ...prev, [moment.id]: 85 }));
 
-      // Step 3: Create file URL for video playback
-      const fileUrl = URL.createObjectURL(file);
-
-      // Update moment with clip data
+      // Update the moment with real transcript and captions
       const updatedMoments = extractedMoments.map((m) =>
         m.id === moment.id
           ? {
               ...m,
+              transcript: transcriptionResult.transcript,
+              subtitles: transcriptionResult.captions,
               clipGenerated: true,
-              subtitles,
-              startTimeSeconds: startTime,
-              endTimeSeconds: endTime,
-              duration: duration,
+              transcribed: true,
+              wordCount: transcriptionResult.wordCount
             }
           : m
       );
@@ -476,19 +138,17 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
 
       setClipProgress((prev) => ({ ...prev, [moment.id]: 100 }));
 
-      // Step 4: Show the video clip modal immediately
+      // Show the video clip modal with real transcript
       setTimeout(() => {
         showVideoClipModal(updatedMoments.find((m) => m.id === moment.id));
       }, 500);
 
       console.log(
-        `✅ Successfully generated clip for "${moment.title}" with ${subtitles.length} subtitle segments`
+        `✅ Successfully transcribed segment ${moment.id}: "${transcriptionResult.transcript.substring(0, 50)}..."`
       );
     } catch (error) {
-      console.error("Clip generation error:", error);
-      setError(`Failed to generate clip: ${error.message}`);
-
-      // Reset progress on error
+      console.error("Transcription error:", error);
+      setError(`Transcription failed: ${error.message}`);
       setClipProgress((prev) => ({ ...prev, [moment.id]: undefined }));
     } finally {
       setGeneratingClips(false);
@@ -503,7 +163,7 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
   };
 
   const showVideoClipModal = (moment) => {
-    if (!moment.clipGenerated || !file) {
+    if (!moment.clipGenerated || !uploadedFileInfo) {
       alert("Generate clip first");
       return;
     }
@@ -530,38 +190,48 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
     video.muted = false;
     video.currentTime = moment.startTimeSeconds || 0;
 
-    // Set video source
+    // Set video source  
     const fileUrl = URL.createObjectURL(file);
     video.src = fileUrl;
+    
+    // Store current caption index
+    let currentCaptionIndex = 0;
 
-    // Create subtitles overlay
-    const subtitleOverlay = document.createElement("div");
-    subtitleOverlay.style.cssText = `
-      position: absolute; bottom: 20px; left: 20px; right: 20px;
-      background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.7));
-      color: white; padding: 16px 24px; border-radius: 12px; 
-      font-size: 20px; font-weight: bold; text-align: center; 
-      min-height: 80px; display: flex; align-items: center; 
-      justify-content: center; line-height: 1.4;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-      border: 1px solid rgba(255,255,255,0.1);
+    // Create captions overlay for backend transcripts
+    const captionsOverlay = document.createElement("div");
+    captionsOverlay.style.cssText = `
+      position: absolute; bottom: 15px; left: 15px; right: 15px;
+      background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(20,20,40,0.9));
+      color: white; padding: 20px; border-radius: 16px; 
+      font-size: 18px; font-weight: 600; text-align: center; 
+      min-height: 90px; max-height: 140px; overflow-y: auto;
+      display: flex; flex-direction: column; justify-content: center; 
+      line-height: 1.5; letter-spacing: 0.3px;
+      text-shadow: 2px 2px 6px rgba(0,0,0,0.9);
+      border: 2px solid rgba(96,0,255,0.3);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+      opacity: 1; transition: all 0.3s ease;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     `;
-
-    // Create real-time captions overlay (separate from subtitles)
-    const realtimeCaptionsOverlay = document.createElement("div");
-    realtimeCaptionsOverlay.style.cssText = `
-      position: absolute; top: 20px; left: 20px; right: 20px;
-      background: linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(0,0,0,0.7));
-      color: #00ff88; padding: 12px 20px; border-radius: 8px;
-      font-size: 16px; font-weight: 600; text-align: center;
-      min-height: 50px; display: flex; align-items: center;
-      justify-content: center; line-height: 1.3;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.9);
-      border: 1px solid rgba(0,255,136,0.3);
-      opacity: 0; transition: opacity 0.3s ease;
-    `;
-    realtimeCaptionsOverlay.textContent =
-      "Real-time captions will appear here...";
+    
+    // Show transcript or captions based on what's available
+    if (moment.transcribed && moment.transcript) {
+      captionsOverlay.innerHTML = `
+        <div style="color: #60f; font-size: 14px; opacity: 0.8; margin-bottom: 8px;">
+          🎤 Transcribed
+        </div>
+        <div style="color: white; font-size: 16px;">
+          ${moment.transcript}
+        </div>
+      `;
+    } else {
+      captionsOverlay.innerHTML = `
+        <div style="color: #ffa500; font-style: italic; opacity: 0.8;">
+          Generate clip first to see transcript
+        </div>
+      `;
+    }
 
     // Create controls
     const controls = document.createElement("div");
@@ -597,26 +267,7 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
       "color: white; font-size: 14px; min-width: 80px;";
     timeDisplay.textContent = "0:00 / 0:00";
 
-    // Close button
-    // Speech recognition toggle button
-    const speechToggleBtn = document.createElement("button");
-    speechToggleBtn.innerHTML = speechSupported ? "Mic" : "No Mic";
-    speechToggleBtn.style.cssText = `
-      position: absolute; top: 20px; left: 20px;
-      background: ${
-        speechSupported ? "rgba(0,255,136,0.3)" : "rgba(255,0,0,0.3)"
-      };
-      border: 1px solid ${
-        speechSupported ? "rgba(0,255,136,0.5)" : "rgba(255,0,0,0.5)"
-      };
-      color: white; font-size: 20px; width: 45px; height: 45px;
-      border-radius: 50%; cursor: pointer; backdrop-filter: blur(10px);
-      transition: all 0.3s ease;
-    `;
-    speechToggleBtn.title = speechSupported
-      ? "Click to enable real-time speech captions (Ctrl+C)"
-      : "Speech recognition not supported in this browser";
-    speechToggleBtn.disabled = !speechSupported;
+    // Close button (removed speech toggle button since captions are automatic)
 
     const closeBtn = document.createElement("button");
     closeBtn.innerHTML = "Close";
@@ -627,172 +278,39 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
       cursor: pointer; backdrop-filter: blur(10px);
     `;
 
-    // Initialize speech recognition for this modal
-    recognitionRef.current = initializeSpeechRecognition();
-    if (!recognitionRef.current && speechSupported) {
-      // Fallback initialization directly in modal
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = true;
-        recognitionRef.current.lang = "en-US";
-        
-        recognitionRef.current.onresult = (event) => {
-          let finalTranscript = "";
-          let interimTranscript = "";
-          
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            
-            if (event.results[i].isFinal) {
-              finalTranscript += transcript;
-            } else {
-              interimTranscript += transcript;
-            }
-          }
-          
-          setRealtimeCaptions(finalTranscript + interimTranscript);
-        };
-        
-        recognitionRef.current.onerror = (event) => {
-          console.error("Speech recognition error:", event.error);
-          setIsListening(false);
-        };
-        
-        recognitionRef.current.onend = () => {
-          setIsListening(false);
-        };
-      }
-    }
-    let isRealtimeCaptionsActive = true; // Start with captions enabled by default
-
-    // Update realtime captions overlay
-    const updateRealtimeCaptions = () => {
-      if (isRealtimeCaptionsActive && isListening) {
-        realtimeCaptionsOverlay.textContent =
-          realtimeCaptions || "Listening...";
-        realtimeCaptionsOverlay.style.opacity = "1";
-      } else if (isRealtimeCaptionsActive) {
-        realtimeCaptionsOverlay.textContent =
-          "Real-time captions ready - Press 🎤 to activate";
-        realtimeCaptionsOverlay.style.opacity = "0.7";
-      } else {
-        realtimeCaptionsOverlay.style.opacity = "0";
-      }
-    };
-
-    // Initialize real-time captions as active by default
-    if (speechSupported && recognitionRef.current) {
-      speechToggleBtn.style.background = "rgba(0,255,136,0.6)";
-      speechToggleBtn.innerHTML = "Mic";
-      video.muted = false;
-      realtimeCaptionsOverlay.style.opacity = "0.7";
-      subtitleOverlay.style.opacity = "0.3";
+    // Caption display system for backend transcripts
+    const updateCaptions = () => {
+      if (!moment.subtitles || moment.subtitles.length === 0) return;
       
-      // Auto-start speech recognition when modal opens
-      setTimeout(() => {
-        if (recognitionRef.current && !isListening) {
-          try {
-            recognitionRef.current.start();
-            setIsListening(true);
-            setRealtimeCaptions("");
-            console.log("Real-time captions auto-activated");
-          } catch (error) {
-            console.error("Error auto-starting speech recognition:", error);
-          }
-        }
-      }, 500);
-    }
-
-    // Toggle speech recognition
-    const toggleSpeechRecognition = () => {
-      if (!speechSupported) return;
-
-      isRealtimeCaptionsActive = !isRealtimeCaptionsActive;
-
-      if (isRealtimeCaptionsActive) {
-        speechToggleBtn.style.background = "rgba(0,255,136,0.6)";
-        speechToggleBtn.innerHTML = "Mic";
-
-        // Unmute video to capture audio for speech recognition
-        video.muted = false;
-
-        // Start speech recognition
-        if (recognitionRef.current) {
-          try {
-            recognitionRef.current.start();
-            setIsListening(true);
-            setRealtimeCaptions("");
-          } catch (error) {
-            console.error("Error starting speech recognition:", error);
-          }
-        }
-        realtimeCaptionsOverlay.style.opacity = "0.7";
-
-        // Dim regular subtitles when real-time captions are active
-        subtitleOverlay.style.opacity = "0.3";
-
-        console.log("Real-time captions activated");
-      } else {
-        speechToggleBtn.style.background = "rgba(0,255,136,0.3)";
-        speechToggleBtn.innerHTML = "Mic";
-
-        stopListening();
-        realtimeCaptionsOverlay.style.opacity = "0";
-
-        // Show regular subtitles again
-        subtitleOverlay.style.opacity = "1";
-
-        console.log("Real-time captions deactivated");
+      const currentTime = video.currentTime - moment.startTimeSeconds;
+      const currentCaption = moment.subtitles.find(caption => 
+        currentTime >= caption.start && currentTime <= caption.end
+      );
+      
+      if (currentCaption) {
+        captionsOverlay.innerHTML = `
+          <div style="color: #60f; font-size: 14px; opacity: 0.8; margin-bottom: 8px;">
+            🎤 Live Captions
+          </div>
+          <div style="color: white; font-size: 18px; font-weight: bold;">
+            ${currentCaption.text}
+          </div>
+        `;
+      } else if (moment.transcript) {
+        captionsOverlay.innerHTML = `
+          <div style="color: #60f; font-size: 14px; opacity: 0.8; margin-bottom: 8px;">
+            📝 Full Transcript
+          </div>
+          <div style="color: white; font-size: 16px; opacity: 0.9;">
+            ${moment.transcript}
+          </div>
+        `;
       }
-      updateRealtimeCaptions();
     };
-
-    // Listen for realtime caption updates
-    const captionUpdateInterval = setInterval(updateRealtimeCaptions, 100);
-
+    
     // Video playback logic
     let isPlaying = false;
     const segmentDuration = moment.endTimeSeconds - moment.startTimeSeconds;
-
-    const updateSubtitles = () => {
-      // Calculate the time relative to the start of this clip segment
-      const currentRelativeTime = video.currentTime - moment.startTimeSeconds;
-
-      // Make sure we're within the clip boundaries
-      if (currentRelativeTime < 0 || currentRelativeTime > segmentDuration) {
-        subtitleOverlay.textContent = "";
-        subtitleOverlay.style.opacity = "0.5";
-        return;
-      }
-
-      // Find the subtitle that should be showing at this time
-      const currentSubtitle = moment.subtitles?.find(
-        (sub) =>
-          currentRelativeTime >= sub.start && currentRelativeTime <= sub.end
-      );
-
-      if (currentSubtitle) {
-        subtitleOverlay.textContent = currentSubtitle.text;
-        subtitleOverlay.style.opacity = "1";
-        subtitleOverlay.style.background =
-          "linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.7))";
-      } else {
-        // Show a portion of the transcript when no specific subtitle is active
-        const transcriptWords = (moment.transcript || "").split(" ");
-        const progressPercent = currentRelativeTime / segmentDuration;
-        const wordIndex = Math.floor(progressPercent * transcriptWords.length);
-        const contextWords = transcriptWords
-          .slice(Math.max(0, wordIndex - 4), wordIndex + 4)
-          .join(" ");
-
-        subtitleOverlay.textContent = contextWords || moment.title;
-        subtitleOverlay.style.opacity = "0.7";
-        subtitleOverlay.style.background =
-          "linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0.5))";
-      }
-    };
 
     const updateProgress = () => {
       const currentRelativeTime = video.currentTime - moment.startTimeSeconds;
@@ -809,6 +327,9 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
         .padStart(2, "0")} / ${totalMinutes}:${totalSeconds
         .toString()
         .padStart(2, "0")}`;
+      
+      // Update captions based on current time
+      updateCaptions();
     };
 
     // Play/pause functionality
@@ -817,11 +338,6 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
         video.pause();
         playBtn.innerHTML = "Play";
         isPlaying = false;
-
-        // Pause speech recognition when video is paused
-        if (isRealtimeCaptionsActive && isListening) {
-          stopListening();
-        }
       } else {
         // Ensure we start at the right time
         if (
@@ -833,94 +349,54 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
         video.play();
         playBtn.innerHTML = "Pause";
         isPlaying = true;
-
-        // Resume speech recognition when video plays (if real-time captions are active)
-        if (isRealtimeCaptionsActive && !isListening) {
-          startListening();
-        }
       }
     };
 
-    // Video event listeners with more frequent updates
+    // Video event listeners
     video.addEventListener("timeupdate", () => {
-      // Stop at end time
+      // Ensure we stay within the viral moment timeframe
       if (video.currentTime >= moment.endTimeSeconds) {
         video.pause();
-        playBtn.innerHTML = "Pause";
+        playBtn.innerHTML = "Play";
         isPlaying = false;
         video.currentTime = moment.startTimeSeconds;
-
-        // Stop speech recognition when video ends
-        if (isRealtimeCaptionsActive && isListening) {
-          stopListening();
-        }
+      }
+      
+      // If video goes before the start time, jump to start
+      if (video.currentTime < moment.startTimeSeconds) {
+        video.currentTime = moment.startTimeSeconds;
       }
 
-      updateSubtitles();
       updateProgress();
     });
 
-    // Add more frequent subtitle updates for smoother sync
-    let subtitleUpdateInterval;
-    const startSubtitleUpdates = () => {
-      if (subtitleUpdateInterval) clearInterval(subtitleUpdateInterval);
-      subtitleUpdateInterval = setInterval(() => {
-        if (
-          isPlaying &&
-          video.currentTime >= moment.startTimeSeconds &&
-          video.currentTime <= moment.endTimeSeconds
-        ) {
-          updateSubtitles();
-        }
-      }, 100); // Update every 100ms for smooth sync
-    };
-
-    const stopSubtitleUpdates = () => {
-      if (subtitleUpdateInterval) {
-        clearInterval(subtitleUpdateInterval);
-        subtitleUpdateInterval = null;
-      }
-    };
-
     video.addEventListener("play", () => {
-      startSubtitleUpdates();
-      // Start speech recognition if real-time captions are active
-      if (isRealtimeCaptionsActive && !isListening) {
-        startListening();
-      }
+      // Video started playing
     });
 
     video.addEventListener("pause", () => {
-      stopSubtitleUpdates();
-      // Pause speech recognition when video is paused
-      if (isListening) {
-        stopListening();
-      }
+      // Video paused
     });
 
     video.addEventListener("ended", () => {
-      stopSubtitleUpdates();
-      // Stop speech recognition when video ends
-      if (isListening) {
-        stopListening();
-      }
+      // Video ended
     });
 
     video.addEventListener("loadedmetadata", () => {
-      video.currentTime = moment.startTimeSeconds || 0;
-      updateSubtitles();
+      // Ensure video starts at the correct viral moment timestamp
+      const startTime = moment.startTimeSeconds || 0;
+      video.currentTime = startTime;
       updateProgress();
+      console.log(`Video loaded. Set to viral moment start: ${startTime}s for "${moment.title}"`);
     });
 
-    // Initialize subtitles immediately and ensure video is at correct position
-    video.currentTime = moment.startTimeSeconds || 0;
+    // Initialize video position to the exact viral moment
+    const startTime = moment.startTimeSeconds || 0;
+    video.currentTime = startTime;
     setTimeout(() => {
-      video.currentTime = moment.startTimeSeconds || 0; // Double-ensure we're at the right position
-      updateSubtitles();
+      video.currentTime = startTime;
+      console.log(`Video positioned at ${startTime}s for viral moment: "${moment.title}"`);
     }, 200);
-
-    // Also update on seek
-    video.addEventListener("seeked", updateSubtitles);
 
     // Progress bar click to seek
     progressBar.onclick = (e) => {
@@ -936,14 +412,6 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
 
     // Event listeners
     playBtn.onclick = togglePlay;
-    speechToggleBtn.onclick = toggleSpeechRecognition;
-    closeBtn.onclick = () => {
-      video.pause();
-      stopListening();
-      clearInterval(captionUpdateInterval);
-      URL.revokeObjectURL(fileUrl);
-      document.body.removeChild(modal);
-    };
 
     // Keyboard controls
     const handleKeyPress = (e) => {
@@ -952,11 +420,8 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
         togglePlay();
       } else if (e.code === "Escape") {
         closeBtn.click();
-      } else if (e.code === "KeyC" && e.ctrlKey) {
-        // Ctrl+C to toggle captions
-        e.preventDefault();
-        toggleSpeechRecognition();
       }
+      // Removed manual caption toggle - captions are automatic
     };
 
     document.addEventListener("keydown", handleKeyPress);
@@ -964,9 +429,6 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
     // Clean up on close
     const cleanup = () => {
       document.removeEventListener("keydown", handleKeyPress);
-      stopSubtitleUpdates();
-      stopListening();
-      clearInterval(captionUpdateInterval);
       video.pause();
       URL.revokeObjectURL(fileUrl);
     };
@@ -978,19 +440,21 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
       }
     };
 
-    closeBtn.onclick = () => {
+    closeBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       cleanup();
       document.body.removeChild(modal);
     };
 
-    // Initialize realtime captions display
-    updateRealtimeCaptions();
-    
-    // Update initial caption state based on default active state
-    if (isRealtimeCaptionsActive && speechSupported) {
-      realtimeCaptionsOverlay.style.opacity = "0.7";
-      subtitleOverlay.style.opacity = "0.3";
-    }
+    // Initialize captions display
+    setTimeout(() => {
+      if (moment.transcribed && moment.transcript) {
+        console.log('📺 Modal ready with backend transcript');
+      } else {
+        console.log('📺 Modal ready - transcript will be generated');
+      }
+    }, 100);
 
     // Add title
     const title = document.createElement("h3");
@@ -1006,10 +470,7 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
     controls.appendChild(timeDisplay);
 
     videoContainer.appendChild(video);
-    videoContainer.appendChild(subtitleOverlay);
-    videoContainer.appendChild(realtimeCaptionsOverlay);
-
-    modal.appendChild(speechToggleBtn);
+    videoContainer.appendChild(captionsOverlay);
     modal.appendChild(closeBtn);
     modal.appendChild(title);
     modal.appendChild(videoContainer);
@@ -1143,272 +604,307 @@ Use natural speech timing and the ${moment.category} category flow. DO NOT inclu
     };
   };
 
+  // Extract real audio metadata and setup for transcription
   const extractAudioFromFile = async (file) => {
-    // For audio files, we can get basic metadata without loading
-    // For video files, we'll simulate metadata extraction
-    return {
-      duration: Math.floor(Math.random() * 600) + 60, // 1-10 minutes
-      sampleRate: 44100,
-      channels: 2,
-      size: file.size,
-      type: file.type,
-    };
-  };
-
-  const analyzeContentWithAI = async (uploadedFile = null) => {
-    const fileToAnalyze = uploadedFile || file;
-    setProcessing(true);
-    setProgress(0);
-    setError(null);
-
-    try {
-      // Step 1: Extract audio metadata
-      setCurrentStep("Analyzing file structure...");
-      setProgress(10);
-
-      const audioData = await extractAudioFromFile(fileToAnalyze);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Step 2: Analyze content metadata
-      setCurrentStep("Analyzing content structure...");
-      setProgress(25);
-
-      // Prepare file information for AI analysis
-      const fileInfo = {
-        name: fileToAnalyze.name,
-        size: fileToAnalyze.size,
-        type: fileToAnalyze.type,
-        duration: audioData.duration,
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      video.src = URL.createObjectURL(file);
+      video.muted = true;
+      
+      video.onloadedmetadata = () => {
+        const duration = video.duration;
+        URL.revokeObjectURL(video.src);
+        resolve({
+          duration: duration,
+          sampleRate: 44100,
+          channels: 2,
+          size: file.size,
+          type: file.type,
+        });
       };
-
-      setProgress(40);
-
-      // Step 3: Get AI analysis based on file characteristics
-      setCurrentStep("AI analyzing content patterns...");
-
-      let analysisResponse;
-      try {
-        analysisResponse = await fetch(
-          "https://api.groq.com/openai/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY || "your-api-key-here"}`,
-            },
-            body: JSON.stringify({
-              model: "llama-3.1-70b-versatile",
-              max_tokens: 2000,
-              messages: [
-                {
-                  role: "user",
-                  content: `I'm uploading a ${fileInfo.type} file named "${
-                    fileInfo.name
-                  }" that is ${(fileInfo.size / (1024 * 1024)).toFixed(
-                    1
-                  )}MB and approximately ${Math.floor(
-                    fileInfo.duration / 60
-                  )} minutes long.
-
-Based on the file "${
-                    fileInfo.name
-                  }" and its content type, generate realistic viral moments with ACTUAL TRANSCRIPTIONS of what would be spoken during those specific 30-second segments. Think about what a person would realistically be saying during those exact timestamps in this video.
-
-Generate word-for-word transcriptions as if you're listening to the actual video at those timestamps:
-
-For podcast/interview segments (e.g., at 2:15-2:45):
-- "So, um, you know what really changed everything for me? It was when I realized that, like, everything I thought I knew about success was completely backwards. And I'm talking about a complete 180 here..."
-
-For entertainment/reaction content (e.g., at 5:30-6:00):
-- "Wait, wait, wait... hold up! Did you guys just see that? Are you kidding me right now? Oh my god, I can't... I literally can't even process what just happened. This is insane!"
-
-For educational/tutorial content (e.g., at 1:45-2:15):
-- "Alright, so here's the thing that most people don't understand - and I wish someone had told me this years ago. Let me break this down for you step by step, because once you get this concept, everything else is gonna make perfect sense..."
-
-Create 3-5 realistic viral moments with ACTUAL SPOKEN DIALOGUE that sounds like real people talking. Each moment should be exactly 30 seconds long for optimal social media sharing. 
-
-For titles, use engaging, viral-style headlines like:
-- "The 80/20 Rule That Changes Everything" 
-- "Why 99% of People Get This Wrong"
-- "The Brutal Truth About Following Dreams"
-- "What School Never Taught You About Success"
-- "This Will Blow Your Mind"
-- "The Uncomfortable Truth Nobody Talks About"
-
-Respond with ONLY a valid JSON object:
-
-{
-  "moments": [
-    {
-      "title": "Viral, engaging title that captures attention",
-      "startTime": "MM:SS",
-      "endTime": "MM:SS", 
-      "viralScore": 85,
-      "reasoning": "Why this moment would be engaging",
-      "category": "funny|shocking|educational|emotional|controversial",
-      "transcript": "EXACT transcription of what the speaker would be saying during this specific 30-second segment - word-for-word dialogue that would actually be heard in the video at these timestamps, including natural speech patterns, filler words, and authentic conversation flow",
-      "suggestedCaption": "Social media ready caption with quotes"
-    }
-  ],
-  "overallEngagement": "High|Medium|Low",
-  "totalMoments": 3
-}
-
-DO NOT include any text outside the JSON. Make realistic timestamps based on the ${Math.floor(
-                    fileInfo.duration / 60
-                  )} minute duration.`,
-                },
-              ],
-            }),
-          }
-        );
-      } catch (fetchError) {
-        console.error("Network error:", fetchError);
-        // Use fallback analysis if network fails
-        const fallbackAnalysis = generateFallbackAnalysis(fileInfo);
-
-        setProgress(70);
-        setCurrentStep("Using offline analysis...");
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        const processedMoments =
-          fallbackAnalysis.moments?.map((moment, index) => ({
-            id: index + 1,
-            title: moment.title || `Moment ${index + 1}`,
-            startTime: moment.startTime || "0:00",
-            endTime: moment.endTime || "0:30",
-            duration: calculateDuration(moment.startTime, moment.endTime),
-            viralScore: moment.viralScore || 75,
-            description: moment.reasoning || "Engaging content detected",
-            category: moment.category || "engaging",
-            transcript: moment.transcript || "",
-            suggestedCaption: moment.suggestedCaption || "",
-            thumbnail: generateThumbnail(moment.category),
-            clipGenerated: false,
-            clipUrl: null,
-            subtitles: [],
-          })) || [];
-
-        setProgress(100);
-        setCurrentStep("Complete!");
-        setExtractedMoments(processedMoments);
-        setAnalysisComplete(true);
-        setProcessing(false);
-
+      
+      video.onerror = () => {
+        resolve({
+          duration: 300, // 5 minutes fallback
+          sampleRate: 44100,
+          channels: 2,
+          size: file.size,
+          type: file.type,
+        });
+      };
+    });
+  };
+  
+  // Extract actual transcript from video segment using simplified approach
+  const extractRealTranscriptFromSegment = async (videoFile, startTime, endTime) => {
+    return new Promise((resolve) => {
+      console.log(`🎤 Starting speech extraction for segment ${startTime}s - ${endTime}s`);
+      
+      // Check if speech recognition is available
+      if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+        console.warn('Speech recognition not available in this browser');
+        resolve(`[Speech recognition not supported - segment ${Math.floor(startTime/60)}:${String(Math.floor(startTime%60)).padStart(2,'0')} cannot be transcribed]`);
         return;
       }
 
-      if (!analysisResponse.ok) {
-        const errorText = await analysisResponse.text();
-        console.error("API Response Error:", errorText);
-
-        // Fallback to demo data if API fails
-        if (
-          analysisResponse.status === 401 ||
-          analysisResponse.status === 400
-        ) {
-          console.warn(
-            "API key missing or invalid. Using fallback demo analysis."
-          );
-          const fallbackAnalysis = generateFallbackAnalysis(fileInfo);
-
-          // Process fallback analysis
-          setProgress(70);
-          setCurrentStep("Processing analysis...");
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          const processedMoments =
-            fallbackAnalysis.moments?.map((moment, index) => ({
-              id: index + 1,
-              title: moment.title || `Moment ${index + 1}`,
-              startTime: moment.startTime || "0:00",
-              endTime: moment.endTime || "0:30",
-              duration: calculateDuration(moment.startTime, moment.endTime),
-              viralScore: moment.viralScore || 75,
-              description: moment.reasoning || "Engaging content detected",
-              category: moment.category || "engaging",
-              transcript: moment.transcript || "",
-              suggestedCaption: moment.suggestedCaption || "",
-              thumbnail: generateThumbnail(moment.category),
-              clipGenerated: false,
-              clipUrl: null,
-              subtitles: [],
-            })) || [];
-
-          setProgress(100);
-          setCurrentStep("Complete!");
-          setExtractedMoments(processedMoments);
-          setAnalysisComplete(true);
-          setProcessing(false);
-
-          if (processedMoments.length === 0) {
-            setError(
-              "No viral moments detected. Try a different file or longer content."
-            );
-          }
-          return;
-        }
-
-        throw new Error(
-          `Analysis failed: ${analysisResponse.status} - ${analysisResponse.statusText}`
-        );
-      }
-
-      const analysisData = await analysisResponse.json();
-      setProgress(70);
-
-      setCurrentStep("Processing AI analysis...");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Parse AI response
-      let aiAnalysis;
+      const video = document.createElement('video');
+      
       try {
-        let responseText = analysisData.choices[0].message.content;
-        // Clean up response (remove any markdown formatting)
-        responseText = responseText
-          .replace(/```json\s?/g, "")
-          .replace(/```\s?/g, "")
-          .trim();
-        aiAnalysis = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error("Failed to parse AI response:", parseError);
-        throw new Error("Failed to analyze content. Please try again.");
+        video.src = URL.createObjectURL(videoFile);
+        video.crossOrigin = 'anonymous';
+        video.currentTime = startTime;
+        
+        // For speech recognition to work, video needs to be unmuted and audible
+        video.volume = 1.0; // Full volume for better recognition
+        video.muted = false; // Must be unmuted for speech recognition
+        video.preload = 'metadata';
+        
+        // Hide video element but keep it functional
+        video.style.position = 'fixed';
+        video.style.top = '-1000px';
+        video.style.left = '-1000px';
+        video.style.width = '1px';
+        video.style.height = '1px';
+        video.style.opacity = '0';
+        document.body.appendChild(video); // Must be in DOM for audio to work
+        
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        recognition.maxAlternatives = 3;
+        recognition.grammars = null; // Use default grammars for better accuracy
+        
+        let finalTranscript = '';
+        let isRecognitionActive = false;
+        
+        recognition.onstart = () => {
+          isRecognitionActive = true;
+          console.log('🎤 Speech recognition started for segment', `${startTime}s - ${endTime}s`);
+        };
+        
+        recognition.onresult = (event) => {
+          let interimTranscript = '';
+          
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript + ' ';
+              console.log('📝 Final transcript chunk:', transcript);
+            } else {
+              interimTranscript += transcript;
+            }
+          }
+        };
+        
+        recognition.onerror = (event) => {
+          console.log('🔴 Speech recognition error:', event.error);
+          if (event.error === 'no-speech') {
+            console.log('No speech detected in this segment');
+          }
+        };
+        
+        recognition.onend = () => {
+          isRecognitionActive = false;
+          console.log('🔚 Speech recognition ended, final transcript:', finalTranscript);
+          
+          const cleanedTranscript = finalTranscript.trim();
+          if (cleanedTranscript && cleanedTranscript.length > 3) {
+            console.log('✅ Successfully extracted speech:', cleanedTranscript);
+            cleanup();
+            resolve(cleanedTranscript);
+          } else {
+            console.log('⚠️ No speech detected, will use fallback');
+            // Don't cleanup yet, let the timeout handle it
+          }
+        };
+        
+        const cleanup = () => {
+          try {
+            video.pause();
+            if (isRecognitionActive) {
+              recognition.stop();
+            }
+            URL.revokeObjectURL(video.src);
+            if (video.parentNode) {
+              video.parentNode.removeChild(video);
+            }
+          } catch (e) {
+            console.log('Cleanup error:', e);
+          }
+        };
+        
+        video.onloadedmetadata = () => {
+          video.currentTime = startTime;
+        };
+        
+        video.onseeked = () => {
+          console.log(`▶️ Starting video playback at ${startTime}s`);
+          console.log('🔊 Video properties:', {
+            volume: video.volume,
+            muted: video.muted,
+            duration: video.duration,
+            currentTime: video.currentTime
+          });
+          
+          video.play()
+            .then(() => {
+              console.log('✅ Video is now playing');
+              // Start speech recognition after video starts playing
+              setTimeout(() => {
+                try {
+                  console.log('🎤 Starting speech recognition...');
+                  recognition.start();
+                } catch (e) {
+                  console.error('Recognition start error:', e);
+                  cleanup();
+                  resolve(`[Speech recognition failed to start for segment ${Math.floor(startTime/60)}:${String(Math.floor(startTime%60)).padStart(2,'0')}]`);
+                }
+              }, 1500); // Delay to ensure audio is playing
+            })
+            .catch(error => {
+              console.error('Video play error:', error);
+              cleanup();
+              resolve(`[Video playback failed for transcription - segment ${Math.floor(startTime/60)}:${String(Math.floor(startTime%60)).padStart(2,'0')}]`);
+            });
+        };
+        
+        video.ontimeupdate = () => {
+          if (video.currentTime >= endTime) {
+            console.log(`⏹️ Reached end time ${endTime}s, stopping extraction`);
+            cleanup();
+            
+            const cleanedTranscript = finalTranscript.trim();
+            if (cleanedTranscript && cleanedTranscript.length > 3) {
+              resolve(cleanedTranscript);
+            } else {
+              resolve(`[No clear speech detected in segment ${Math.floor(startTime/60)}:${String(Math.floor(startTime%60)).padStart(2,'0')} - ${Math.floor(endTime/60)}:${String(Math.floor(endTime%60)).padStart(2,'0')}]`);
+            }
+          }
+        };
+        
+        video.onerror = (error) => {
+          console.error('Video error:', error);
+          cleanup();
+          resolve(`[Video processing error - segment ${Math.floor(startTime/60)}:${String(Math.floor(startTime%60)).padStart(2,'0')}]`);
+        };
+        
+        // Safety timeout - don't let this run too long
+        setTimeout(() => {
+          console.log('⏰ Timeout reached, stopping extraction');
+          const cleanedTranscript = finalTranscript.trim();
+          
+          if (cleanedTranscript && cleanedTranscript.length > 3) {
+            console.log('✅ Found transcript before timeout:', cleanedTranscript);
+            cleanup();
+            resolve(cleanedTranscript);
+          } else {
+            console.log('⚠️ Speech recognition timeout - trying alternate approach');
+            // Try one more approach with a fresh recognition instance
+            attemptAlternativeRecognition();
+          }
+        }, Math.min((endTime - startTime) * 1000 + 8000, 25000)); // Segment duration + 8s buffer, max 25s
+        
+        // Alternative recognition attempt function
+        const attemptAlternativeRecognition = () => {
+          console.log('🔄 Attempting alternative recognition method');
+          const altRecognition = new SpeechRecognition();
+          altRecognition.continuous = false; // Try single-shot mode
+          altRecognition.interimResults = false;
+          altRecognition.lang = 'en-US';
+          
+          let altTranscript = '';
+          
+          altRecognition.onresult = (event) => {
+            if (event.results.length > 0) {
+              altTranscript = event.results[0][0].transcript;
+              console.log('✅ Alternative recognition found:', altTranscript);
+              cleanup();
+              resolve(altTranscript);
+            }
+          };
+          
+          altRecognition.onerror = altRecognition.onend = () => {
+            cleanup();
+            resolve(`[No speech detected in video segment ${Math.floor(startTime/60)}:${String(Math.floor(startTime%60)).padStart(2,'0')} - ${Math.floor(endTime/60)}:${String(Math.floor(endTime%60)).padStart(2,'0')}]`);
+          };
+          
+          try {
+            // Reset video position and try again
+            video.currentTime = startTime;
+            video.volume = 1.0;
+            altRecognition.start();
+          } catch (e) {
+            console.error('Alternative recognition failed:', e);
+            cleanup();
+            resolve(`[Speech recognition failed for segment ${Math.floor(startTime/60)}:${String(Math.floor(startTime%60)).padStart(2,'0')}]`);
+          }
+        };
+        
+      } catch (error) {
+        console.error('Speech extraction setup error:', error);
+        if (video && video.src) {
+          URL.revokeObjectURL(video.src);
+        }
+        resolve(`[Speech extraction failed - setup error for segment ${Math.floor(startTime/60)}:${String(Math.floor(startTime%60)).padStart(2,'0')}]`);
       }
+    });
+  };
 
-      setProgress(85);
-      setCurrentStep("Generating clips...");
+  const analyzeContent = async (fileInfo) => {
+    try {
+      setCurrentStep("Creating video segments...");
+      setProgress(30);
 
-      // Process the AI analysis into our format
-      const processedMoments =
-        aiAnalysis.moments?.map((moment, index) => ({
-          id: index + 1,
-          title: moment.title || `Moment ${index + 1}`,
-          startTime: moment.startTime || "0:00",
-          endTime: moment.endTime || "0:30",
-          duration: calculateDuration(moment.startTime, moment.endTime),
-          viralScore: moment.viralScore || 75,
-          description: moment.reasoning || "Engaging content detected",
-          category: moment.category || "engaging",
-          transcript: moment.transcript || "",
-          suggestedCaption: moment.suggestedCaption || "",
-          thumbnail: generateThumbnail(moment.category),
+      // Generate time segments based on duration
+      const duration = fileInfo.duration;
+      const numMoments = Math.min(5, Math.max(3, Math.floor(duration / 120)));
+      const segments = [];
+      
+      for (let i = 0; i < numMoments; i++) {
+        const startTime = Math.floor((i * duration) / numMoments);
+        const endTime = Math.min(startTime + 30, duration - 5);
+        
+        const formatTime = (seconds) => {
+          const mins = Math.floor(seconds / 60);
+          const secs = seconds % 60;
+          return `${mins}:${secs.toString().padStart(2, "0")}`;
+        };
+        
+        segments.push({
+          id: i + 1,
+          title: `Video Segment ${i + 1}`,
+          startTime: formatTime(startTime),
+          endTime: formatTime(endTime),
+          startTimeSeconds: startTime,
+          endTimeSeconds: endTime,
+          duration: `${endTime - startTime}s`,
+          viralScore: 85,
+          description: "Click to generate transcript",
+          category: "video",
+          transcript: "Click 'Generate Clip' to transcribe this segment",
+          suggestedCaption: `Video segment ${i + 1} 🎬`,
+          thumbnail: generateThumbnail("video"),
           clipGenerated: false,
           clipUrl: null,
           subtitles: [],
-        })) || [];
+          transcribed: false
+        });
+        
+        setProgress(30 + (i + 1) * (60 / numMoments));
+      }
 
       setProgress(100);
-      setCurrentStep("Complete!");
-
-      setExtractedMoments(processedMoments);
+      setCurrentStep("Ready to transcribe!");
+      setExtractedMoments(segments);
       setAnalysisComplete(true);
       setProcessing(false);
 
-      if (processedMoments.length === 0) {
-        setError(
-          "No viral moments detected. Try a different file or longer content."
-        );
-      }
+      console.log(`✅ Created ${segments.length} video segments`);
+
     } catch (error) {
       console.error("Analysis error:", error);
       setError(`Analysis failed: ${error.message}`);
@@ -1417,12 +913,12 @@ DO NOT include any text outside the JSON. Make realistic timestamps based on the
     }
   };
 
+  const parseTime = (timeStr) => {
+    const parts = timeStr.split(":").map(Number);
+    return parts.length === 2 ? parts[0] * 60 + parts[1] : parts[0];
+  };
+  
   const calculateDuration = (start, end) => {
-    const parseTime = (timeStr) => {
-      const parts = timeStr.split(":").map(Number);
-      return parts.length === 2 ? parts[0] * 60 + parts[1] : parts[0];
-    };
-
     try {
       const startSec = parseTime(start);
       const endSec = parseTime(end);
@@ -1436,14 +932,16 @@ DO NOT include any text outside the JSON. Make realistic timestamps based on the
   const generateThumbnail = (category) => {
     const colors = {
       funny: "#f59e0b",
-      shocking: "#ef4444",
+      shocking: "#ef4444", 
       educational: "#3b82f6",
       emotional: "#8b5cf6",
       controversial: "#f97316",
       engaging: "#10b981",
+      real: "#22c55e",
+      video: "#8b5cf6", // Purple for video segments
     };
 
-    const color = colors[category] || colors.engaging;
+    const color = colors[category] || colors.video;
 
     return `data:image/svg+xml;base64,${btoa(`
       <svg width="200" height="112" viewBox="0 0 200 112" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1470,8 +968,7 @@ DO NOT include any text outside the JSON. Make realistic timestamps based on the
             <h1 className="text-4xl font-bold text-white">Content Scalar</h1>
           </div>
           <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-            AI-powered viral moment detection - Upload your content and our AI
-            will intelligently analyze patterns to find engaging clips
+            Real speech extraction - Upload your content and we'll extract the actual spoken words
           </p>
         </div>
 
@@ -1518,190 +1015,88 @@ DO NOT include any text outside the JSON. Make realistic timestamps based on the
               />
             </div>
           ) : (
-            <div className="bg-gray-800 rounded-lg p-6 mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  {file.type.startsWith("video") ? (
-                    <FileVideo className="w-6 h-6 text-blue-400" />
-                  ) : (
-                    <FileAudio className="w-6 h-6 text-green-400" />
-                  )}
-                  <div>
-                    <h3 className="text-white font-medium">{file.name}</h3>
-                    <p className="text-gray-400 text-sm">
-                      {(file.size / (1024 * 1024)).toFixed(1)} MB
-                    </p>
-                  </div>
-                </div>
-                {analysisComplete && (
-                  <div className="flex items-center gap-2 text-green-400">
-                    <Zap className="w-4 h-4" />
-                    <span className="text-sm font-medium">
-                      Analysis Complete
-                    </span>
-                  </div>
-                )}
-              </div>
-
+            <div>
+              {/* Processing State */}
               {processing && (
-                <div className="mt-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-purple-500 border-t-transparent"></div>
-                    <span className="text-gray-300 text-sm">{currentStep}</span>
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-2">
+                <div className="bg-gray-800/30 rounded-lg p-8 text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mx-auto mb-4"></div>
+                  <h3 className="text-xl font-semibold text-white mb-2">Processing...</h3>
+                  <p className="text-gray-300 mb-4">{currentStep}</p>
+                  <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
                     <div
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 h-2 rounded-full transition-all duration-300"
+                      className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${progress}%` }}
                     ></div>
                   </div>
-                  <div className="text-right text-xs text-gray-400 mt-1">
-                    {Math.round(progress)}%
-                  </div>
+                  <p className="text-gray-400">{progress}% complete</p>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Results Section */}
-          {analysisComplete && extractedMoments.length > 0 && (
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                <Zap className="w-6 h-6 text-yellow-400" />
-                AI-Detected Viral Moments ({extractedMoments.length})
-              </h2>
-
-              <div className="grid gap-6">
-                {extractedMoments.map((moment) => (
-                  <div key={moment.id} className="bg-gray-700 rounded-lg p-4">
-                    <div className="flex items-start gap-4">
-                      <img
-                        src={moment.thumbnail}
-                        alt={moment.title}
-                        className="w-32 h-18 object-cover rounded"
-                      />
-
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="text-lg font-semibold text-white">
-                            {moment.title}
-                          </h3>
-                          <div className="flex items-center gap-2">
-                            <span className="bg-blue-500 text-white px-2 py-1 rounded text-xs">
-                              {moment.category}
-                            </span>
-                            <div className="bg-green-500 text-white px-2 py-1 rounded text-xs font-bold">
-                              {moment.viralScore}% Viral
-                            </div>
-                          </div>
-                        </div>
-
-                        <p className="text-gray-300 text-sm mb-2">
-                          {moment.description}
-                        </p>
-
-                        {moment.transcript && (
-                          <div className="bg-gray-800 p-4 rounded mb-3">
-                            <p className="text-yellow-200 text-base italic leading-relaxed whitespace-pre-wrap">
-                              "{moment.transcript}"
-                            </p>
-                          </div>
-                        )}
-
-                        {moment.suggestedCaption && (
-                          <p className="text-blue-200 text-sm mb-3">
-                            <strong>Suggested Caption:</strong>{" "}
-                            {moment.suggestedCaption}
-                          </p>
-                        )}
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4 text-sm text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              <span>
-                                {moment.startTime} - {moment.endTime}
-                              </span>
-                            </div>
-                            <span className="bg-gray-600 px-2 py-1 rounded">
-                              {moment.duration}
-                            </span>
-                            {moment.clipGenerated && (
-                              <span className="bg-green-600 px-2 py-1 rounded text-xs">
-                                ✓ Clip Ready
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            {moment.clipGenerated && (
-                              <button
-                                onClick={() => previewClip(moment)}
-                                className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition-colors text-sm flex items-center gap-1"
-                              >
-                                <Play className="w-3 h-3" />
-                                Preview
-                              </button>
-                            )}
-
-                            {clipProgress[moment.id] !== undefined ? (
-                              <div className="flex items-center gap-2">
-                                <div className="w-20 bg-gray-600 rounded-full h-2">
-                                  <div
-                                    className="bg-purple-500 h-2 rounded-full transition-all duration-300"
-                                    style={{
-                                      width: `${clipProgress[moment.id]}%`,
-                                    }}
-                                  ></div>
-                                </div>
-                                <span className="text-xs text-gray-400">
-                                  {Math.round(clipProgress[moment.id])}%
-                                </span>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => downloadClip(moment)}
-                                disabled={generatingClips}
-                                className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition-colors flex items-center gap-1 text-sm disabled:opacity-50"
-                              >
-                                <Download className="w-4 h-4" />
-                                {moment.clipGenerated
-                                  ? "Download"
-                                  : "Generate Clip"}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+              {/* Analysis Complete State */}
+              {analysisComplete && extractedMoments.length > 0 && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-2xl font-bold text-white">
+                      Speech Segments Found: {extractedMoments.length}
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setFile(null);
+                        setExtractedMoments([]);
+                        setAnalysisComplete(false);
+                        setProgress(0);
+                        setError(null);
+                      }}
+                      className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                    >
+                      Upload New File
+                    </button>
                   </div>
-                ))}
-              </div>
-
-              <div className="mt-6 p-4 bg-green-900/30 rounded-lg">
-                <p className="text-green-200 text-sm">
-                  <strong className="text-white">
-                    🎬 Video Clip Generation!
-                  </strong>{" "}
-                  Click "Generate Clip" to create actual video segments with
-                  embedded subtitles. Each clip will include AI-generated
-                  captions perfectly timed to the dialogue. When you preview,
-                  you'll see live yellow captions transcribing the actual video
-                  audio!
-                </p>
-              </div>
-
-              {speechSupported && (
-                <div className="mt-4 p-4 bg-blue-900/30 rounded-lg">
-                  <p className="text-blue-200 text-sm">
-                    <strong className="text-white flex items-center gap-2">
-                      <Mic className="w-4 h-4" /> Real-time Captions!
-                    </strong>
-                    When previewing clips, click the 🎤 button to enable live
-                    speech-to-text captions that transcribe what the speaker is
-                    saying in real-time. Use Ctrl+C to toggle captions on/off
-                    during playback.
-                  </p>
+                  
+                  <div className="grid gap-4">
+                    {extractedMoments.map((moment) => (
+                      <div
+                        key={moment.id}
+                        className="bg-gray-800/50 rounded-lg p-6 border border-gray-700"
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex-1">
+                            <h4 className="text-lg font-semibold text-white mb-2">
+                              Segment #{moment.id}
+                            </h4>
+                            <p className="text-gray-300 text-sm mb-2">
+                              {moment.startTime} - {moment.endTime} ({moment.duration})
+                            </p>
+                            <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-lg p-3 mb-3">
+                              <p className="text-yellow-200 text-sm">
+                                <strong>Transcript:</strong> "{moment.transcript}"
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={() => {
+                            if (moment.clipGenerated) {
+                              showVideoClipModal(moment);
+                            } else {
+                              generateVideoClip(moment);
+                            }
+                          }}
+                          disabled={clipProgress[moment.id] !== undefined}
+                          className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                        >
+                          {clipProgress[moment.id] !== undefined ? (
+                            <span>Generating... {clipProgress[moment.id]}%</span>
+                          ) : moment.clipGenerated ? (
+                            "▶️ View Clip"
+                          ) : (
+                            "🎬 Generate Clip"
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

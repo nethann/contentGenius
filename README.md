@@ -1,66 +1,93 @@
 # Content Scalar
 
-AI-powered viral moment detection - Upload your content and our AI will intelligently analyze patterns to find engaging clips.
-
-## Features
-
-- **AI-Powered Analysis**: Uses Claude AI to analyze video and audio content for viral moments
-- **Multiple File Formats**: Supports MP4 video, MP3 and WAV audio files
-- **Viral Score**: Each detected moment gets a viral potential score
-- **Clip Generation**: Generate video clips with embedded subtitles and captions
-- **Preview Functionality**: Preview generated clips before downloading
-- **Fallback Mode**: Works offline with demo data if API key is not configured
+A video transcription tool that extracts real speech from videos using FFmpeg and Groq Whisper API.
 
 ## Setup Instructions
 
-### 1. Install Dependencies
+### 1. Install Backend Dependencies
+
+```bash
+cd server
+npm install
+```
+
+### 2. Install Frontend Dependencies  
+
 ```bash
 npm install
 ```
 
-### 2. Configure API Key (Optional)
-Create a `.env` file in the root directory:
-```env
-VITE_ANTHROPIC_API_KEY=your-anthropic-api-key-here
+### 3. Install FFmpeg
+
+**Windows:**
+- Download from https://ffmpeg.org/download.html
+- Add to your PATH environment variable
+
+**Mac:**
+```bash
+brew install ffmpeg
 ```
 
-**To get an Anthropic API key:**
-1. Visit [Anthropic Console](https://console.anthropic.com/account/keys)
-2. Sign up or log in to your account  
-3. Create a new API key
-4. Copy the key to your `.env` file
+**Linux:**
+```bash
+sudo apt update
+sudo apt install ffmpeg
+```
 
-**Note:** The app works without an API key using fallback demo analysis.
+### 4. Start the Backend Server
 
-### 3. Run the Development Server
+```bash
+cd server
+npm start
+```
+
+The server will run on http://localhost:3001
+
+### 5. Start the Frontend
+
 ```bash
 npm run dev
 ```
 
-### 4. Build for Production
-```bash
-npm run build
-```
+The frontend will run on http://localhost:5173
 
 ## How It Works
 
-1. **Upload**: Drag and drop or select an MP4, MP3, or WAV file
-2. **Analysis**: The AI analyzes your content to identify viral moments based on:
-   - Emotional peaks and reactions
-   - Quotable moments and insights
-   - Comedic timing and funny segments
-   - Educational value and key takeaways
-3. **Results**: View detected moments with viral scores, timestamps, and descriptions
-4. **Generate Clips**: Create downloadable clips with subtitles and social media captions
-5. **Preview**: Watch generated clips before downloading
+1. **Upload video** - Frontend uploads video to backend server
+2. **Create segments** - Frontend creates 3-5 time segments (30 seconds each)
+3. **Generate clips** - When you click "Generate Clip":
+   - Frontend sends segment timestamps to backend
+   - Backend uses FFmpeg to extract audio from that specific segment
+   - Backend sends audio to Groq Whisper API for transcription
+   - Backend returns transcript with word-level timestamps
+   - Frontend displays real captions synced to video playback
 
-## Technical Stack
+## Features
 
-- **React** with Vite for fast development
-- **Tailwind CSS** for styling
-- **Anthropic Claude AI** for content analysis
-- **Canvas API** for video frame generation
-- **Lucide React** for icons
+- ✅ **Real Video Transcription** - Uses Groq Whisper API (not browser speech recognition)
+- ✅ **FFmpeg Audio Extraction** - Processes actual video files
+- ✅ **Word-Level Timestamps** - Captions sync perfectly with speech
+- ✅ **Segment-Based Processing** - 30-second viral moments
+- ✅ **Live Caption Display** - Shows captions as video plays
+
+## API Endpoints
+
+- `POST /api/upload` - Upload video file
+- `POST /api/transcribe-segment` - Transcribe specific video segment
+- `GET /health` - Health check
+
+## Environment Variables
+
+Backend (server/.env):
+```
+GROQ_API_KEY=your_groq_api_key_here
+PORT=3001
+```
+
+Frontend (.env):
+```
+VITE_GROQ_API_KEY=your_groq_api_key_here
+```
 
 ## File Structure
 
@@ -68,24 +95,29 @@ npm run build
 content-scalar/
 ├── src/
 │   ├── components/
-│   │   └── ContentScalar.jsx  # Main application component
-│   ├── App.jsx               # App wrapper
-│   └── main.jsx             # Entry point
-├── public/
-├── .env                     # Environment variables (create this)
-├── package.json
+│   │   └── ContentScalar.jsx  # React frontend
+│   ├── App.jsx               
+│   └── main.jsx             
+├── server/
+│   ├── server.js             # Express backend
+│   ├── package.json         # Backend dependencies
+│   └── .env                 # Backend environment
+├── package.json             # Frontend dependencies
 └── README.md
 ```
 
-## API Integration
+## Technical Stack
 
-The app uses the Anthropic Claude API for intelligent content analysis. If no API key is provided, it falls back to demo data generation based on file characteristics.
+**Frontend:**
+- React + Vite
+- Tailwind CSS
+- Video player with custom controls
 
-**API Features Used:**
-- Content pattern analysis
-- Viral moment detection
-- Subtitle generation
-- Caption suggestions
+**Backend:**
+- Node.js + Express
+- FFmpeg for audio extraction
+- Groq Whisper API for transcription
+- Multer for file uploads
 
 ## Contributing
 
