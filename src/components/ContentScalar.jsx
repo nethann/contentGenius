@@ -1103,16 +1103,15 @@ const ContentScalar = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Zap className="w-8 h-8 text-yellow-400" />
-            <h1 className="text-4xl font-bold text-white">Content Scalar</h1>
-          </div>
+          <h1 className="text-4xl font-bold text-white mb-4">
+            AI-Powered Video Analysis
+          </h1>
           <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-            Real speech extraction - Upload your content and we'll extract the actual spoken words
+            Upload your content and we'll extract viral moments with attention-grabbing subtitles
           </p>
         </div>
 
@@ -1130,7 +1129,7 @@ const ContentScalar = () => {
         <div className="max-w-4xl mx-auto">
           {!file ? (
             <div
-              className="border-2 border-dashed border-gray-600 rounded-lg p-12 text-center bg-gray-800/30 hover:bg-gray-800/50 transition-colors cursor-pointer"
+              className="border-2 border-dashed border-gray-600 rounded-lg p-12 text-center bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-gray-700"
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -1162,13 +1161,13 @@ const ContentScalar = () => {
             <div>
               {/* Processing State */}
               {processing && (
-                <div className="bg-gray-800/30 rounded-lg p-8 text-center">
+                <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mx-auto mb-4"></div>
                   <h3 className="text-xl font-semibold text-white mb-2">Processing...</h3>
                   <p className="text-gray-300 mb-4">{currentStep}</p>
-                  <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
+                  <div className="w-full bg-gray-600 rounded-full h-2 mb-4">
                     <div
-                      className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${progress}%` }}
                     ></div>
                   </div>
@@ -1201,8 +1200,8 @@ const ContentScalar = () => {
                     {extractedMoments.map((moment) => (
                       <div
                         key={moment.id}
-                        className="bg-gray-800/50 rounded-lg p-6 border border-gray-700"
-                      >
+                        className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                      
                         <div className="flex justify-between items-start mb-4">
                           <div className="flex-1">
                             <h4 className="text-lg font-semibold text-white mb-2">
@@ -1211,8 +1210,8 @@ const ContentScalar = () => {
                             <p className="text-gray-300 text-sm mb-2">
                               {moment.startTime} - {moment.endTime} ({moment.duration})
                             </p>
-                            <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-lg p-3 mb-3">
-                              <p className="text-yellow-200 text-sm">
+                            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-3">
+                              <p className="text-blue-200 text-sm">
                                 <strong>Transcript:</strong> "{moment.transcript}"
                               </p>
                             </div>

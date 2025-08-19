@@ -1,0 +1,195 @@
+/* Base Dark Theme Variables and Global Styles */
+:root {
+  /* Dark Theme Colors */
+  --bg-primary: #111827; /* gray-900 */
+  --bg-secondary: #1f2937; /* gray-800 */
+  --bg-tertiary: #374151; /* gray-700 */
+  --bg-quaternary: #4b5563; /* gray-600 */
+  
+  --border-primary: #374151; /* gray-700 */
+  --border-secondary: #4b5563; /* gray-600 */
+  
+  --text-primary: #ffffff;
+  --text-secondary: #d1d5db; /* gray-300 */
+  --text-tertiary: #9ca3af; /* gray-400 */
+  --text-quaternary: #6b7280; /* gray-500 */
+  
+  --accent-blue: #2563eb; /* blue-600 */
+  --accent-blue-hover: #1d4ed8; /* blue-700 */
+  --accent-blue-light: #60a5fa; /* blue-400 */
+  
+  --success: #16a34a; /* green-600 */
+  --success-hover: #15803d; /* green-700 */
+  --success-light: #4ade80; /* green-400 */
+  
+  --warning: #d97706; /* amber-600 */
+  --danger: #dc2626; /* red-600 */
+  --danger-light: #f87171; /* red-400 */
+  
+  --yellow-accent: #eab308; /* yellow-500 */
+}
+
+/* Global Reset and Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Common Utility Classes */
+.bg-primary { background-color: var(--bg-primary); }
+.bg-secondary { background-color: var(--bg-secondary); }
+.bg-tertiary { background-color: var(--bg-tertiary); }
+
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary { color: var(--text-tertiary); }
+
+.border-primary { border-color: var(--border-primary); }
+.border-secondary { border-color: var(--border-secondary); }
+
+.btn-primary {
+  background-color: var(--accent-blue);
+  color: var(--text-primary);
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-blue-hover);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--text-secondary);
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  border: 2px solid var(--border-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  border-color: var(--border-primary);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 1rem;
+  padding: 2rem;
+}
+
+.input {
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  color: var(--text-primary);
+  width: 100%;
+  transition: border-color 0.2s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+}
+
+.input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* Common Layout Classes */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.gap-4 { gap: 1rem; }
+.gap-6 { gap: 1.5rem; }
+.gap-8 { gap: 2rem; }
+
+.text-center {
+  text-align: center;
+}
+
+.min-h-screen {
+  min-height: 100vh;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.h-full {
+  height: 100%;
+}
+
+/* Responsive Grid */
+.grid {
+  display: grid;
+}
+
+.grid-cols-1 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 768px) {
+  .md\\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .md\\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .md\\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Transitions */
+.transition {
+  transition: all 0.2s ease;
+}
+
+.transition-colors {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}

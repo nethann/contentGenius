@@ -1,0 +1,357 @@
+/* ContentScalar Component Styles */
+.content-scalar {
+  min-height: 100vh;
+}
+
+.content-scalar-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+/* Header */
+.content-scalar-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.content-scalar-title {
+  font-size: 2.25rem;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.content-scalar-description {
+  color: var(--text-secondary);
+  font-size: 1.125rem;
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+/* Error Display */
+.error-container {
+  max-width: 64rem;
+  margin: 0 auto 1.5rem;
+}
+
+.error-alert {
+  background-color: rgba(153, 27, 27, 0.3);
+  border: 1px solid var(--danger);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.error-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--danger-light);
+}
+
+.error-text {
+  color: var(--danger-light);
+}
+
+/* Upload Section */
+.upload-container {
+  max-width: 64rem;
+  margin: 0 auto;
+}
+
+.upload-zone {
+  border: 2px dashed var(--border-secondary);
+  border-radius: 0.5rem;
+  padding: 3rem;
+  text-align: center;
+  background-color: var(--bg-secondary);
+  border-color: var(--border-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upload-zone:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.upload-icon {
+  width: 4rem;
+  height: 4rem;
+  color: var(--text-quaternary);
+  margin: 0 auto 1rem;
+}
+
+.upload-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.upload-subtitle {
+  color: var(--text-tertiary);
+  margin-bottom: 1rem;
+}
+
+.upload-file-types {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: var(--text-quaternary);
+}
+
+.upload-file-type {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.upload-file-type-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.upload-input {
+  display: none;
+}
+
+/* Processing State */
+.processing-container {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.processing-spinner {
+  width: 3rem;
+  height: 3rem;
+  border: 2px solid transparent;
+  border-bottom: 2px solid var(--accent-blue);
+  border-radius: 50%;
+  margin: 0 auto 1rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.processing-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.processing-status {
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.processing-progress-bar {
+  width: 100%;
+  background-color: var(--bg-quaternary);
+  border-radius: 9999px;
+  height: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.processing-progress-fill {
+  background-color: var(--accent-blue);
+  height: 0.5rem;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.processing-percentage {
+  color: var(--text-tertiary);
+}
+
+/* Analysis Complete State */
+.analysis-complete {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.analysis-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.analysis-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.analysis-new-file {
+  padding: 0.5rem 1rem;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.analysis-new-file:hover {
+  background-color: var(--bg-quaternary);
+}
+
+/* Segments Grid */
+.segments-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.segment-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.segment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.segment-info {
+  flex: 1;
+}
+
+.segment-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.segment-time {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.segment-transcript-preview {
+  background-color: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.segment-transcript-label {
+  color: var(--accent-blue-light);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.segment-transcript-text {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* Segment Actions */
+.segment-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.segment-action-primary {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  background-color: var(--success);
+  color: var(--text-primary);
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.segment-action-primary:hover:not(:disabled) {
+  background-color: var(--success-hover);
+}
+
+.segment-action-primary:disabled {
+  background-color: var(--bg-tertiary);
+  cursor: not-allowed;
+}
+
+.segment-action-secondary {
+  padding: 0.5rem 1rem;
+  background-color: var(--accent-blue);
+  color: var(--text-primary);
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.segment-action-secondary:hover {
+  background-color: var(--accent-blue-hover);
+}
+
+.segment-action-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .content-scalar-container {
+    padding: 1rem;
+  }
+  
+  .content-scalar-title {
+    font-size: 1.875rem;
+  }
+  
+  .content-scalar-description {
+    font-size: 1rem;
+  }
+  
+  .upload-zone {
+    padding: 2rem;
+  }
+  
+  .upload-icon {
+    width: 3rem;
+    height: 3rem;
+  }
+  
+  .upload-title {
+    font-size: 1.125rem;
+  }
+  
+  .analysis-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .segment-actions {
+    flex-direction: column;
+  }
+}
