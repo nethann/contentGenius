@@ -33,17 +33,17 @@ const ContentScalar = () => {
       'DANGEROUS', 'RISKY', 'SAFE', 'SECURE', 'PROTECTED', 'GUARANTEE'
     ];
     
-    // Apply red highlighting to attention words
+    // Apply darker orange highlighting to attention words
     attentionWords.forEach(word => {
       const regex = new RegExp(`\\b${word}\\b`, 'gi');
-      highlightedText = highlightedText.replace(regex, `<span style="color: red; font-weight: bold;">${word}</span>`);
+      highlightedText = highlightedText.replace(regex, `<span style="color: #FF6B35; font-weight: bold; text-shadow: 0 0 4px #FF6B35;">${word}</span>`);
     });
     
     // Highlight numbers and percentages
-    highlightedText = highlightedText.replace(/\b\d+(\.\d+)?\s*%\b/g, '<span style="color: red; font-weight: bold;">$&</span>');
-    highlightedText = highlightedText.replace(/\b\d+x\b/gi, '<span style="color: red; font-weight: bold;">$&</span>');
+    highlightedText = highlightedText.replace(/\b\d+(\.\d+)?\s*%\b/g, '<span style="color: #FF6B35; font-weight: bold; text-shadow: 0 0 4px #FF6B35;">$&</span>');
+    highlightedText = highlightedText.replace(/\b\d+x\b/gi, '<span style="color: #FF6B35; font-weight: bold; text-shadow: 0 0 4px #FF6B35;">$&</span>');
     // Fixed: Only highlight complete money amounts, not standalone $ symbols
-    highlightedText = highlightedText.replace(/\$\d+(?:,\d{3})*(?:\.\d{2})?\b/g, '<span style="color: red; font-weight: bold;">$&</span>');
+    highlightedText = highlightedText.replace(/\$\d+(?:,\d{3})*(?:\.\d{2})?\b/g, '<span style="color: #FF6B35; font-weight: bold; text-shadow: 0 0 4px #FF6B35;">$&</span>');
     
     return highlightedText;
   };
@@ -158,7 +158,10 @@ const ContentScalar = () => {
         m.id === moment.id
           ? {
               ...m,
+              title: transcriptionResult.title || m.title,
               transcript: transcriptionResult.transcript,
+              endTimeSeconds: transcriptionResult.adjustedEndTime || m.endTimeSeconds,
+              duration: transcriptionResult.actualDuration ? `${transcriptionResult.actualDuration}s` : m.duration,
               subtitles: transcriptionResult.captions,
               highlightedSubtitles: transcriptionResult.highlightedCaptions,
               clipGenerated: true,
@@ -237,9 +240,9 @@ const ContentScalar = () => {
       color: white; padding: 8px 12px; border-radius: 6px; 
       font-size: 20px; font-weight: 600; text-align: center; 
       line-height: 1.3; letter-spacing: 0.3px;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.8), -1px -1px 2px rgba(0,0,0,0.8);
+      text-shadow: 1px 1px 1px rgba(0,0,0,1), -1px -1px 1px rgba(0,0,0,1);
       opacity: 1; transition: all 0.3s ease;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-family: Arial, sans-serif;
       pointer-events: none;
     `;
     
@@ -315,7 +318,7 @@ const ContentScalar = () => {
       cursor: pointer; backdrop-filter: blur(10px);
     `;
 
-    // Caption display system for backend transcripts
+    // Caption display system with word-by-word animation
     const updateCaptions = () => {
       const highlightedSubtitles = moment.highlightedSubtitles || moment.subtitles;
       if (!highlightedSubtitles || highlightedSubtitles.length === 0) return;
@@ -326,16 +329,36 @@ const ContentScalar = () => {
       );
       
       if (currentCaption) {
+        // Create animated word-by-word highlighting
+        const words = currentCaption.text.split(' ');
+        const captionDuration = currentCaption.end - currentCaption.start;
+        const timePerWord = captionDuration / words.length;
+        const captionProgress = (currentTime - currentCaption.start) / captionDuration;
+        const currentWordIndex = Math.floor(captionProgress * words.length);
+        
+        const animatedHTML = words.map((word, index) => {
+          if (index < currentWordIndex) {
+            // Already spoken - show in full brightness
+            return `<span style="color: white; opacity: 1;">${word}</span>`;
+          } else if (index === currentWordIndex) {
+            // Currently being spoken - highlight in darker orange
+            return `<span style="color: #FF6B35; opacity: 1; text-shadow: 0 0 6px #FF6B35; font-weight: bold;">${word}</span>`;
+          } else {
+            // Not yet spoken - show dimmed
+            return `<span style="color: white; opacity: 0.4;">${word}</span>`;
+          }
+        }).join(' ');
+        
         captionsOverlay.innerHTML = `
-          <div style="color: white; font-size: 20px; font-weight: bold;">
-            ${currentCaption.text}
+          <div style="color: white; font-size: 20px; font-weight: 600; font-family: Arial, sans-serif; transition: all 0.1s ease;">
+            ${animatedHTML}
           </div>
         `;
       } else if (moment.transcript) {
         // Apply highlighting to full transcript as well for when no specific caption is active
         const highlightedTranscript = highlightAttentionWordsClient(moment.transcript);
         captionsOverlay.innerHTML = `
-          <div style="color: white; font-size: 18px; opacity: 0.9;">
+          <div style="color: white; font-size: 18px; opacity: 0.9; font-family: Arial, sans-serif;">
             ${highlightedTranscript}
           </div>
         `;
@@ -1020,7 +1043,7 @@ const ContentScalar = () => {
         
         segments.push({
           id: i + 1,
-          title: `Video Segment ${i + 1}`,
+          title: `Untitled Segment ${i + 1}`,
           startTime: formatTime(startTime),
           endTime: formatTime(endTime),
           startTimeSeconds: startTime,
@@ -1205,7 +1228,7 @@ const ContentScalar = () => {
                         <div className="flex justify-between items-start mb-4">
                           <div className="flex-1">
                             <h4 className="text-lg font-semibold text-white mb-2">
-                              Segment #{moment.id}
+                              {moment.title}
                             </h4>
                             <p className="text-gray-300 text-sm mb-2">
                               {moment.startTime} - {moment.endTime} ({moment.duration})

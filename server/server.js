@@ -57,6 +57,41 @@ const upload = multer({
   }
 });
 
+// Intelligently adjust end time to complete sentences
+function adjustEndTimeForSentences(transcript, originalEndTime, maxExtension = 10) {
+  if (!transcript || transcript.length < 10) {
+    return originalEndTime;
+  }
+  
+  // Look for sentence endings near the original end time
+  const sentenceEnders = ['.', '!', '?', '...'];
+  const words = transcript.split(' ');
+  const avgWordsPerSecond = words.length / originalEndTime;
+  
+  // Find the approximate word index at original end time
+  const endWordIndex = Math.floor(originalEndTime * avgWordsPerSecond);
+  
+  // Look for sentence endings within the next few words
+  const searchRange = Math.min(Math.floor(avgWordsPerSecond * maxExtension), words.length - endWordIndex);
+  
+  for (let i = 0; i < searchRange; i++) {
+    const wordIndex = endWordIndex + i;
+    if (wordIndex >= words.length) break;
+    
+    const word = words[wordIndex];
+    if (sentenceEnders.some(ender => word.endsWith(ender))) {
+      // Found a sentence ending, calculate new time
+      const newEndTime = originalEndTime + (i / avgWordsPerSecond);
+      console.log(`📝 Extended segment by ${(newEndTime - originalEndTime).toFixed(1)}s to complete sentence`);
+      return newEndTime;
+    }
+  }
+  
+  // If no sentence ending found, extend by a smaller amount to avoid cutting mid-word
+  const smallExtension = Math.min(3, maxExtension);
+  return originalEndTime + smallExtension;
+}
+
 // Extract audio segment from video using FFmpeg
 async function extractAudioSegment(videoPath, startTime, endTime, outputPath) {
   return new Promise((resolve, reject) => {
@@ -189,37 +224,63 @@ async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitl
       return;
     }
 
-    // Create SRT subtitle file with attention-grabbing highlights
-    console.log(`📝 Creating SRT file for ${subtitles.length} subtitle segments`);
+    // Create word-by-word SRT file for better compatibility
+    console.log(`📝 Creating word-by-word SRT file for ${subtitles.length} subtitle segments`);
     let srtContent = '';
-    subtitles.forEach((subtitle, index) => {
-      const startSrt = formatTimeToSrt(subtitle.start);
-      const endSrt = formatTimeToSrt(subtitle.end);
-      const highlightedText = highlightAttentionWords(subtitle.text);
-      srtContent += `${index + 1}\n${startSrt} --> ${endSrt}\n${highlightedText}\n\n`;
+    let srtIndex = 1;
+    
+    subtitles.forEach((subtitle) => {
+      const words = subtitle.text.split(' ');
+      const segmentDuration = subtitle.end - subtitle.start;
+      const timePerWord = segmentDuration / words.length;
+      
+      words.forEach((word, wordIndex) => {
+        const wordStart = subtitle.start + (wordIndex * timePerWord);
+        const wordEnd = Math.min(subtitle.start + ((wordIndex + 1) * timePerWord), subtitle.end);
+        
+        const startSrt = formatTimeToSrt(wordStart);
+        const endSrt = formatTimeToSrt(wordEnd);
+        
+        // Create the full sentence with current word highlighted
+        const highlightedText = words.map((w, i) => {
+          if (i === wordIndex) {
+            // Currently speaking word - make it orange/red using HTML-like tags
+            return `<font color="#FF6B35"><b>${highlightAttentionWords(w)}</b></font>`;
+          } else if (i < wordIndex) {
+            // Already spoken - normal white
+            return highlightAttentionWords(w);
+          } else {
+            // Future words - dimmed using opacity (not all players support this)
+            return `<font color="#CCCCCC">${highlightAttentionWords(w)}</font>`;
+          }
+        }).join(' ');
+        
+        srtContent += `${srtIndex}\n${startSrt} --> ${endSrt}\n${highlightedText}\n\n`;
+        srtIndex++;
+      });
     });
 
     const srtPath = join(tempDir, `subtitles-${uuidv4()}.srt`);
     
     try {
       fs.writeFileSync(srtPath, srtContent, 'utf8');
-      console.log(`✅ SRT file created: ${srtPath}`);
+      console.log(`✅ Word-by-word SRT file created: ${srtPath}`);
     } catch (srtError) {
       console.error('❌ SRT creation error:', srtError);
       reject(srtError);
       return;
     }
 
-    // For Windows, we need to escape the path properly
+    // Use libass subtitle filter with exact font styling to match preview
     const isWindows = process.platform === 'win32';
     let subtitleFilter;
     
     if (isWindows) {
       // Windows path handling - use forward slashes and escape colons
       const windowsSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
-      subtitleFilter = `subtitles='${windowsSrtPath}':force_style='FontSize=24,PrimaryColour=&Hffffff,OutlineColour=&H000000,Outline=2'`;
+      subtitleFilter = `subtitles='${windowsSrtPath}':force_style='FontName=Arial,FontSize=20,PrimaryColour=&Hffffff&,OutlineColour=&H000000&,Outline=1,Shadow=0,Bold=1,Alignment=2'`;
     } else {
-      subtitleFilter = `subtitles='${srtPath}':force_style='FontSize=24,PrimaryColour=&Hffffff,OutlineColour=&H000000,Outline=2'`;
+      subtitleFilter = `subtitles='${srtPath}':force_style='FontName=Arial,FontSize=20,PrimaryColour=&Hffffff&,OutlineColour=&H000000&,Outline=1,Shadow=0,Bold=1,Alignment=2'`;
     }
 
     console.log(`🎨 Using subtitle filter: ${subtitleFilter}`);
@@ -251,7 +312,7 @@ async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitl
         } catch (e) {
           console.warn('SRT cleanup warning:', e.message);
         }
-        console.log(`✅ Video with embedded subtitles generated: ${outputPath}`);
+        console.log(`✅ Video with animated subtitles generated: ${outputPath}`);
         resolve(outputPath);
       })
       .on('error', async (err) => {
@@ -278,11 +339,66 @@ function formatTimeToSrt(seconds) {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
 }
 
-// Apply attention-grabbing highlights to text
+// Generate meaningful title from transcript
+function generateTitleFromTranscript(transcript) {
+  if (!transcript || transcript.length < 10) {
+    return 'Short Clip';
+  }
+
+  // Remove filler words and get key phrases
+  const fillerWords = ['um', 'uh', 'like', 'you know', 'so', 'well', 'okay', 'right'];
+  const words = transcript.toLowerCase().split(/\s+/)
+    .filter(word => !fillerWords.includes(word.replace(/[.,!?]/, '')))
+    .slice(0, 50); // First 50 meaningful words
+
+  // Look for key phrases and topics
+  const keyPhrases = [
+    { pattern: /\b(how to|learn|tutorial|guide|tip|trick)\b/i, title: 'How-To Guide' },
+    { pattern: /\b(mistake|error|wrong|avoid|don't|never)\b/i, title: 'Common Mistakes' },
+    { pattern: /\b(secret|hidden|truth|reveal|expose)\b/i, title: 'Hidden Truth' },
+    { pattern: /\b(money|profit|income|earn|make|rich|wealth)\b/i, title: 'Money Talk' },
+    { pattern: /\b(success|achieve|win|accomplish|goal)\b/i, title: 'Success Story' },
+    { pattern: /\b(story|experience|happened|remember|time)\b/i, title: 'Personal Story' },
+    { pattern: /\b(problem|issue|challenge|difficult|hard)\b/i, title: 'Problem Solving' },
+    { pattern: /\b(amazing|incredible|unbelievable|shocking)\b/i, title: 'Amazing Fact' },
+    { pattern: /\b(think|believe|opinion|feel|perspective)\b/i, title: 'Personal Opinion' },
+    { pattern: /\b(business|company|work|job|career)\b/i, title: 'Business Talk' },
+    { pattern: /\b(technology|future|innovation|change)\b/i, title: 'Tech Innovation' },
+    { pattern: /\b(relationship|family|friend|people)\b/i, title: 'Relationships' },
+  ];
+
+  // Check for key phrases
+  for (const phrase of keyPhrases) {
+    if (phrase.pattern.test(transcript)) {
+      return phrase.title;
+    }
+  }
+
+  // Extract first few meaningful words as title
+  const meaningfulWords = words.slice(0, 4)
+    .map(word => word.replace(/[.,!?]/, ''))
+    .filter(word => word.length > 2);
+
+  if (meaningfulWords.length >= 2) {
+    return meaningfulWords.map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  }
+
+  // Fallback to first sentence or phrase
+  const firstSentence = transcript.split(/[.!?]/)[0].trim();
+  if (firstSentence.length > 5 && firstSentence.length < 50) {
+    return firstSentence;
+  }
+
+  return 'Video Highlight';
+}
+
+// Apply attention-grabbing highlights to text for SRT files
 function highlightAttentionWords(text) {
   let highlightedText = text.replace(/[\r\n]+/g, ' ').trim();
   
-  // Words/phrases that should be highlighted in red for attention
+  // Words/phrases that should be highlighted for attention
   const attentionWords = [
     'FASTER', 'NEVER', 'ALWAYS', 'MUST', 'CRITICAL', 'URGENT', 'IMPORTANT', 'WARNING',
     'BREAKTHROUGH', 'REVOLUTIONARY', 'AMAZING', 'INCREDIBLE', 'SHOCKING', 'UNBELIEVABLE',
@@ -296,17 +412,17 @@ function highlightAttentionWords(text) {
     'DANGEROUS', 'RISKY', 'SAFE', 'SECURE', 'PROTECTED', 'GUARANTEE'
   ];
   
-  // Apply red highlighting to attention words
+  // Apply highlighting to attention words using HTML-like tags for better SRT support
   attentionWords.forEach(word => {
     const regex = new RegExp(`\\b${word}\\b`, 'gi');
-    highlightedText = highlightedText.replace(regex, `<font color="red"><b>${word}</b></font>`);
+    highlightedText = highlightedText.replace(regex, `<font color="#FF6B35"><b>${word}</b></font>`);
   });
   
-  // Highlight numbers and percentages (fixed money regex)
-  highlightedText = highlightedText.replace(/\b\d+(\.\d+)?\s*%\b/g, '<font color="red"><b>$&</b></font>');
-  highlightedText = highlightedText.replace(/\b\d+x\b/gi, '<font color="red"><b>$&</b></font>');
-  // Fixed: Only highlight complete money amounts, not standalone $ symbols
-  highlightedText = highlightedText.replace(/\$\d+(?:,\d{3})*(?:\.\d{2})?\b/g, '<font color="red"><b>$&</b></font>');
+  // Highlight numbers and percentages
+  highlightedText = highlightedText.replace(/\b\d+(\.\d+)?\s*%\b/g, '<font color="#FF6B35"><b>$&</b></font>');
+  highlightedText = highlightedText.replace(/\b\d+x\b/gi, '<font color="#FF6B35"><b>$&</b></font>');
+  // Fixed: Only highlight complete money amounts, not standalone $ symbols  
+  highlightedText = highlightedText.replace(/\$\d+(?:,\d{3})*(?:\.\d{2})?\b/g, '<font color="#FF6B35"><b>$&</b></font>');
   
   return highlightedText;
 }
@@ -330,14 +446,24 @@ app.post('/api/transcribe-segment', async (req, res) => {
 
     console.log(`🎬 Processing segment ${segmentId}: ${startTime}s - ${endTime}s`);
 
-    // Extract audio segment
-    await extractAudioSegment(videoPath, startTime, endTime, audioPath);
+    // First, extract with extra buffer to capture complete sentences
+    const bufferTime = 15; // Extra seconds to capture full sentences
+    const extendedEndTime = endTime + bufferTime;
+    
+    // Extract audio segment with buffer
+    await extractAudioSegment(videoPath, startTime, extendedEndTime, audioPath);
 
-    // Transcribe the audio segment
+    // Transcribe the extended audio segment
     const transcription = await transcribeAudio(audioPath);
 
     // Clean up temporary audio file
     await fs.remove(audioPath);
+
+    // Adjust end time based on transcript to complete sentences
+    const adjustedEndTime = adjustEndTimeForSentences(transcription.text, endTime, 10);
+    const actualDuration = adjustedEndTime - startTime;
+    
+    console.log(`⏱️ Adjusted segment duration from ${endTime - startTime}s to ${actualDuration.toFixed(1)}s`);
 
     // Generate word-level timestamps for captions
     const captions = [];
@@ -389,10 +515,16 @@ app.post('/api/transcribe-segment', async (req, res) => {
       }
     }
 
+    // Generate meaningful title from transcript
+    const generatedTitle = generateTitleFromTranscript(transcription.text);
+
     res.json({
       success: true,
       segmentId,
       transcript: transcription.text,
+      title: generatedTitle,
+      adjustedEndTime,
+      actualDuration: actualDuration.toFixed(1),
       captions,
       highlightedCaptions,
       wordCount: transcription.words ? transcription.words.length : transcription.text.split(' ').length
