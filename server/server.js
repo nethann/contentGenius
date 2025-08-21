@@ -258,6 +258,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         const captionWords = words.slice(captionStart, captionStart + wordsPerCaption);
         if (captionWords.length === 0) continue;
         
+        // Calculate the overall timing for this caption group
+        const captionGroupStart = captionWords[0].start;
+        const captionGroupEnd = captionWords[captionWords.length - 1].end;
+        
         // For each word in this caption group, create a subtitle line
         for (let wordIndex = 0; wordIndex < captionWords.length; wordIndex++) {
           const currentWord = captionWords[wordIndex];
@@ -278,8 +282,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             if (i < captionWords.length - 1) captionText += ' ';
           }
           
-          // Add dialogue line for this word timing within the caption
-          assContent += `Dialogue: 0,${wordStart},${wordEnd},Default,,0,0,0,,${captionText}\n`;
+          // Ensure this subtitle only shows during its caption group timeframe
+          // This prevents overlap between different caption groups
+          const effectiveStart = Math.max(currentWord.start, captionGroupStart);
+          const effectiveEnd = Math.min(currentWord.end, captionGroupEnd);
+          
+          // Only add if the timing is valid
+          if (effectiveStart < effectiveEnd) {
+            const effectiveStartAss = formatTimeToAss(effectiveStart);
+            const effectiveEndAss = formatTimeToAss(effectiveEnd);
+            // Use fixed layer and positioning to ensure all subtitles appear in same location
+            assContent += `Dialogue: 1,${effectiveStartAss},${effectiveEndAss},Default,,0,0,0,,{\\pos(640,600)}${captionText}\n`;
+          }
         }
       }
     } else {
@@ -289,7 +303,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         const endAss = formatTimeToAss(subtitle.end);
         const cleanText = subtitle.text.replace(/[\r\n]+/g, ' ').trim();
         
-        assContent += `Dialogue: 0,${startAss},${endAss},Default,,0,0,0,,${cleanText}\n`;
+        assContent += `Dialogue: 1,${startAss},${endAss},Default,,0,0,0,,{\\pos(640,600)}${cleanText}\n`;
       });
     }
 
