@@ -153,7 +153,7 @@ const ContentScalar = () => {
       const transcriptionResult = await response.json();
       setClipProgress((prev) => ({ ...prev, [moment.id]: 85 }));
 
-      // Update the moment with real transcript and captions
+      // Update the moment with real transcript and captions including word-level data
       const updatedMoments = extractedMoments.map((m) =>
         m.id === moment.id
           ? {
@@ -164,6 +164,7 @@ const ContentScalar = () => {
               duration: transcriptionResult.actualDuration ? `${transcriptionResult.actualDuration}s` : m.duration,
               subtitles: transcriptionResult.captions,
               highlightedSubtitles: transcriptionResult.highlightedCaptions,
+              words: transcriptionResult.words || [], // Store word-level timestamps for karaoke highlighting
               clipGenerated: true,
               transcribed: true,
               wordCount: transcriptionResult.wordCount
@@ -492,6 +493,7 @@ const ContentScalar = () => {
             startTime: moment.startTimeSeconds,
             endTime: moment.endTimeSeconds,
             subtitles: moment.subtitles,
+            words: moment.words || [], // Include word-level timestamps for karaoke highlighting
             segmentId: moment.id
           })
         });
@@ -623,6 +625,7 @@ const ContentScalar = () => {
           startTime: moment.startTimeSeconds,
           endTime: moment.endTimeSeconds,
           subtitles: moment.subtitles,
+          words: moment.words || [], // Include word-level timestamps for karaoke highlighting
           segmentId: moment.id
         })
       });

@@ -190,8 +190,8 @@ app.post('/api/upload', upload.single('video'), async (req, res) => {
   }
 });
 
-// Generate video with embedded subtitles
-async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles, outputPath) {
+// Generate video with embedded subtitles and word-by-word highlighting
+async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles, words, outputPath) {
   return new Promise(async (resolve, reject) => {
     // Ensure output directory exists
     const outputDir = dirname(outputPath);
@@ -224,66 +224,93 @@ async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitl
       return;
     }
 
-    // Create word-by-word SRT file for better compatibility
-    console.log(`📝 Creating word-by-word SRT file for ${subtitles.length} subtitle segments`);
-    let srtContent = '';
-    let srtIndex = 1;
+    // Create ASS file with karaoke effects for word-by-word highlighting
+    console.log(`📝 Creating ASS file with karaoke effects for ${subtitles.length} subtitle segments`);
     
-    subtitles.forEach((subtitle) => {
-      const words = subtitle.text.split(' ');
-      const segmentDuration = subtitle.end - subtitle.start;
-      const timePerWord = segmentDuration / words.length;
-      
-      words.forEach((word, wordIndex) => {
-        const wordStart = subtitle.start + (wordIndex * timePerWord);
-        const wordEnd = Math.min(subtitle.start + ((wordIndex + 1) * timePerWord), subtitle.end);
-        
-        const startSrt = formatTimeToSrt(wordStart);
-        const endSrt = formatTimeToSrt(wordEnd);
-        
-        // Create the full sentence with current word highlighted
-        const highlightedText = words.map((w, i) => {
-          if (i === wordIndex) {
-            // Currently speaking word - make it orange/red using HTML-like tags
-            return `<font color="#FF6B35"><b>${highlightAttentionWords(w)}</b></font>`;
-          } else if (i < wordIndex) {
-            // Already spoken - normal white
-            return highlightAttentionWords(w);
-          } else {
-            // Future words - dimmed using opacity (not all players support this)
-            return `<font color="#CCCCCC">${highlightAttentionWords(w)}</font>`;
-          }
-        }).join(' ');
-        
-        srtContent += `${srtIndex}\n${startSrt} --> ${endSrt}\n${highlightedText}\n\n`;
-        srtIndex++;
-      });
-    });
+    let assContent = `[Script Info]
+Title: Generated Subtitles with Word Highlighting
+ScriptType: v4.00+
 
-    const srtPath = join(tempDir, `subtitles-${uuidv4()}.srt`);
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,20,&H00ffffff,&H00FF6B35,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,1,0,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+`;
+
+    // Generate karaoke-style subtitles with word-by-word highlighting
+    if (words && words.length > 0) {
+      // Group words into subtitle chunks and create karaoke timing
+      const wordsPerCaption = 6;
+      for (let i = 0; i < words.length; i += wordsPerCaption) {
+        const wordGroup = words.slice(i, i + wordsPerCaption);
+        if (wordGroup.length === 0) continue;
+        
+        const startTime = wordGroup[0].start;
+        const endTime = wordGroup[wordGroup.length - 1].end;
+        const startAss = formatTimeToAss(startTime);
+        const endAss = formatTimeToAss(endTime);
+        
+        // Create karaoke timing for each word in the group
+        let karaokeText = '';
+        for (let j = 0; j < wordGroup.length; j++) {
+          const word = wordGroup[j];
+          const nextWord = wordGroup[j + 1];
+          
+          // Calculate duration for this word (in centiseconds)
+          let wordDuration;
+          if (nextWord) {
+            wordDuration = Math.round((nextWord.start - word.start) * 100);
+          } else {
+            wordDuration = Math.round((endTime - word.start) * 100);
+          }
+          
+          // Ensure minimum duration of 10 centiseconds
+          wordDuration = Math.max(wordDuration, 10);
+          
+          // Add karaoke timing tag for word-by-word highlighting
+          karaokeText += `{\\k${wordDuration}}${word.word}`;
+          if (j < wordGroup.length - 1) karaokeText += ' ';
+        }
+        
+        // Add dialogue line with karaoke timing
+        assContent += `Dialogue: 0,${startAss},${endAss},Default,,0,0,0,,${karaokeText}\n`;
+      }
+    } else {
+      // Fallback to regular subtitles without karaoke if no word timing available
+      subtitles.forEach((subtitle) => {
+        const startAss = formatTimeToAss(subtitle.start);
+        const endAss = formatTimeToAss(subtitle.end);
+        const cleanText = subtitle.text.replace(/[\r\n]+/g, ' ').trim();
+        
+        assContent += `Dialogue: 0,${startAss},${endAss},Default,,0,0,0,,${cleanText}\n`;
+      });
+    }
+
+    const assPath = join(tempDir, `subtitles-${uuidv4()}.ass`);
     
     try {
-      fs.writeFileSync(srtPath, srtContent, 'utf8');
-      console.log(`✅ Word-by-word SRT file created: ${srtPath}`);
-    } catch (srtError) {
-      console.error('❌ SRT creation error:', srtError);
-      reject(srtError);
+      fs.writeFileSync(assPath, assContent, 'utf8');
+      console.log(`✅ ASS file with karaoke effects created: ${assPath}`);
+    } catch (assError) {
+      console.error('❌ ASS creation error:', assError);
+      reject(assError);
       return;
     }
 
-    // Use libass subtitle filter with exact font styling to match preview
+    // Use ASS subtitles filter for karaoke highlighting
     const isWindows = process.platform === 'win32';
     let subtitleFilter;
     
     if (isWindows) {
-      // Windows path handling - use forward slashes and escape colons
-      const windowsSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
-      subtitleFilter = `subtitles='${windowsSrtPath}':force_style='FontName=Arial,FontSize=20,PrimaryColour=&Hffffff&,OutlineColour=&H000000&,Outline=1,Shadow=0,Bold=1,Alignment=2'`;
+      const windowsAssPath = assPath.replace(/\\/g, '/').replace(/:/g, '\\:');
+      subtitleFilter = `ass='${windowsAssPath}'`;
     } else {
-      subtitleFilter = `subtitles='${srtPath}':force_style='FontName=Arial,FontSize=20,PrimaryColour=&Hffffff&,OutlineColour=&H000000&,Outline=1,Shadow=0,Bold=1,Alignment=2'`;
+      subtitleFilter = `ass='${assPath}'`;
     }
 
-    console.log(`🎨 Using subtitle filter: ${subtitleFilter}`);
+    console.log(`🎨 Using ASS subtitle filter with karaoke: ${subtitleFilter}`);
 
     ffmpeg(videoPath)
       .seekInput(startTime)
@@ -305,24 +332,23 @@ async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitl
         console.log('FFmpeg:', stderrLine);
       })
       .on('end', async () => {
-        // Clean up SRT file
+        console.log(`✅ Video with animated word highlighting generated: ${outputPath}`);
+        // Clean up the ASS file
         try {
-          await fs.remove(srtPath);
-          console.log('🗑️ Cleaned up SRT file');
-        } catch (e) {
-          console.warn('SRT cleanup warning:', e.message);
+          await fs.remove(assPath);
+        } catch (cleanupError) {
+          console.error('Warning: Could not clean up ASS file:', cleanupError);
         }
-        console.log(`✅ Video with animated subtitles generated: ${outputPath}`);
         resolve(outputPath);
       })
       .on('error', async (err) => {
-        // Clean up SRT file on error
-        try {
-          await fs.remove(srtPath);
-        } catch (e) {
-          console.warn('SRT cleanup warning:', e.message);
-        }
         console.error('❌ FFmpeg video generation error:', err);
+        // Clean up the ASS file even on error
+        try {
+          await fs.remove(assPath);
+        } catch (cleanupError) {
+          console.error('Warning: Could not clean up ASS file:', cleanupError);
+        }
         reject(err);
       })
       .run();
@@ -337,6 +363,16 @@ function formatTimeToSrt(seconds) {
   const milliseconds = Math.floor((seconds % 1) * 1000);
   
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
+}
+
+// Format time for ASS format (H:MM:SS.cc)
+function formatTimeToAss(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const centiseconds = Math.floor((seconds % 1) * 100);
+  
+  return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
 }
 
 // Generate meaningful title from transcript
@@ -527,6 +563,7 @@ app.post('/api/transcribe-segment', async (req, res) => {
       actualDuration: actualDuration.toFixed(1),
       captions,
       highlightedCaptions,
+      words: transcription.words || [], // Include word-level timestamps for karaoke highlighting
       wordCount: transcription.words ? transcription.words.length : transcription.text.split(' ').length
     });
 
@@ -542,7 +579,7 @@ app.post('/api/transcribe-segment', async (req, res) => {
 // Generate and download video with subtitles
 app.post('/api/download-video', async (req, res) => {
   try {
-    const { filename, startTime, endTime, subtitles, segmentId } = req.body;
+    const { filename, startTime, endTime, subtitles, words, segmentId } = req.body;
 
     if (!filename || startTime === undefined || endTime === undefined) {
       return res.status(400).json({ error: 'Missing required parameters' });
@@ -557,9 +594,10 @@ app.post('/api/download-video', async (req, res) => {
     }
 
     console.log(`🎬 Generating video for segment ${segmentId}: ${startTime}s - ${endTime}s`);
+    console.log(`📝 Using ${words ? words.length : 0} word-level timestamps for karaoke highlighting`);
 
-    // Generate video with subtitles
-    await generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles || [], outputPath);
+    // Generate video with subtitles and word-by-word highlighting
+    await generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles || [], words || [], outputPath);
 
     // Send the video file for download
     res.download(outputPath, `segment-${segmentId}.mp4`, async (err) => {
@@ -571,10 +609,6 @@ app.post('/api/download-video', async (req, res) => {
       setTimeout(async () => {
         try {
           await fs.remove(outputPath);
-          const srtPath = outputPath.replace('.mp4', '.srt');
-          if (await fs.pathExists(srtPath)) {
-            await fs.remove(srtPath);
-          }
           console.log(`🗑️ Cleaned up temporary files`);
         } catch (cleanupError) {
           console.error('Cleanup error:', cleanupError);
