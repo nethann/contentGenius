@@ -132,6 +132,14 @@ async function transcribeAudio(audioPath) {
     });
 
     console.log(`✅ Transcription complete`);
+    console.log(`📊 Transcription result:`, {
+      textLength: transcription.text?.length || 0,
+      wordsCount: transcription.words?.length || 0,
+      segmentsCount: transcription.segments?.length || 0,
+      hasWords: !!transcription.words,
+      sampleWords: transcription.words?.slice(0, 3) || []
+    });
+    
     return {
       text: transcription.text,
       words: transcription.words || [],
@@ -595,6 +603,9 @@ app.post('/api/download-video', async (req, res) => {
 
     console.log(`🎬 Generating video for segment ${segmentId}: ${startTime}s - ${endTime}s`);
     console.log(`📝 Using ${words ? words.length : 0} word-level timestamps for karaoke highlighting`);
+    if (words && words.length > 0) {
+      console.log(`🎵 Sample word timing data:`, words.slice(0, 5));
+    }
 
     // Generate video with subtitles and word-by-word highlighting
     await generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles || [], words || [], outputPath);
