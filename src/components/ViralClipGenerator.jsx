@@ -358,14 +358,14 @@ const ViralClipGenerator = () => {
         
         const animatedHTML = words.map((word, index) => {
           if (index < currentWordIndex) {
-            // Already spoken - show in full brightness
+            // Already spoken - show in white
             return `<span style="color: white; opacity: 1;">${word}</span>`;
           } else if (index === currentWordIndex) {
-            // Currently being spoken - highlight in darker orange
+            // Currently being spoken - highlight in orange
             return `<span style="color: #FF6B35; opacity: 1; text-shadow: 0 0 6px #FF6B35; font-weight: bold;">${word}</span>`;
           } else {
-            // Not yet spoken - show dimmed
-            return `<span style="color: white; opacity: 0.4;">${word}</span>`;
+            // Not yet spoken - show in white
+            return `<span style="color: white; opacity: 1;">${word}</span>`;
           }
         }).join(' ');
         

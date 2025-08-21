@@ -232,8 +232,8 @@ async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitl
       return;
     }
 
-    // Create ASS file with karaoke effects for word-by-word highlighting
-    console.log(`📝 Creating ASS file with karaoke effects for ${subtitles.length} subtitle segments`);
+    // Create ASS file with word-by-word highlighting to match preview
+    console.log(`📝 Creating ASS file with word highlighting for ${subtitles.length} subtitle segments`);
     
     let assContent = `[Script Info]
 Title: Generated Subtitles with Word Highlighting
@@ -243,49 +243,44 @@ PlayResY: 720
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,20,&H00ffffff,&H00356BFF,&H00000000,&H80000000,-1,0,0,0,100,100,0.3,0,1,2,1,2,15,15,15,1
+Style: Default,Arial,20,&H00ffffff,&H00ffffff,&H00000000,&H80000000,-1,0,0,0,100,100,0.3,0,1,2,1,2,15,15,15,1
+Style: Highlight,Arial,20,&H00356BFF,&H00356BFF,&H00000000,&H80000000,1,0,0,0,100,100,0.3,0,1,2,1,2,15,15,15,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `;
 
-    // Generate karaoke-style subtitles with word-by-word highlighting
+    // Generate word-by-word highlighting to match preview behavior
     if (words && words.length > 0) {
-      // Group words into subtitle chunks and create karaoke timing
+      // Group words into caption chunks like the preview does
       const wordsPerCaption = 6;
-      for (let i = 0; i < words.length; i += wordsPerCaption) {
-        const wordGroup = words.slice(i, i + wordsPerCaption);
-        if (wordGroup.length === 0) continue;
+      for (let captionStart = 0; captionStart < words.length; captionStart += wordsPerCaption) {
+        const captionWords = words.slice(captionStart, captionStart + wordsPerCaption);
+        if (captionWords.length === 0) continue;
         
-        const startTime = wordGroup[0].start;
-        const endTime = wordGroup[wordGroup.length - 1].end;
-        const startAss = formatTimeToAss(startTime);
-        const endAss = formatTimeToAss(endTime);
-        
-        // Create karaoke timing for each word in the group
-        let karaokeText = '';
-        for (let j = 0; j < wordGroup.length; j++) {
-          const word = wordGroup[j];
-          const nextWord = wordGroup[j + 1];
+        // For each word in this caption group, create a subtitle line
+        for (let wordIndex = 0; wordIndex < captionWords.length; wordIndex++) {
+          const currentWord = captionWords[wordIndex];
+          const wordStart = formatTimeToAss(currentWord.start);
+          const wordEnd = formatTimeToAss(currentWord.end);
           
-          // Calculate duration for this word (in centiseconds)
-          let wordDuration;
-          if (nextWord) {
-            wordDuration = Math.round((nextWord.start - word.start) * 100);
-          } else {
-            wordDuration = Math.round((endTime - word.start) * 100);
+          // Build the caption text with current word highlighted
+          let captionText = '';
+          for (let i = 0; i < captionWords.length; i++) {
+            const word = captionWords[i];
+            if (i === wordIndex) {
+              // Current word being spoken - orange with bold
+              captionText += `{\\c&H00356BFF&\\b1}${word.word}{\\c&H00ffffff&\\b0}`;
+            } else {
+              // Other words in caption - white
+              captionText += word.word;
+            }
+            if (i < captionWords.length - 1) captionText += ' ';
           }
           
-          // Ensure minimum duration of 10 centiseconds
-          wordDuration = Math.max(wordDuration, 10);
-          
-          // Add karaoke timing tag for word-by-word highlighting
-          karaokeText += `{\\k${wordDuration}}${word.word}`;
-          if (j < wordGroup.length - 1) karaokeText += ' ';
+          // Add dialogue line for this word timing within the caption
+          assContent += `Dialogue: 0,${wordStart},${wordEnd},Default,,0,0,0,,${captionText}\n`;
         }
-        
-        // Add dialogue line with karaoke timing
-        assContent += `Dialogue: 0,${startAss},${endAss},Default,,0,0,0,,${karaokeText}\n`;
       }
     } else {
       // Fallback to regular subtitles without karaoke if no word timing available
