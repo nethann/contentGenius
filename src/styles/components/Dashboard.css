@@ -319,22 +319,35 @@
   color: var(--text-secondary);
 }
 
-/* Viral Clip Generator Header */
+/* Viral Clip Generator Header - Glassmorphism Pill Style */
 .viral-clip-header {
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-primary);
   padding: 1rem 2rem;
   position: sticky;
   top: 0;
   z-index: 50;
+  background: transparent;
+  border: none;
 }
 
 .viral-clip-header-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 1200px;
+  max-width: 80rem;
   margin: 0 auto;
+  padding: 0.875rem 2rem;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border-strong);
+  border-radius: 2rem;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.viral-clip-header-content:hover {
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .viral-clip-back-btn {
@@ -441,5 +454,19 @@
   
   .dashboard-main {
     padding: 1rem;
+  }
+  
+  /* Viral Clips Header Mobile */
+  .viral-clip-header {
+    padding: 0.75rem 1rem;
+  }
+  
+  .viral-clip-header-content {
+    padding: 0.75rem 1.5rem;
+    border-radius: 1.5rem;
+  }
+  
+  .viral-clip-header-actions {
+    gap: 0.5rem;
   }
 }
