@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserTier } from '../contexts/UserTierContext';
@@ -12,14 +12,18 @@ import {
   Clock,
   Users,
   BarChart3,
-  Settings
+  Settings,
+  Crown,
+  ChevronDown
 } from 'lucide-react';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, signOut } = useAuth();
-  const { userTier, getTierLimits, setUserTier, USER_TIERS } = useUserTier();
+  const { user, signOut, userProfile } = useAuth();
+  const { userTier, getTierLimits, setUserTier, upgradeToPro, USER_TIERS } = useUserTier();
+  const [showTierDropdown, setShowTierDropdown] = React.useState(false);
+  const dropdownRef = useRef(null);
 
   // Check for tier parameter from signup redirect
   useEffect(() => {
@@ -40,6 +44,20 @@ const Dashboard = () => {
     }
   }, [user, location.search, userTier, setUserTier, USER_TIERS, navigate]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowTierDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -47,6 +65,40 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Sign out error:', error);
     }
+  };
+
+  const handleUpgradeToPro = async () => {
+    try {
+      const result = await upgradeToPro();
+      if (result?.error) {
+        if (result.error.needsSetup) {
+          alert('🛠️ Database Setup Required!\n\nPlease set up the user_profiles table in Supabase first:\n\n1. Go to your Supabase SQL Editor\n2. Run the setup SQL from minimal_setup.sql\n3. Then try upgrading again');
+        } else {
+          alert('Failed to upgrade: ' + result.error.message);
+        }
+      } else {
+        alert('Successfully upgraded to Pro! 🎉');
+      }
+    } catch (error) {
+      console.error('Upgrade error:', error);
+      alert('Failed to upgrade. Please try again.');
+    }
+    setShowTierDropdown(false);
+  };
+
+  const handleDowngradeToGuest = async () => {
+    try {
+      const result = await setUserTier(USER_TIERS.GUEST);
+      if (result?.error) {
+        alert('Failed to downgrade: ' + result.error.message);
+      } else {
+        alert('Downgraded to Guest tier');
+      }
+    } catch (error) {
+      console.error('Downgrade error:', error);
+      alert('Failed to downgrade. Please try again.');
+    }
+    setShowTierDropdown(false);
   };
 
   const features = [
@@ -146,11 +198,71 @@ const Dashboard = () => {
                 Welcome, {user?.user_metadata?.full_name || user?.email || 'User'}
               </span>
             </div>
-            <div className="tier-indicator">
-              <span className={`tier-badge tier-${userTier}`}>
-                {getTierLimits().name} {userTier === 'pro' ? '✨' : '🔓'}
-              </span>
+            
+            {/* Tier Management Dropdown */}
+            <div className="tier-dropdown-container" ref={dropdownRef}>
+              <button
+                onClick={() => setShowTierDropdown(!showTierDropdown)}
+                className={`tier-dropdown-button tier-${userTier}`}
+              >
+                <div className="tier-dropdown-content">
+                  <div className="tier-badge-info">
+                    {userTier === 'pro' ? (
+                      <Crown className="w-4 h-4 text-yellow-400" />
+                    ) : (
+                      <span className="w-4 h-4">🔓</span>
+                    )}
+                    <span className="tier-name">{getTierLimits().name}</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showTierDropdown ? 'rotate-180' : ''}`} />
+                </div>
+              </button>
+              
+              {showTierDropdown && (
+                <div className="tier-dropdown-menu">
+                  <div className="tier-dropdown-header">
+                    <span className="tier-dropdown-title">Current Plan</span>
+                    <div className="tier-current-info">
+                      <span className={`tier-current-badge tier-${userTier}`}>
+                        {getTierLimits().name} Plan
+                      </span>
+                      <span className="tier-db-status">
+                        DB: {userProfile?.user_tier || 'Loading...'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="tier-dropdown-divider"></div>
+                  
+                  {userTier === 'guest' ? (
+                    <button
+                      onClick={handleUpgradeToPro}
+                      className="tier-dropdown-action tier-upgrade"
+                    >
+                      <Crown className="w-4 h-4 text-yellow-400" />
+                      <div className="tier-action-content">
+                        <span className="tier-action-title">Upgrade to Pro</span>
+                        <span className="tier-action-desc">Get detailed analytics & unlimited clips</span>
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="tier-pro-benefits">
+                      <div className="tier-benefit-item">✅ Detailed AI Analytics</div>
+                      <div className="tier-benefit-item">✅ Unlimited Video Length</div>
+                      <div className="tier-benefit-item">✅ Unlimited Clips</div>
+                      <div className="tier-benefit-item">✅ No Watermarks</div>
+                      <button
+                        onClick={handleDowngradeToGuest}
+                        className="tier-dropdown-action tier-downgrade"
+                      >
+                        Downgrade to Guest (Dev Only)
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+            
             <button
               onClick={handleSignOut}
               className="dashboard-signout-btn"

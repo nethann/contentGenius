@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { UserProfileService } from '../services/userProfileService'
 
 const AuthContext = createContext({})
 
@@ -13,16 +14,26 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
+  const [userProfile, setUserProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    // Get initial session
+    // Get initial session and user profile
     const getSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
         if (error) throw error
-        setUser(session?.user ?? null)
+        
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
+        
+        // Load user profile if user exists
+        if (currentUser) {
+          await loadUserProfile(currentUser)
+        } else {
+          setUserProfile(null)
+        }
       } catch (error) {
         console.error('Error getting session:', error)
         setError(error.message)
@@ -36,14 +47,63 @@ export const AuthProvider = ({ children }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setUser(session?.user ?? null)
-        setLoading(false)
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
         setError(null)
+        
+        // Load user profile when user signs in
+        if (currentUser && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+          await loadUserProfile(currentUser)
+        } else if (!currentUser) {
+          setUserProfile(null)
+        }
+        
+        setLoading(false)
       }
     )
 
     return () => subscription.unsubscribe()
   }, [])
+
+  // Load user profile from Supabase
+  const loadUserProfile = async (user) => {
+    try {
+      const { profile, error } = await UserProfileService.ensureUserProfile(user)
+      if (error) {
+        console.error('Error loading user profile:', error)
+        // Set default profile if database error
+        setUserProfile({ user_tier: 'guest' })
+      } else {
+        setUserProfile(profile)
+        console.log('✅ User profile loaded:', profile)
+      }
+    } catch (error) {
+      console.error('Error in loadUserProfile:', error)
+      setUserProfile({ user_tier: 'guest' })
+    }
+  }
+
+  // Refresh user profile from database
+  const refreshUserProfile = async () => {
+    if (!user) return
+    await loadUserProfile(user)
+  }
+
+  // Update user tier
+  const updateUserTier = async (newTier) => {
+    if (!user) return { error: 'No user logged in' }
+    
+    try {
+      const { profile, error } = await UserProfileService.updateUserTier(user.id, newTier)
+      if (error) throw error
+      
+      setUserProfile(profile)
+      return { profile, error: null }
+    } catch (error) {
+      console.error('Error updating user tier:', error)
+      return { profile: null, error }
+    }
+  }
 
   const signInWithGoogle = async (customRedirectTo = null) => {
     try {
@@ -132,6 +192,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    userProfile,
     loading,
     error,
     signUp,
@@ -139,6 +200,8 @@ export const AuthProvider = ({ children }) => {
     signInWithGoogle,
     signOut,
     resetPassword,
+    refreshUserProfile,
+    updateUserTier,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

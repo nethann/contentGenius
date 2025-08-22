@@ -36,36 +36,46 @@ export const TIER_LIMITS = {
 };
 
 export const UserTierProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, userProfile, loading: authLoading, updateUserTier: authUpdateUserTier } = useAuth();
   const [userTier, setUserTier] = useState(USER_TIERS.GUEST);
   const [isLoading, setIsLoading] = useState(true);
-  const [tierInitialized, setTierInitialized] = useState(false);
 
   useEffect(() => {
-    // For demo purposes, authenticated users get Pro tier
-    // In a real app, you'd fetch this from your database/subscription service
-    const fetchUserTier = async () => {
+    const updateTierFromProfile = () => {
       try {
-        if (user && !tierInitialized) {
-          // For demo purposes, set authenticated users to PRO tier
-          // In a real app, you'd fetch this from your database/subscription service
-          const tier = user.user_metadata?.tier || USER_TIERS.PRO;
-          setUserTier(tier);
-          setTierInitialized(true);
-        } else if (!user) {
-          setUserTier(USER_TIERS.GUEST);
-          setTierInitialized(false);
+        if (authLoading) {
+          // Auth is still loading, wait
+          setIsLoading(true);
+          return;
         }
+
+        if (!user) {
+          // No user, set to guest
+          setUserTier(USER_TIERS.GUEST);
+          setIsLoading(false);
+          return;
+        }
+
+        if (userProfile) {
+          // User profile loaded, use tier from database
+          const dbTier = userProfile.user_tier || USER_TIERS.GUEST;
+          setUserTier(dbTier);
+          console.log('✅ Tier set from database:', dbTier);
+        } else {
+          // User exists but profile not loaded yet, default to guest
+          setUserTier(USER_TIERS.GUEST);
+        }
+        
+        setIsLoading(false);
       } catch (error) {
-        console.error('Error fetching user tier:', error);
+        console.error('Error updating tier from profile:', error);
         setUserTier(USER_TIERS.GUEST);
-      } finally {
         setIsLoading(false);
       }
     };
 
-    fetchUserTier();
-  }, [user, tierInitialized]);
+    updateTierFromProfile();
+  }, [user, userProfile, authLoading]);
 
   const getTierLimits = () => {
     return TIER_LIMITS[userTier];
@@ -82,22 +92,56 @@ export const UserTierProvider = ({ children }) => {
   };
 
   const upgradeToPro = async () => {
-    // In a real app, this would integrate with Stripe/payment processor
-    console.log('Upgrade to Pro - integrate with payment system');
-    // For demo purposes, you could temporarily set tier to PRO
-    // setUserTier(USER_TIERS.PRO);
+    if (!user) {
+      console.error('No user logged in');
+      return { error: 'No user logged in' };
+    }
+
+    try {
+      console.log('🚀 Upgrading user to Pro...');
+      const result = await authUpdateUserTier(USER_TIERS.PRO);
+      
+      if (result.error) {
+        console.error('Failed to upgrade to Pro:', result.error);
+        return result;
+      }
+      
+      console.log('✅ Successfully upgraded to Pro!');
+      return result;
+    } catch (error) {
+      console.error('Error upgrading to Pro:', error);
+      return { error };
+    }
   };
 
-  // Custom setUserTier that also marks tier as initialized
-  const updateUserTier = (newTier) => {
-    console.log(`Updating user tier to: ${newTier}`);
-    setUserTier(newTier);
-    setTierInitialized(true);
+  // Update user tier in both local state and database
+  const updateUserTierLocal = async (newTier) => {
+    if (!user) {
+      console.error('No user logged in');
+      return { error: 'No user logged in' };
+    }
+
+    try {
+      console.log(`🔄 Updating user tier to: ${newTier}`);
+      const result = await authUpdateUserTier(newTier);
+      
+      if (result.error) {
+        console.error('Failed to update tier:', result.error);
+        return result;
+      }
+      
+      // Local state will be updated automatically via useEffect when userProfile changes
+      console.log('✅ User tier updated successfully');
+      return result;
+    } catch (error) {
+      console.error('Error updating user tier:', error);
+      return { error };
+    }
   };
 
   const value = {
     userTier,
-    setUserTier: updateUserTier,
+    setUserTier: updateUserTierLocal,
     isLoading,
     getTierLimits,
     canUploadVideo,
