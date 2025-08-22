@@ -1143,16 +1143,53 @@ const ViralClipGenerator = () => {
         const category = categories[i % categories.length];
         const viralScore = Math.floor(Math.random() * 20) + 75; // 75-95
         
+        // Generate descriptive titles based on category and timing
+        const generateSegmentTitle = (category, index, duration) => {
+          const titleOptions = {
+            engaging: [
+              'Hook & Opening',
+              'Key Insight Moment', 
+              'Attention Grabber',
+              'Peak Engagement Point',
+              'Compelling Segment'
+            ],
+            educational: [
+              'Learning Moment',
+              'Key Teaching Point',
+              'Expert Explanation', 
+              'Knowledge Drop',
+              'Educational Highlight'
+            ],
+            funny: [
+              'Comedy Gold',
+              'Funny Moment',
+              'Laugh Break',
+              'Humor Highlight',
+              'Comedic Timing'
+            ],
+            emotional: [
+              'Emotional Peak',
+              'Heartfelt Moment',
+              'Personal Story',
+              'Emotional Hook',
+              'Moving Segment'
+            ]
+          };
+          
+          const options = titleOptions[category] || titleOptions.engaging;
+          return options[index % options.length];
+        };
+        
         const segment = {
           id: i + 1,
-          title: `Untitled Segment ${i + 1}`,
+          title: generateSegmentTitle(category, i, endTime - startTime),
           startTime: formatTime(startTime),
           endTime: formatTime(endTime),
           startTimeSeconds: startTime,
           endTimeSeconds: endTime,
           duration: `${endTime - startTime}s`,
           viralScore: viralScore,
-          description: "Click to generate transcript",
+          description: `${category.charAt(0).toUpperCase() + category.slice(1)} content with ${viralScore}% viral potential`,
           category: category,
           transcript: "Click 'Generate Clip' to transcribe this segment",
           suggestedCaption: `Video segment ${i + 1} 🎬`,
