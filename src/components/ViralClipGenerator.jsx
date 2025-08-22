@@ -1495,19 +1495,63 @@ const ViralClipGenerator = () => {
             </div>
           ) : (
             <div>
-              {/* Processing State */}
+              {/* Processing State - Terminal Style */}
               {processing && (
-                <div className="processing-container">
-                  <div className="processing-spinner"></div>
-                  <h3 className="processing-title">Processing...</h3>
-                  <p className="processing-status">{currentStep}</p>
-                  <div className="processing-progress-bar">
-                    <div
-                      className="processing-progress-fill"
-                      style={{ width: `${progress}%` }}
-                    ></div>
+                <div className="terminal-container">
+                  <div className="terminal-header">
+                    <div className="terminal-buttons">
+                      <div className="terminal-button terminal-close"></div>
+                      <div className="terminal-button terminal-minimize"></div>
+                      <div className="terminal-button terminal-maximize"></div>
+                    </div>
+                    <div className="terminal-title">🤖 AI Content Analyzer v2.1</div>
                   </div>
-                  <p className="processing-percentage">{progress}% complete</p>
+                  <div className="terminal-body">
+                    <div className="terminal-line">
+                      <span className="terminal-prompt">user@clipgenius:~$</span> 
+                      <span className="terminal-command">ai-analyze-video --mode=viral --tier=pro</span>
+                    </div>
+                    <div className="terminal-line">
+                      <span className="terminal-info">[INFO]</span> Initializing AI analysis engine...
+                    </div>
+                    <div className="terminal-line">
+                      <span className="terminal-success">[OK]</span> Neural network loaded successfully
+                    </div>
+                    <div className="terminal-line">
+                      <span className="terminal-success">[OK]</span> Speech recognition engine ready
+                    </div>
+                    <div className="terminal-line terminal-current">
+                      <span className="terminal-warning">[PROC]</span> 
+                      <span className="terminal-current-text">{currentStep}</span>
+                      <span className="terminal-cursor">_</span>
+                    </div>
+                    <div className="terminal-progress-container">
+                      <div className="terminal-progress-bar">
+                        <div className="terminal-progress-fill" style={{ width: `${progress}%` }}></div>
+                      </div>
+                      <span className="terminal-percentage">[{progress}%]</span>
+                    </div>
+                    {progress > 20 && (
+                      <div className="terminal-line">
+                        <span className="terminal-success">[✓]</span> Audio extraction completed
+                      </div>
+                    )}
+                    {progress > 50 && (
+                      <div className="terminal-line">
+                        <span className="terminal-success">[✓]</span> Speech transcription completed
+                      </div>
+                    )}
+                    {progress > 70 && (
+                      <div className="terminal-line">
+                        <span className="terminal-success">[✓]</span> Viral potential analysis completed
+                      </div>
+                    )}
+                    {progress > 90 && (
+                      <div className="terminal-line">
+                        <span className="terminal-success">[✓]</span> Viral moments identified
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1526,9 +1570,10 @@ const ViralClipGenerator = () => {
                         setProgress(0);
                         setError(null);
                       }}
-                      className="analysis-new-file"
+                      className="analysis-new-file-prominent"
                     >
-                      Upload New File
+                      <Upload className="w-4 h-4 mr-2" />
+                      🚀 Upload New Video
                     </button>
                   </div>
                   
