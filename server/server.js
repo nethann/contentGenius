@@ -8,6 +8,7 @@ import fs from 'fs-extra';
 import ffmpeg from 'fluent-ffmpeg';
 import { v4 as uuidv4 } from 'uuid';
 import Groq from 'groq-sdk';
+import { performCompleteAnalysis } from './services/aiAnalysis.js';
 
 // Load environment variables
 dotenv.config();
@@ -195,6 +196,66 @@ app.post('/api/upload', upload.single('video'), async (req, res) => {
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ error: 'Upload failed', details: error.message });
+  }
+});
+
+// AI Analysis endpoint with real-time progress
+app.post('/api/analyze-video', async (req, res) => {
+  try {
+    const { filename, userTier = 'guest' } = req.body;
+
+    if (!filename) {
+      return res.status(400).json({ error: 'Missing filename parameter' });
+    }
+
+    const videoPath = join(uploadDir, filename);
+    
+    // Check if video file exists
+    if (!await fs.pathExists(videoPath)) {
+      return res.status(404).json({ error: 'Video file not found' });
+    }
+
+    console.log(`🚀 Starting AI analysis for: ${filename} (${userTier} tier)`);
+
+    // Set up SSE for real-time progress updates
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Cache-Control'
+    });
+
+    // Progress callback for real-time updates
+    const progressCallback = (progress, status) => {
+      res.write(`data: ${JSON.stringify({ type: 'progress', progress, status })}\n\n`);
+    };
+
+    try {
+      // Perform complete AI analysis
+      const analysisResult = await performCompleteAnalysis(videoPath, userTier, progressCallback);
+      
+      // Send final result - compress large objects to prevent SSE issues
+      const resultMessage = { type: 'complete', result: analysisResult };
+      const messageStr = JSON.stringify(resultMessage);
+      
+      console.log(`📦 Sending analysis result (${messageStr.length} characters)`);
+      
+      // Send in single message (the improved client buffering should handle this)
+      res.write(`data: ${messageStr}\n\n`);
+      res.end();
+      
+      console.log('✅ AI analysis completed successfully');
+      
+    } catch (analysisError) {
+      console.error('❌ AI analysis error:', analysisError);
+      res.write(`data: ${JSON.stringify({ type: 'error', error: analysisError.message })}\n\n`);
+      res.end();
+    }
+
+  } catch (error) {
+    console.error('❌ Analysis endpoint error:', error);
+    res.status(500).json({ error: 'Analysis failed', details: error.message });
   }
 });
 

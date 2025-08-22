@@ -7,7 +7,9 @@
       "Bash(npm run dev:*)",
       "Bash(mv:*)",
       "Bash(node server.js)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd.exe:*)"
     ],
     "deny": [],
     "ask": []

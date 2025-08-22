@@ -42,13 +42,14 @@ export const UserTierProvider = ({ children }) => {
   const [tierInitialized, setTierInitialized] = useState(false);
 
   useEffect(() => {
-    // For now, all users are Guest tier
+    // For demo purposes, authenticated users get Pro tier
     // In a real app, you'd fetch this from your database/subscription service
     const fetchUserTier = async () => {
       try {
         if (user && !tierInitialized) {
-          // Check user metadata or make API call to get subscription status
-          const tier = user.user_metadata?.tier || USER_TIERS.GUEST;
+          // For demo purposes, set authenticated users to PRO tier
+          // In a real app, you'd fetch this from your database/subscription service
+          const tier = user.user_metadata?.tier || USER_TIERS.PRO;
           setUserTier(tier);
           setTierInitialized(true);
         } else if (!user) {
