@@ -199,7 +199,7 @@ app.post('/api/upload', upload.single('video'), async (req, res) => {
 });
 
 // Generate video with embedded subtitles and word-by-word highlighting
-async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles, words, outputPath) {
+async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles, words, outputPath, hasWatermark = false) {
   return new Promise(async (resolve, reject) => {
     // Ensure output directory exists
     const outputDir = dirname(outputPath);
@@ -211,13 +211,24 @@ async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitl
 
     if (!subtitles || subtitles.length === 0) {
       console.log('⚠️ No subtitles provided, creating video without subtitles');
-      // Create video without subtitles
-      ffmpeg(videoPath)
+      
+      // Build ffmpeg command with optional watermark
+      let ffmpegCommand = ffmpeg(videoPath)
         .seekInput(startTime)
         .duration(endTime - startTime)
         .videoCodec('libx264')
-        .audioCodec('aac')
-        .outputOptions(['-preset fast', '-crf 23', '-movflags +faststart'])
+        .audioCodec('aac');
+      
+      let outputOptions = ['-preset fast', '-crf 23', '-movflags +faststart'];
+      
+      if (hasWatermark) {
+        const watermarkFilter = `drawtext=text='Made with ClipGenius':fontsize=24:fontcolor=white@0.7:x=w-tw-20:y=h-th-20:fontfile=/System/Library/Fonts/Arial.ttf`;
+        outputOptions.push('-vf', watermarkFilter);
+        console.log(`💧 Adding watermark for Guest tier user (no subtitles)`);
+      }
+      
+      ffmpegCommand
+        .outputOptions(outputOptions)
         .format('mp4')
         .output(outputPath)
         .on('end', () => {
@@ -330,6 +341,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     }
 
     console.log(`🎨 Using ASS subtitle filter with karaoke: ${subtitleFilter}`);
+    
+    // Build video filter chain
+    let videoFilter = subtitleFilter;
+    if (hasWatermark) {
+      // Add watermark text overlay for Guest tier users
+      const watermarkFilter = `drawtext=text='Made with ClipGenius':fontsize=24:fontcolor=white@0.7:x=w-tw-20:y=h-th-20:fontfile=/System/Library/Fonts/Arial.ttf`;
+      videoFilter = `${subtitleFilter},${watermarkFilter}`;
+      console.log(`💧 Adding watermark for Guest tier user`);
+    }
 
     ffmpeg(videoPath)
       .seekInput(startTime)
@@ -340,7 +360,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         '-preset fast',
         '-crf 23',
         '-movflags +faststart',
-        '-vf', subtitleFilter
+        '-vf', videoFilter
       ])
       .format('mp4')
       .output(outputPath)
@@ -598,7 +618,7 @@ app.post('/api/transcribe-segment', async (req, res) => {
 // Generate and download video with subtitles
 app.post('/api/download-video', async (req, res) => {
   try {
-    const { filename, startTime, endTime, subtitles, words, segmentId } = req.body;
+    const { filename, startTime, endTime, subtitles, words, segmentId, userTier, hasWatermark } = req.body;
 
     if (!filename || startTime === undefined || endTime === undefined) {
       return res.status(400).json({ error: 'Missing required parameters' });
@@ -619,7 +639,7 @@ app.post('/api/download-video', async (req, res) => {
     }
 
     // Generate video with subtitles and word-by-word highlighting
-    await generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles || [], words || [], outputPath);
+    await generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles || [], words || [], outputPath, hasWatermark);
 
     // Send the video file for download
     res.download(outputPath, `segment-${segmentId}.mp4`, async (err) => {

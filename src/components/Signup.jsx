@@ -1,20 +1,29 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Zap, ArrowLeft, AlertCircle, Check } from 'lucide-react';
+import { Zap, ArrowLeft, AlertCircle, Check, Crown } from 'lucide-react';
 
 const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [localError, setLocalError] = useState('');
   const [success, setSuccess] = useState(false);
+  const location = useLocation();
   
   const { signInWithGoogle } = useAuth();
+  
+  // Get tier from URL parameters
+  const searchParams = new URLSearchParams(location.search);
+  const selectedTier = searchParams.get('tier') || 'guest';
+  const isPro = selectedTier === 'pro';
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setLocalError('');
 
-    const { error } = await signInWithGoogle();
+    // Create custom redirect URL that includes tier information
+    const redirectUrl = `${window.location.origin}/app?tier=${selectedTier}`;
+    
+    const { error } = await signInWithGoogle(redirectUrl);
     
     if (error) {
       setLocalError(error.message);
@@ -56,11 +65,24 @@ const Signup = () => {
           {/* Header */}
           <div className="auth-header">
             <div className="auth-logo">
-              <Zap className="w-8 h-8 text-yellow-400" />
+              {isPro ? <Crown className="w-8 h-8 text-yellow-400" /> : <Zap className="w-8 h-8 text-yellow-400" />}
               <span className="auth-logo-text">ClipGenius</span>
             </div>
-            <h1 className="auth-title">Get Started Free</h1>
-            <p className="auth-subtitle">Create your account and start making viral content</p>
+            <h1 className="auth-title">
+              {isPro ? 'Start Pro Trial' : 'Get Started Free'}
+            </h1>
+            <p className="auth-subtitle">
+              {isPro 
+                ? 'Join Pro to unlock unlimited viral content creation' 
+                : 'Create your account and start making viral content'
+              }
+            </p>
+            {isPro && (
+              <div className="tier-selection-badge">
+                <Crown className="w-4 h-4" />
+                <span>Pro Plan Selected - $4.99/month</span>
+              </div>
+            )}
           </div>
 
           {/* Error Message */}

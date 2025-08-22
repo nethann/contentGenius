@@ -7,6 +7,7 @@
 @import './styles/components/Dashboard.css';
 @import './styles/components/VideoProcessor.css';
 @import './styles/components/ProtectedRoute.css';
+@import './styles/components/Pricing.css';
 
 /* App-specific styles */
 .App {

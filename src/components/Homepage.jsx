@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Check,
   Star,
+  DollarSign,
   Video,
   MessageSquare,
   TrendingUp,
@@ -25,6 +26,9 @@ const Homepage = () => {
               <span className="nav-logo-text">ClipGenius</span>
             </div>
             <div className="nav-actions">
+              <Link to="/pricing" className="nav-login">
+                Pricing
+              </Link>
               <Link to="/login" className="nav-login">
                 Log In
               </Link>
@@ -53,10 +57,10 @@ const Homepage = () => {
           <Link to="/signup" className="hero-cta">
             Get Started Free <ArrowRight className="w-5 h-5" />
           </Link>
-          <button className="hero-demo">
-            <Play className="w-5 h-5" />
-            Watch Demo
-          </button>
+          <Link to="/pricing" className="hero-demo">
+            <DollarSign className="w-5 h-5" />
+            View Pricing
+          </Link>
         </div>
 
         {/* Features Preview */}

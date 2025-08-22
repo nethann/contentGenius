@@ -1,6 +1,7 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useUserTier } from '../contexts/UserTierContext';
 import { 
   Zap, 
   LogOut, 
@@ -16,7 +17,28 @@ import {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, signOut } = useAuth();
+  const { userTier, getTierLimits, setUserTier, USER_TIERS } = useUserTier();
+
+  // Check for tier parameter from signup redirect
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const tierParam = searchParams.get('tier');
+    
+    if (tierParam && user) {
+      if (tierParam === 'pro' && userTier !== USER_TIERS.PRO) {
+        console.log('Setting user to Pro tier from signup');
+        setUserTier(USER_TIERS.PRO);
+      } else if (tierParam === 'guest' && userTier !== USER_TIERS.GUEST) {
+        console.log('Setting user to Guest tier from signup');
+        setUserTier(USER_TIERS.GUEST);
+      }
+      
+      // Clear the URL parameter after processing
+      navigate('/app', { replace: true });
+    }
+  }, [user, location.search, userTier, setUserTier, USER_TIERS, navigate]);
 
   const handleSignOut = async () => {
     try {
@@ -122,6 +144,11 @@ const Dashboard = () => {
             <div className="dashboard-user-info">
               <span className="dashboard-user-name">
                 Welcome, {user?.user_metadata?.full_name || user?.email || 'User'}
+              </span>
+            </div>
+            <div className="tier-indicator">
+              <span className={`tier-badge tier-${userTier}`}>
+                {getTierLimits().name} {userTier === 'pro' ? '✨' : '🔓'}
               </span>
             </div>
             <button

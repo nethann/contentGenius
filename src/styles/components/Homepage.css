@@ -81,7 +81,13 @@
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .nav-actions {
+    gap: 1rem;
+  }
 }
 
 .nav-login {

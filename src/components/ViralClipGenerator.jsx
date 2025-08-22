@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useUserTier } from '../contexts/UserTierContext';
 import {
   Upload,
   Play,
@@ -19,6 +20,7 @@ import {
 const ViralClipGenerator = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { userTier, getTierLimits, canUploadVideo } = useUserTier();
   const [file, setFile] = useState(null);
   const [processing, setProcessing] = useState(false);
 
@@ -74,6 +76,7 @@ const ViralClipGenerator = () => {
   const [generatingClips, setGeneratingClips] = useState(false);
   const [clipProgress, setClipProgress] = useState({});
   const [uploadedFileInfo, setUploadedFileInfo] = useState(null);
+  const [downloadedClipsCount, setDownloadedClipsCount] = useState(0);
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
 
@@ -97,6 +100,32 @@ const ViralClipGenerator = () => {
     if (!validTypes.includes(uploadedFile.type)) {
       setError("Please upload an MP4 video, MP3 audio, or WAV file");
       return;
+    }
+
+    // Check video duration for tier restrictions
+    const checkVideoDuration = () => {
+      return new Promise((resolve) => {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => {
+          window.URL.revokeObjectURL(video.src);
+          resolve(video.duration);
+        };
+        video.src = URL.createObjectURL(uploadedFile);
+      });
+    };
+
+    try {
+      const duration = await checkVideoDuration();
+      const tierLimits = getTierLimits();
+      
+      if (!canUploadVideo(duration)) {
+        setError(`Video duration (${Math.ceil(duration / 60)} minutes) exceeds your ${tierLimits.name} tier limit of ${tierLimits.maxVideoDuration / 60} minutes. Please upgrade to Pro for unlimited video length.`);
+        return;
+      }
+    } catch (error) {
+      console.warn('Could not check video duration:', error);
+      // Continue with upload if duration check fails
     }
 
     setFile(uploadedFile);
@@ -630,6 +659,13 @@ const ViralClipGenerator = () => {
       return;
     }
 
+    // Check tier restrictions for clip downloads
+    const tierLimits = getTierLimits();
+    if (downloadedClipsCount >= tierLimits.maxClipsPerVideo) {
+      setError(`You've reached your ${tierLimits.name} tier limit of ${tierLimits.maxClipsPerVideo} clips per video. Please upgrade to Pro for unlimited clips.`);
+      return;
+    }
+
     try {
       setCurrentStep(`Generating video with subtitles for segment ${moment.id}...`);
       setProcessing(true);
@@ -645,7 +681,9 @@ const ViralClipGenerator = () => {
           endTime: moment.endTimeSeconds,
           subtitles: moment.subtitles,
           words: moment.words || [], // Include word-level timestamps for karaoke highlighting
-          segmentId: moment.id
+          segmentId: moment.id,
+          userTier: userTier, // Add user tier for watermark logic
+          hasWatermark: getTierLimits().hasWatermark
         })
       });
 
@@ -666,6 +704,9 @@ const ViralClipGenerator = () => {
 
       console.log('✅ Video downloaded successfully');
       setCurrentStep('Download completed!');
+      
+      // Increment downloaded clips count for tier restrictions
+      setDownloadedClipsCount(prev => prev + 1);
       
       // Hide processing state after a short delay
       setTimeout(() => {
@@ -694,6 +735,7 @@ const ViralClipGenerator = () => {
     const isAudio =
       fileInfo.type.includes("audio") || fileInfo.type.includes("mp3");
     const durationMinutes = Math.floor(fileInfo.duration / 60);
+    const tierLimits = getTierLimits();
 
     const moments = [];
 
@@ -768,22 +810,54 @@ const ViralClipGenerator = () => {
           Math.floor(Math.random() * transcriptionTemplates[category].length)
         ];
 
-      moments.push({
+      // Create moment with tier-appropriate analytics
+      const baseViralScore = 65 + Math.floor(Math.random() * 30); // 65-95%
+      
+      const moment = {
         title:
           titleTemplates[category][
             Math.floor(Math.random() * titleTemplates[category].length)
           ],
         startTime: formatTime(startTime),
         endTime: formatTime(endTime),
-        viralScore: 65 + Math.floor(Math.random() * 30), // 65-95%
-        reasoning: `Engaging ${category} content detected with compelling dialogue`,
+        viralScore: baseViralScore,
         category: category,
         transcript: selectedTranscription,
         suggestedCaption: `"${selectedTranscription.slice(
           0,
           50
         )}..." Don't miss this! 🔥 #viral #${category}`,
-      });
+      };
+
+      // Add tier-specific analytics
+      if (tierLimits.hasDetailedAnalytics) {
+        // Pro tier - detailed analytics
+        moment.reasoning = `Engaging ${category} content detected with compelling dialogue`;
+        moment.detailedAnalytics = {
+          hookStrength: Math.floor(Math.random() * 40) + 60, // 60-100%
+          retentionRate: Math.floor(Math.random() * 30) + 70, // 70-100%
+          engagementPotential: Math.floor(Math.random() * 25) + 75, // 75-100%
+          sentiment: category === 'emotional' ? 'Emotional' : 
+                    category === 'funny' ? 'Humorous' : 
+                    category === 'educational' ? 'Informative' : 'Engaging',
+          keywordDensity: Math.floor(Math.random() * 20) + 15, // 15-35%
+          paceScore: Math.floor(Math.random() * 30) + 70, // 70-100%
+          visualApeal: isVideo ? Math.floor(Math.random() * 25) + 75 : null,
+          soundQuality: Math.floor(Math.random() * 20) + 80, // 80-100%
+        };
+        moment.improvements = [
+          "Consider adding a stronger hook in the first 3 seconds",
+          "Optimize pacing for better retention",
+          "Add trending hashtags for discovery"
+        ];
+        moment.hashtags = [`#${category}`, '#viral', '#trending', '#fyp'];
+      } else {
+        // Guest tier - basic analytics only
+        moment.reasoning = `${category.charAt(0).toUpperCase() + category.slice(1)} content detected`;
+        // No detailed analytics, improvements, or hashtag suggestions
+      }
+
+      moments.push(moment);
     }
 
     return {
@@ -1165,13 +1239,20 @@ const ViralClipGenerator = () => {
             <span className="viral-clip-logo-text">Viral Clip Generator</span>
           </div>
           
-          <button
-            onClick={handleSignOut}
-            className="viral-clip-signout-btn"
-            title="Sign Out"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
+          <div className="viral-clip-header-actions">
+            <div className="tier-indicator">
+              <span className={`tier-badge tier-${userTier}`}>
+                {getTierLimits().name} {userTier === 'pro' ? '✨' : '🔓'}
+              </span>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="viral-clip-signout-btn"
+              title="Sign Out"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -1278,6 +1359,74 @@ const ViralClipGenerator = () => {
                             <p className="segment-time">
                               {moment.startTime} - {moment.endTime} ({moment.duration})
                             </p>
+                            
+                            {/* Viral Score Display */}
+                            <div className="segment-viral-score">
+                              <div className="viral-score-badge">
+                                <span className="viral-score-label">Viral Score:</span>
+                                <span className="viral-score-value">{moment.viralScore}%</span>
+                              </div>
+                              <div className="viral-score-category">{moment.category}</div>
+                            </div>
+                            
+                            {/* Analytics Section - Tier Dependent */}
+                            <div className="segment-analytics">
+                              <p className="analytics-reasoning">{moment.reasoning}</p>
+                              
+                              {/* Pro Tier - Detailed Analytics */}
+                              {moment.detailedAnalytics && (
+                                <div className="detailed-analytics">
+                                  <div className="analytics-grid">
+                                    <div className="analytics-metric">
+                                      <span className="metric-label">Hook Strength:</span>
+                                      <span className="metric-value">{moment.detailedAnalytics.hookStrength}%</span>
+                                    </div>
+                                    <div className="analytics-metric">
+                                      <span className="metric-label">Retention:</span>
+                                      <span className="metric-value">{moment.detailedAnalytics.retentionRate}%</span>
+                                    </div>
+                                    <div className="analytics-metric">
+                                      <span className="metric-label">Engagement:</span>
+                                      <span className="metric-value">{moment.detailedAnalytics.engagementPotential}%</span>
+                                    </div>
+                                    <div className="analytics-metric">
+                                      <span className="metric-label">Sentiment:</span>
+                                      <span className="metric-value">{moment.detailedAnalytics.sentiment}</span>
+                                    </div>
+                                  </div>
+                                  
+                                  {moment.improvements && (
+                                    <div className="improvements-section">
+                                      <h5 className="improvements-title">💡 Suggestions:</h5>
+                                      <ul className="improvements-list">
+                                        {moment.improvements.map((improvement, idx) => (
+                                          <li key={idx} className="improvement-item">{improvement}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  
+                                  {moment.hashtags && (
+                                    <div className="hashtags-section">
+                                      <span className="hashtags-label">📱 Suggested hashtags:</span>
+                                      <div className="hashtags-list">
+                                        {moment.hashtags.map((tag, idx) => (
+                                          <span key={idx} className="hashtag">{tag}</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              
+                              {/* Guest Tier Notice */}
+                              {!moment.detailedAnalytics && (
+                                <div className="upgrade-notice">
+                                  <p className="upgrade-text">🔒 Upgrade to Pro for detailed analytics, optimization tips, and hashtag suggestions</p>
+                                </div>
+                              )}
+                            </div>
+                            
                             <div className="segment-transcript-preview">
                               <p className="segment-transcript-label">
                                 <strong>Transcript:</strong> "{moment.transcript}"

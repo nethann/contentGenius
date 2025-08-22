@@ -93,6 +93,21 @@
   color: var(--text-secondary);
 }
 
+/* Tier Selection Badge */
+.tier-selection-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 0.75rem;
+  color: #fbbf24;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
 /* Error Alert */
 .auth-error {
   margin-bottom: 1.5rem;

@@ -1,9 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { UserTierProvider } from './contexts/UserTierContext';
 import Homepage from './components/Homepage';
 import Login from './components/Login';
 import Signup from './components/Signup';
+import Pricing from './components/Pricing';
 import Dashboard from './components/Dashboard';
 import ViralClipGenerator from './components/ViralClipGenerator';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -12,13 +14,15 @@ import './App.css';
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="App">
-          <Routes>
+      <UserTierProvider>
+        <Router>
+          <div className="App">
+            <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Homepage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/pricing" element={<Pricing />} />
             
             {/* Protected Routes */}
             <Route 
@@ -48,6 +52,7 @@ function App() {
           </Routes>
         </div>
       </Router>
+      </UserTierProvider>
     </AuthProvider>
   );
 }
