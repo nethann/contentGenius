@@ -203,6 +203,11 @@ const Dashboard = () => {
                       
                       <h3 className="dashboard-card-title">
                         {feature.title}
+                        {feature.id === 'viral-clips' && (
+                          <span className="beta-pill">
+                            Beta
+                          </span>
+                        )}
                       </h3>
                       
                       <p className="dashboard-card-description">
