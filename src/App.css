@@ -5,7 +5,7 @@
 @import './styles/components/Homepage.css';
 @import './styles/components/Auth.css';
 @import './styles/components/Dashboard.css';
-@import './styles/components/ContentScalar.css';
+@import './styles/components/VideoProcessor.css';
 @import './styles/components/ProtectedRoute.css';
 
 /* App-specific styles */

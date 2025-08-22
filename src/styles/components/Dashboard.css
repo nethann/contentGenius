@@ -1,16 +1,31 @@
 /* Dashboard Component Styles */
 .dashboard-container {
   min-height: 100vh;
-  background-color: var(--bg-primary);
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  background-attachment: fixed;
+  position: relative;
+}
+
+.dashboard-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 15% 15%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+              radial-gradient(circle at 85% 85%, rgba(59, 130, 246, 0.08) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .dashboard-header {
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-primary);
   padding: 1rem 2rem;
   position: sticky;
   top: 0;
   z-index: 50;
+  border: none;
+  background: transparent;
 }
 
 .dashboard-header-content {
@@ -19,6 +34,31 @@
   justify-content: space-between;
   max-width: 1200px;
   margin: 0 auto;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border-strong);
+  border-radius: 2rem;
+  padding: 0.875rem 2rem;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.dashboard-header-content:hover {
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Responsive pill navbar */
+@media (max-width: 768px) {
+  .dashboard-header {
+    padding: 0.75rem 1rem;
+  }
+  
+  .dashboard-header-content {
+    padding: 0.75rem 1.5rem;
+    border-radius: 1.5rem;
+  }
 }
 
 .dashboard-logo {
@@ -54,22 +94,30 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem;
+  padding: 0.625rem;
   color: var(--text-secondary);
-  background: none;
-  border: none;
-  border-radius: 0.5rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+  border-radius: 0.75rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px 0 rgba(0, 0, 0, 0.1);
 }
 
 .dashboard-signout-btn:hover {
   color: var(--text-primary);
-  background-color: var(--bg-tertiary);
+  background: var(--glass-bg-strong);
+  border-color: var(--glass-border-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.15);
 }
 
 .dashboard-main {
   padding: 2rem;
+  position: relative;
+  z-index: 1;
 }
 
 .dashboard-content {
@@ -105,10 +153,15 @@
 }
 
 .dashboard-card {
-  border-radius: 1rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 1.5rem;
   overflow: hidden;
   transition: all 0.3s ease;
   transform: translateY(0);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
 }
 
 .dashboard-card-available {
@@ -116,8 +169,10 @@
 }
 
 .dashboard-card-available:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  transform: translateY(-6px);
+  background: var(--glass-bg-strong);
+  border-color: var(--glass-border-strong);
+  box-shadow: 0 20px 50px 0 rgba(0, 0, 0, 0.2);
 }
 
 .dashboard-card-disabled {
@@ -126,7 +181,7 @@
 }
 
 .dashboard-card-gradient {
-  padding: 1.5rem;
+  padding: 2rem;
   position: relative;
   overflow: hidden;
 }
@@ -138,7 +193,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
   pointer-events: none;
 }
 
