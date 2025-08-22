@@ -13,7 +13,8 @@ export const useUserTier = () => {
 
 export const USER_TIERS = {
   GUEST: 'guest',
-  PRO: 'pro'
+  PRO: 'pro',
+  DEVELOPER: 'developer'
 };
 
 export const TIER_LIMITS = {
@@ -32,6 +33,17 @@ export const TIER_LIMITS = {
     hasDetailedAnalytics: true,
     name: 'Pro',
     price: 4.99
+  },
+  [USER_TIERS.DEVELOPER]: {
+    maxVideoDuration: Infinity,
+    maxClipsPerVideo: Infinity,
+    hasWatermark: false,
+    hasDetailedAnalytics: true,
+    hasAdminAccess: true,
+    hasApiAccess: true,
+    hasDebugMode: true,
+    name: 'Developer',
+    price: 0
   }
 };
 

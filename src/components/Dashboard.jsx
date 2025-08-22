@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserTier } from '../contexts/UserTierContext';
+import { AdminService } from '../services/adminService';
+import TierChangeModal from './TierChangeModal';
 import { 
   Zap, 
   LogOut, 
@@ -14,7 +16,8 @@ import {
   BarChart3,
   Settings,
   Crown,
-  ChevronDown
+  ChevronDown,
+  Shield
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -22,7 +25,16 @@ const Dashboard = () => {
   const location = useLocation();
   const { user, signOut, userProfile } = useAuth();
   const { userTier, getTierLimits, setUserTier, upgradeToPro, USER_TIERS } = useUserTier();
+  
+  // Check admin access
+  const isAdmin = user && AdminService.isAdmin(user.email);
+  const isDeveloper = userTier === 'developer';
   const [showTierDropdown, setShowTierDropdown] = React.useState(false);
+  const [modalState, setModalState] = React.useState({
+    isOpen: false,
+    type: '',
+    message: ''
+  });
   const dropdownRef = useRef(null);
 
   // Check for tier parameter from signup redirect
@@ -77,7 +89,11 @@ const Dashboard = () => {
           alert('Failed to upgrade: ' + result.error.message);
         }
       } else {
-        alert('Successfully upgraded to Pro! 🎉');
+        setModalState({
+          isOpen: true,
+          type: 'upgrade',
+          message: 'You now have access to detailed AI analytics, unlimited clips, and no watermarks!'
+        });
       }
     } catch (error) {
       console.error('Upgrade error:', error);
@@ -88,15 +104,30 @@ const Dashboard = () => {
 
   const handleDowngradeToGuest = async () => {
     try {
+      console.log('🔄 Starting downgrade process...');
+      console.log('Current user tier:', userTier);
+      console.log('Target tier:', USER_TIERS.GUEST);
+      
       const result = await setUserTier(USER_TIERS.GUEST);
+      console.log('Downgrade result:', result);
+      
       if (result?.error) {
-        alert('Failed to downgrade: ' + result.error.message);
+        console.error('Downgrade error details:', result.error);
+        if (result.error.needsSetup) {
+          alert('🛠️ Database Setup Required!\n\nPlease set up the user_profiles table in Supabase first:\n\n1. Go to your Supabase SQL Editor\n2. Run the setup SQL from minimal_setup.sql\n3. Then try downgrading again');
+        } else {
+          alert('Failed to downgrade: ' + (result.error.message || JSON.stringify(result.error)));
+        }
       } else {
-        alert('Downgraded to Guest tier');
+        setModalState({
+          isOpen: true,
+          type: 'downgrade', 
+          message: 'You\'ve been switched back to Guest tier. You can upgrade again anytime!'
+        });
       }
     } catch (error) {
-      console.error('Downgrade error:', error);
-      alert('Failed to downgrade. Please try again.');
+      console.error('Downgrade exception:', error);
+      alert('Failed to downgrade. Please try again. Error: ' + error.message);
     }
     setShowTierDropdown(false);
   };
@@ -263,6 +294,17 @@ const Dashboard = () => {
               )}
             </div>
             
+            {/* Admin Panel Button */}
+            {(isAdmin || isDeveloper) && (
+              <button
+                onClick={() => navigate('/admin')}
+                className="dashboard-admin-btn"
+                title="Admin Panel"
+              >
+                <Shield className="w-5 h-5" />
+              </button>
+            )}
+            
             <button
               onClick={handleSignOut}
               className="dashboard-signout-btn"
@@ -374,6 +416,14 @@ const Dashboard = () => {
           </div>
         </div>
       </main>
+
+      {/* Tier Change Modal */}
+      <TierChangeModal
+        isOpen={modalState.isOpen}
+        type={modalState.type}
+        message={modalState.message}
+        onClose={() => setModalState({ isOpen: false, type: '', message: '' })}
+      />
     </div>
   );
 };

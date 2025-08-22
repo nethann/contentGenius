@@ -16,10 +16,30 @@ export class UserProfileService {
         .eq('id', userId)
         .single()
       
-      if (error) throw error
+      if (error) {
+        // If no rows found, that's expected for new users
+        if (error.code === 'PGRST116') {
+          console.log('No profile found for user, will create one');
+          return { profile: null, error: null }
+        }
+        throw error
+      }
       return { profile: data, error: null }
     } catch (error) {
       console.error('Error fetching user profile:', error)
+      
+      // Handle table not found error
+      if (error.message.includes('relation "public.user_profiles" does not exist') || 
+          error.message.includes('Could not find the table')) {
+        return { 
+          profile: null, 
+          error: { 
+            message: 'Database table not set up. Please run the Supabase SQL setup first.',
+            needsSetup: true 
+          }
+        }
+      }
+      
       return { profile: null, error }
     }
   }

@@ -8,7 +8,9 @@ import Signup from './components/Signup';
 import Pricing from './components/Pricing';
 import Dashboard from './components/Dashboard';
 import ViralClipGenerator from './components/ViralClipGenerator';
+import AdminDashboard from './components/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminProtectedRoute from './components/AdminProtectedRoute';
 import './App.css';
 
 function App() {
@@ -40,6 +42,16 @@ function App() {
                 <ProtectedRoute>
                   <ViralClipGenerator />
                 </ProtectedRoute>
+              } 
+            />
+            
+            {/* Admin Routes */}
+            <Route 
+              path="/admin" 
+              element={
+                <AdminProtectedRoute>
+                  <AdminDashboard />
+                </AdminProtectedRoute>
               } 
             />
             
