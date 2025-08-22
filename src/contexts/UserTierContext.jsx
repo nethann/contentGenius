@@ -39,18 +39,21 @@ export const UserTierProvider = ({ children }) => {
   const { user } = useAuth();
   const [userTier, setUserTier] = useState(USER_TIERS.GUEST);
   const [isLoading, setIsLoading] = useState(true);
+  const [tierInitialized, setTierInitialized] = useState(false);
 
   useEffect(() => {
     // For now, all users are Guest tier
     // In a real app, you'd fetch this from your database/subscription service
     const fetchUserTier = async () => {
       try {
-        if (user) {
+        if (user && !tierInitialized) {
           // Check user metadata or make API call to get subscription status
           const tier = user.user_metadata?.tier || USER_TIERS.GUEST;
           setUserTier(tier);
-        } else {
+          setTierInitialized(true);
+        } else if (!user) {
           setUserTier(USER_TIERS.GUEST);
+          setTierInitialized(false);
         }
       } catch (error) {
         console.error('Error fetching user tier:', error);
@@ -61,7 +64,7 @@ export const UserTierProvider = ({ children }) => {
     };
 
     fetchUserTier();
-  }, [user]);
+  }, [user, tierInitialized]);
 
   const getTierLimits = () => {
     return TIER_LIMITS[userTier];
@@ -84,9 +87,16 @@ export const UserTierProvider = ({ children }) => {
     // setUserTier(USER_TIERS.PRO);
   };
 
+  // Custom setUserTier that also marks tier as initialized
+  const updateUserTier = (newTier) => {
+    console.log(`Updating user tier to: ${newTier}`);
+    setUserTier(newTier);
+    setTierInitialized(true);
+  };
+
   const value = {
     userTier,
-    setUserTier,
+    setUserTier: updateUserTier,
     isLoading,
     getTierLimits,
     canUploadVideo,

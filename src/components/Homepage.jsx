@@ -32,7 +32,7 @@ const Homepage = () => {
               <Link to="/login" className="nav-login">
                 Log In
               </Link>
-              <Link to="/signup" className="nav-signup">
+              <Link to="/pricing" className="nav-signup">
                 Sign Up
               </Link>
             </div>
