@@ -13,7 +13,7 @@ const ProtectedRoute = ({ children }) => {
         <div className="text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Zap className="w-8 h-8 text-yellow-400 animate-pulse" />
-            <span className="text-2xl font-bold text-white">Content Scalar</span>
+            <span className="text-2xl font-bold text-white">ClipGenius</span>
           </div>
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mx-auto mb-4"></div>
           <p className="text-gray-300">Loading...</p>

@@ -22,7 +22,7 @@ const Homepage = () => {
           <div className="nav-content">
             <div className="nav-logo">
               <Zap className="w-8 h-8 text-yellow-400" />
-              <span className="nav-logo-text">Content Scalar</span>
+              <span className="nav-logo-text">ClipGenius</span>
             </div>
             <div className="nav-actions">
               <Link to="/login" className="nav-login">
@@ -160,7 +160,7 @@ const Homepage = () => {
             Ready to Create Viral Content?
           </h2>
           <p className="cta-description">
-            Join thousands of content creators who are already using Content Scalar to boost their engagement
+            Join thousands of content creators who are already using ClipGenius to boost their engagement
           </p>
           <Link to="/signup" className="cta-button">
             Start Creating Now <ArrowRight className="w-5 h-5" />
@@ -173,9 +173,9 @@ const Homepage = () => {
         <div className="footer-content">
           <div className="footer-logo">
             <Zap className="w-6 h-6 text-yellow-400" />
-            <span className="footer-logo-text">Content Scalar</span>
+            <span className="footer-logo-text">ClipGenius</span>
           </div>
-          <p className="footer-copyright">© 2024 Content Scalar. All rights reserved.</p>
+          <p className="footer-copyright">© 2024 ClipGenius. All rights reserved.</p>
         </div>
       </footer>
     </div>

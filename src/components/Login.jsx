@@ -37,7 +37,7 @@ const Login = () => {
           <div className="auth-header">
             <div className="auth-logo">
               <Zap className="w-8 h-8 text-yellow-400" />
-              <span className="auth-logo-text">Content Scalar</span>
+              <span className="auth-logo-text">ClipGenius</span>
             </div>
             <h1 className="auth-title">Welcome Back</h1>
             <p className="auth-subtitle">Sign in to your account to continue</p>
@@ -80,7 +80,7 @@ const Login = () => {
             </button>
 
             <p className="google-auth-description">
-              Sign in with your Google account to access Content Scalar. 
+              Sign in with your Google account to access ClipGenius. 
               We'll create your account automatically if you're new.
             </p>
           </div>

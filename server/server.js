@@ -155,7 +155,7 @@ async function transcribeAudio(audioPath) {
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Content Scalar server is running' });
+  res.json({ status: 'ok', message: 'ClipGenius server is running' });
 });
 
 // Upload video file
@@ -679,7 +679,7 @@ app.post('/api/cleanup', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Content Scalar server running on http://localhost:${PORT}`);
+  console.log(`🚀 ClipGenius server running on http://localhost:${PORT}`);
   console.log(`📁 Upload directory: ${uploadDir}`);
   console.log(`🔧 Temp directory: ${tempDir}`);
 });

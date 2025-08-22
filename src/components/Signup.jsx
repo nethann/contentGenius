@@ -30,7 +30,7 @@ const Signup = () => {
           <div className="auth-success-icon">
             <Check className="w-8 h-8 text-green-400" />
           </div>
-          <h1 className="auth-success-title">Welcome to Content Scalar!</h1>
+          <h1 className="auth-success-title">Welcome to ClipGenius!</h1>
           <p className="auth-success-message">
             Your account has been created successfully. You can now start creating viral content.
           </p>
@@ -57,7 +57,7 @@ const Signup = () => {
           <div className="auth-header">
             <div className="auth-logo">
               <Zap className="w-8 h-8 text-yellow-400" />
-              <span className="auth-logo-text">Content Scalar</span>
+              <span className="auth-logo-text">ClipGenius</span>
             </div>
             <h1 className="auth-title">Get Started Free</h1>
             <p className="auth-subtitle">Create your account and start making viral content</p>

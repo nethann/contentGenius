@@ -41,6 +41,7 @@ function App() {
             
             {/* Redirect old route to new protected route */}
             <Route path="/content-scalar" element={<Navigate to="/app" replace />} />
+            <Route path="/clipgenius" element={<Navigate to="/app" replace />} />
             
             {/* Catch all - redirect to home */}
             <Route path="*" element={<Navigate to="/" replace />} />

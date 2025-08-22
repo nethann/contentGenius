@@ -1,4 +1,4 @@
-# Content Scalar
+# ClipGenius
 
 A video transcription tool that extracts real speech from videos using FFmpeg and Groq Whisper API.
 
@@ -92,10 +92,10 @@ VITE_GROQ_API_KEY=your_groq_api_key_here
 ## File Structure
 
 ```
-content-scalar/
+clipgenius/
 ├── src/
 │   ├── components/
-│   │   └── ContentScalar.jsx  # React frontend
+│   │   └── VideoProcessor.jsx  # React frontend
 │   ├── App.jsx               
 │   └── main.jsx             
 ├── server/

@@ -115,7 +115,7 @@ const Dashboard = () => {
         <div className="dashboard-header-content">
           <div className="dashboard-logo">
             <Zap className="w-8 h-8 text-yellow-400" />
-            <span className="dashboard-logo-text">Content Scalar</span>
+            <span className="dashboard-logo-text">ClipGenius</span>
           </div>
           
           <div className="dashboard-user-section">

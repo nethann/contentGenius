@@ -12,7 +12,7 @@ import {
   Mic,
 } from "lucide-react";
 
-const ContentScalar = () => {
+const VideoProcessor = () => {
   const [file, setFile] = useState(null);
   const [processing, setProcessing] = useState(false);
 
@@ -1289,4 +1289,4 @@ const ContentScalar = () => {
   );
 };
 
-export default ContentScalar;
+export default VideoProcessor;
