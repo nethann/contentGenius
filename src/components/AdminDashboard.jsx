@@ -68,16 +68,47 @@ const AdminDashboard = () => {
       console.log('👥 Users result:', usersResult);
       console.log('📈 Analytics result:', analyticsResult);
 
-      if (usersResult.users) {
-        setUsers(usersResult.users);
-        console.log(`✅ Loaded ${usersResult.users.length} users`);
+      // Handle users result
+      if (usersResult.error) {
+        console.error('❌ Users fetch error:', usersResult.error);
+        if (usersResult.error.needsSetup) {
+          alert('🛠️ Database Setup Required!\n\nThe user_profiles table is not set up. Please:\n\n1. Go to your Supabase SQL Editor\n2. Run the setup SQL from minimal_setup.sql\n3. Refresh this page');
+        } else if (usersResult.error.permission) {
+          alert('🔒 Permission Error!\n\nAdmin access is denied. Please check:\n\n1. Your email is in the admin list\n2. Database RLS policies are configured\n3. You are signed in as an admin user');
+        } else {
+          alert(`Error loading users: ${usersResult.error.message}`);
+        }
+        setUsers([]); // Set empty array on error
+      } else {
+        setUsers(usersResult.users || []);
+        console.log(`✅ Loaded ${(usersResult.users || []).length} users`);
       }
-      if (analyticsResult.analytics) {
+
+      // Handle analytics result  
+      if (analyticsResult.error) {
+        console.error('❌ Analytics fetch error:', analyticsResult.error);
+        // Don't show alert for analytics errors, just log them
+        setAnalytics({
+          totalUsers: 0,
+          activeUsers: 0,
+          tierCounts: { guest: 0, pro: 0, developer: 0 },
+          conversionRate: 0
+        });
+      } else {
         setAnalytics(analyticsResult.analytics);
         console.log('✅ Loaded analytics:', analyticsResult.analytics);
       }
     } catch (error) {
       console.error('❌ Error loading admin data:', error);
+      alert(`Unexpected error: ${error.message}`);
+      // Set default values on error
+      setUsers([]);
+      setAnalytics({
+        totalUsers: 0,
+        activeUsers: 0,
+        tierCounts: { guest: 0, pro: 0, developer: 0 },
+        conversionRate: 0
+      });
     } finally {
       setLoading(false);
       console.log('✅ Admin data loading completed');

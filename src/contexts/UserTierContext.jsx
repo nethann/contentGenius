@@ -117,9 +117,9 @@ export const UserTierProvider = ({ children }) => {
       return { error: { message: 'No user logged in' } };
     }
 
-    if (userTier === USER_TIERS.PRO) {
-      console.log('User is already Pro');
-      return { error: { message: 'User is already Pro' } };
+    if (userTier === USER_TIERS.PRO || userTier === USER_TIERS.DEVELOPER) {
+      console.log('User is already Pro or Developer');
+      return { error: { message: 'User already has premium access' } };
     }
 
     try {
@@ -127,21 +127,41 @@ export const UserTierProvider = ({ children }) => {
       console.log('Current user:', user.email);
       console.log('Current tier:', userTier);
       
+      // Set loading state
+      setIsLoading(true);
+      
       const result = await authUpdateUserTier(USER_TIERS.PRO);
       
       if (result?.error) {
         console.error('Failed to upgrade to Pro:', result.error);
+        
+        // Check if it's a database setup issue
+        if (result.error.needsSetup || result.error.message?.includes('does not exist')) {
+          return { 
+            error: { 
+              message: 'Database setup required. Please run the setup script in Supabase.',
+              needsSetup: true
+            } 
+          };
+        }
+        
         return { error: result.error };
       }
       
       // Update local state immediately for better UX
       setUserTier(USER_TIERS.PRO);
       
+      // Also update localStorage to persist across refreshes
+      const updatedProfile = { ...userProfile, user_tier: USER_TIERS.PRO };
+      localStorage.setItem('user_profile', JSON.stringify(updatedProfile));
+      
       console.log('✅ Successfully upgraded to Pro!');
       return { success: true, tier: USER_TIERS.PRO };
     } catch (error) {
       console.error('Error upgrading to Pro:', error);
       return { error: { message: error.message || 'Unknown error occurred during upgrade' } };
+    } finally {
+      setIsLoading(false);
     }
   };
 

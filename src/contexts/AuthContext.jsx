@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { UserProfileService } from '../services/userProfileService'
+import { DBSetupService } from '../services/dbSetupService'
 
 const AuthContext = createContext({})
 
@@ -114,22 +115,60 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Load user profile from Supabase
+  // Load user profile from Supabase with automatic setup
   const loadUserProfile = async (user) => {
     try {
-      const { profile, error } = await UserProfileService.ensureUserProfile(user)
+      console.log('🔄 Loading user profile for:', user.email);
+      
+      // First ensure database is set up
+      const setupResult = await DBSetupService.ensureDatabaseSetup();
+      if (!setupResult.success) {
+        console.warn('⚠️ Database setup issues, using fallback profile');
+        const fallbackProfile = DBSetupService.getLocalFallbackProfile(user);
+        setUserProfile(fallbackProfile);
+        localStorage.setItem('user_profile', JSON.stringify(fallbackProfile));
+        return;
+      }
+
+      // Try to get/create user profile
+      const { profile, error } = await UserProfileService.ensureUserProfile(user);
+      
       if (error) {
-        console.error('Error loading user profile:', error)
-        // Set default profile if database error
-        setUserProfile({ user_tier: 'guest' })
+        console.error('❌ Error loading user profile:', error);
+        
+        // Check if it's a database setup issue
+        if (error.needsSetup || error.message?.includes('does not exist')) {
+          console.log('🔄 Database needs setup, attempting automatic fix...');
+          await DBSetupService.ensureDatabaseSetup();
+          
+          // Retry once after setup
+          const retryResult = await UserProfileService.ensureUserProfile(user);
+          if (retryResult.profile) {
+            setUserProfile(retryResult.profile);
+            localStorage.setItem('user_profile', JSON.stringify(retryResult.profile));
+            console.log('✅ User profile loaded after setup:', retryResult.profile);
+            return;
+          }
+        }
+        
+        // Use fallback profile if still failing
+        const fallbackProfile = DBSetupService.getLocalFallbackProfile(user);
+        setUserProfile(fallbackProfile);
+        localStorage.setItem('user_profile', JSON.stringify(fallbackProfile));
+        console.log('⚠️ Using fallback profile:', fallbackProfile);
       } else {
-        setUserProfile(profile)
-        localStorage.setItem('user_profile', JSON.stringify(profile))
-        console.log('✅ User profile loaded:', profile)
+        setUserProfile(profile);
+        localStorage.setItem('user_profile', JSON.stringify(profile));
+        console.log('✅ User profile loaded:', profile);
       }
     } catch (error) {
-      console.error('Error in loadUserProfile:', error)
-      setUserProfile({ user_tier: 'guest' })
+      console.error('❌ Error in loadUserProfile:', error);
+      
+      // Always provide a fallback profile
+      const fallbackProfile = DBSetupService.getLocalFallbackProfile(user);
+      setUserProfile(fallbackProfile);
+      localStorage.setItem('user_profile', JSON.stringify(fallbackProfile));
+      console.log('⚠️ Exception fallback profile:', fallbackProfile);
     }
   }
 
@@ -220,14 +259,38 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     try {
       setError(null)
+      console.log('🚪 Starting sign out process...')
+      
+      // Set loading state
+      setLoading(true)
+      
       const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      if (error) {
+        console.error('❌ Supabase sign out error:', error)
+        throw error
+      }
+      
+      // Clear state immediately
+      setUser(null)
+      setUserProfile(null)
       
       // Clear localStorage on sign out
       localStorage.removeItem('auth_user')
       localStorage.removeItem('user_profile')
+      
+      console.log('✅ Sign out completed successfully')
+      
     } catch (error) {
+      console.error('❌ Sign out error:', error)
       setError(error.message)
+      
+      // Even on error, try to clear local state
+      setUser(null)
+      setUserProfile(null)
+      localStorage.removeItem('auth_user')
+      localStorage.removeItem('user_profile')
+    } finally {
+      setLoading(false)
     }
   }
 

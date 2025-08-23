@@ -25,6 +25,31 @@ CREATE POLICY "Users can update own profile" ON user_profiles
 CREATE POLICY "Users can insert own profile" ON user_profiles
     FOR INSERT WITH CHECK (auth.uid() = id);
 
+-- Admin policies for nethan.nagendran@gmail.com and nethmarket@gmail.com
+CREATE POLICY "Admins can read all profiles" ON user_profiles
+    FOR SELECT USING (
+        auth.jwt() ->> 'email' = 'nethan.nagendran@gmail.com' OR 
+        auth.jwt() ->> 'email' = 'nethmarket@gmail.com'
+    );
+
+CREATE POLICY "Admins can update all profiles" ON user_profiles
+    FOR UPDATE USING (
+        auth.jwt() ->> 'email' = 'nethan.nagendran@gmail.com' OR 
+        auth.jwt() ->> 'email' = 'nethmarket@gmail.com'
+    );
+
+CREATE POLICY "Admins can insert any profile" ON user_profiles
+    FOR INSERT WITH CHECK (
+        auth.jwt() ->> 'email' = 'nethan.nagendran@gmail.com' OR 
+        auth.jwt() ->> 'email' = 'nethmarket@gmail.com'
+    );
+
+CREATE POLICY "Admins can delete profiles" ON user_profiles
+    FOR DELETE USING (
+        auth.jwt() ->> 'email' = 'nethan.nagendran@gmail.com' OR 
+        auth.jwt() ->> 'email' = 'nethmarket@gmail.com'
+    );
+
 -- Step 4: Create a trigger function for new users
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger

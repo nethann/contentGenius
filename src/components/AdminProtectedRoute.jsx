@@ -1,15 +1,13 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useUserTier } from '../contexts/UserTierContext';
+import { useUser } from '@clerk/clerk-react';
 import { AdminService } from '../services/adminService';
 
 const AdminProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  const { userTier, isLoading: tierLoading } = useUserTier();
+  const { user, isLoaded } = useUser();
 
-  // Show loading while auth or tier is loading
-  if (loading || tierLoading) {
+  // Show loading while auth is loading
+  if (!isLoaded) {
     return (
       <div className="admin-loading-screen">
         <div className="loading-spinner"></div>
@@ -23,11 +21,11 @@ const AdminProtectedRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Check admin access
-  const isAdmin = AdminService.isAdmin(user.email);
-  const isDeveloper = userTier === 'developer';
+  // Check admin access using Clerk user email
+  const userEmail = user?.emailAddresses?.[0]?.emailAddress;
+  const isAdmin = userEmail && AdminService.isAdmin(userEmail);
 
-  if (!isAdmin && !isDeveloper) {
+  if (!isAdmin) {
     return <Navigate to="/app" replace />;
   }
 

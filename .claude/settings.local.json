@@ -14,7 +14,11 @@
       "Bash(echo \"Shell: $0\")",
       "Bash(start test-connection.html)",
       "Bash(start get-anon-key.html)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(set NODE_ENV=development)",
+      "Bash(curl:*)",
+      "Bash(powershell:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": [],

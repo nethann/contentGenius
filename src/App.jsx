@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { UserTierProvider } from './contexts/UserTierContext';
+import { SimpleAuthProvider } from './contexts/SimpleAuthContext';
 import Homepage from './components/Homepage';
 import Login from './components/Login';
 import Signup from './components/Signup';
@@ -11,22 +12,31 @@ import ViralClipGenerator from './components/ViralClipGenerator';
 import AdminDashboard from './components/AdminDashboard';
 import DatabaseDiagnostic from './components/DatabaseDiagnostic';
 import SimpleDBTest from './components/SimpleDBTest';
+import DatabaseTest from './components/DatabaseTest';
+import EmergencyFix from './components/EmergencyFix';
+import SimpleDashboard from './components/SimpleDashboard';
+import ClerkDashboard from './components/ClerkDashboard';
+import SimpleClerkDashboard from './components/SimpleClerkDashboard';
+import ClerkLogin from './components/ClerkLogin';
+import ClerkSignup from './components/ClerkSignup';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 import './App.css';
 
 function App() {
   return (
-    <AuthProvider>
-      <UserTierProvider>
-        <Router>
+    <Router>
           <div className="App">
             <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Homepage />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
+            <Route path="/login" element={<ClerkLogin />} />
+            <Route path="/signup" element={<ClerkSignup />} />
             <Route path="/pricing" element={<Pricing />} />
+            
+            {/* New Clerk Auth Routes */}
+            <Route path="/clerk-login" element={<ClerkLogin />} />
+            <Route path="/clerk-signup" element={<ClerkSignup />} />
             
             {/* Protected Routes */}
             <Route 
@@ -76,6 +86,28 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+
+            {/* Enhanced Database Test Route (Protected) */}
+            <Route 
+              path="/database-test" 
+              element={
+                <ProtectedRoute>
+                  <DatabaseTest />
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Emergency Fix Route (No Auth Required) */}
+            <Route path="/emergency-fix" element={<EmergencyFix />} />
+            
+            {/* Simple Dashboard (No Database Required) */}
+            <Route path="/simple-dashboard" element={<SimpleDashboard />} />
+            
+            {/* Clerk Dashboard (New Auth System) */}
+            <Route path="/clerk-dashboard" element={<ClerkDashboard />} />
+            
+            {/* Simple Clerk Dashboard (No Database) */}
+            <Route path="/simple-clerk" element={<SimpleClerkDashboard />} />
             
             {/* Redirect old route to new protected route */}
             <Route path="/content-scalar" element={<Navigate to="/app" replace />} />
@@ -86,8 +118,6 @@ function App() {
           </Routes>
         </div>
       </Router>
-      </UserTierProvider>
-    </AuthProvider>
   );
 }
 

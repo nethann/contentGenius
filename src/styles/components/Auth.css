@@ -554,3 +554,192 @@
 .signup-features {
   margin-top: 2rem;
 }
+
+/* Clerk Component Overrides - Force our styling */
+.clerk-auth-wrapper {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.clerk-auth-wrapper .cl-rootBox {
+  width: 100% !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.clerk-auth-wrapper .cl-card {
+  width: 100% !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+.clerk-auth-wrapper .cl-headerTitle,
+.clerk-auth-wrapper .cl-headerSubtitle,
+.clerk-auth-wrapper .cl-dividerRow,
+.clerk-auth-wrapper .cl-formFieldRow,
+.clerk-auth-wrapper .cl-formButtonRow,
+.clerk-auth-wrapper .cl-footerActionRow,
+.clerk-auth-wrapper .cl-form,
+.clerk-auth-wrapper .cl-formContainer,
+.clerk-auth-wrapper .cl-formFields,
+.clerk-auth-wrapper .cl-formField,
+.clerk-auth-wrapper .cl-formFieldInput,
+.clerk-auth-wrapper .cl-formFieldLabel,
+.clerk-auth-wrapper .cl-formButtonPrimary,
+.clerk-auth-wrapper .cl-footer,
+.clerk-auth-wrapper .cl-footerAction,
+.clerk-auth-wrapper .cl-footerActionLink,
+.clerk-auth-wrapper .cl-identityPreview {
+  display: none !important;
+}
+
+.clerk-auth-wrapper .cl-socialButtons {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.clerk-auth-wrapper .cl-socialButtonsBlockButton {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.75rem !important;
+  padding: 1rem !important;
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 1rem !important;
+  font-weight: 500 !important;
+  font-size: 0.95rem !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1) !important;
+  margin: 0 !important;
+  font-family: inherit !important;
+}
+
+.clerk-auth-wrapper .cl-socialButtonsBlockButton:hover {
+  background: var(--glass-bg-strong) !important;
+  border-color: var(--glass-border-strong) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 30px 0 rgba(0, 0, 0, 0.2) !important;
+}
+
+.clerk-auth-wrapper .cl-socialButtonsBlockButtonText {
+  color: var(--text-primary) !important;
+  font-weight: 500 !important;
+  font-family: inherit !important;
+}
+
+.clerk-auth-wrapper .cl-socialButtonsBlockButtonArrow {
+  display: none !important;
+}
+
+/* Override any remaining Clerk styles that might interfere */
+.clerk-auth-wrapper * {
+  box-sizing: border-box;
+}
+
+.clerk-auth-wrapper input {
+  display: none !important;
+}
+
+.clerk-auth-wrapper .cl-internal-* {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+/* Additional centering rules for Clerk components */
+.clerk-auth-wrapper > div,
+.clerk-auth-wrapper > div > div {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  flex-direction: column !important;
+}
+
+/* Force center alignment on the Google auth container */
+.google-auth-container {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+  text-align: center !important;
+  min-height: 60px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.google-auth-container .clerk-auth-wrapper {
+  max-width: 100% !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  min-height: inherit !important;
+}
+
+/* Aggressively remove ALL Clerk backgrounds */
+.clerk-auth-wrapper *,
+.clerk-auth-wrapper *::before,
+.clerk-auth-wrapper *::after {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Specifically target common Clerk background elements */
+.clerk-auth-wrapper [class*="cl-"],
+.clerk-auth-wrapper [data-testid],
+.clerk-auth-wrapper div[style*="background"],
+.clerk-auth-wrapper div[style*="box-shadow"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Only keep the button styling intact */
+.clerk-auth-wrapper .cl-socialButtonsBlockButton {
+  background: var(--glass-bg) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1) !important;
+  margin: 0 auto !important;
+  position: relative !important;
+  top: 0 !important;
+  transform: none !important;
+}
+
+.clerk-auth-wrapper .cl-socialButtonsBlockButton:hover {
+  background: var(--glass-bg-strong) !important;
+  border-color: var(--glass-border-strong) !important;
+  box-shadow: 0 8px 30px 0 rgba(0, 0, 0, 0.2) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Additional vertical centering for the entire Clerk component */
+.clerk-auth-wrapper .cl-socialButtons {
+  margin: 0 auto !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  min-height: 60px !important;
+}

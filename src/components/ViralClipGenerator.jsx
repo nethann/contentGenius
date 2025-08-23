@@ -1,7 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useUserTier } from '../contexts/UserTierContext';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import {
   Upload,
   Play,
@@ -26,10 +25,55 @@ import {
 
 const ViralClipGenerator = () => {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
-  const { userTier, getTierLimits, canUploadVideo } = useUserTier();
+  const { user, isLoaded } = useUser();
+  const { signOut } = useAuth();
   const [file, setFile] = useState(null);
   const [processing, setProcessing] = useState(false);
+
+  // Simple tier detection based on email or localStorage
+  const getUserTier = () => {
+    if (!user?.emailAddresses?.[0]?.emailAddress) return 'guest';
+    
+    const email = user.emailAddresses[0].emailAddress.toLowerCase();
+    const adminEmails = ['nethan.nagendran@gmail.com', 'nethmarket@gmail.com'];
+    
+    // Check if admin email
+    if (adminEmails.includes(email)) return 'developer';
+    
+    // Check localStorage for saved tier
+    const savedTier = localStorage.getItem(`userTier_${user.id}`);
+    if (savedTier) return savedTier;
+    
+    return 'guest';
+  };
+
+  const userTier = getUserTier();
+
+  const getTierLimits = () => {
+    switch (userTier) {
+      case 'pro':
+      case 'developer':
+        return { 
+          name: userTier === 'developer' ? 'Developer' : 'Pro',
+          maxClips: -1, 
+          maxVideoLength: -1,
+          aspectRatios: ['9:16', '16:9', '1:1', '4:5', '21:9'],
+          cropPositions: ['center', 'top', 'bottom', 'left', 'right'],
+          features: ['basic_export', 'bulk_export', 'custom_positioning', 'ai_cropping']
+        };
+      default:
+        return { 
+          name: 'Guest', 
+          maxClips: 3, 
+          maxVideoLength: 600,
+          aspectRatios: ['9:16'],
+          cropPositions: ['center'],
+          features: ['basic_export']
+        };
+    }
+  };
+
+  const canUploadVideo = () => true; // Allow all uploads, check limits during processing
   
   // Pro feature states
   const [selectedAspectRatio, setSelectedAspectRatio] = useState('9:16');
@@ -38,6 +82,30 @@ const ViralClipGenerator = () => {
   const [selectedBulkRatios, setSelectedBulkRatios] = useState(['9:16', '16:9', '1:1']);
   
   console.log('🎯 ViralClipGenerator - Current tier:', userTier);
+
+  // Loading state
+  if (!isLoaded) {
+    return (
+      <div className="content-scalar min-h-screen">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading Viral Clip Generator...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not signed in
+  if (!user) {
+    return (
+      <div className="content-scalar min-h-screen">
+        <div className="loading-container">
+          <p>Please sign in to access the Viral Clip Generator</p>
+          <button onClick={() => navigate('/')}>Go to Sign In</button>
+        </div>
+      </div>
+    );
+  }
 
   // Pro feature configurations
   const TIER_LIMITS = {
@@ -76,8 +144,11 @@ const ViralClipGenerator = () => {
   const hasFeature = (feature) => currentTierLimits.features.includes(feature);
   const isAspectRatioAvailable = (ratio) => currentTierLimits.aspectRatios.includes(ratio);
 
-  console.log('🎯 ViralClipGenerator - Has bulk export:', hasFeature('bulk_export'));
-  console.log('🎯 ViralClipGenerator - Has AI cropping:', hasFeature('ai_cropping'));
+  console.log('🎯 ViralClipGenerator - Has bulk export ACCESS:', hasFeature('bulk_export'));
+  console.log('🎯 ViralClipGenerator - Has AI cropping ACCESS:', hasFeature('ai_cropping'));
+  console.log('🎯 ViralClipGenerator - Bulk export MODE:', bulkExportMode);
+  console.log('🎯 ViralClipGenerator - Selected aspect ratio:', selectedAspectRatio);
+  console.log('🎯 ViralClipGenerator - Selected crop position:', selectedCropPosition);
 
   const handleBackToDashboard = () => {
     navigate('/app');
@@ -840,6 +911,12 @@ const ViralClipGenerator = () => {
   };
 
   const downloadVideoWithSubtitles = async (moment) => {
+    console.log('🔥 DOWNLOAD FUNCTION CALLED!');
+    console.log('🔥 Moment:', moment);
+    console.log('🔥 Selected aspect ratio:', selectedAspectRatio);
+    console.log('🔥 Selected crop position:', selectedCropPosition);
+    console.log('🔥 User tier:', userTier);
+    
     if (!moment.subtitles || moment.subtitles.length === 0) {
       alert('No subtitles available for download');
       return;
@@ -869,7 +946,10 @@ const ViralClipGenerator = () => {
           words: moment.words || [], // Include word-level timestamps for karaoke highlighting
           segmentId: moment.id,
           userTier: userTier, // Add user tier for watermark logic
-          hasWatermark: getTierLimits().hasWatermark
+          hasWatermark: getTierLimits().hasWatermark,
+          // Pro feature parameters
+          aspectRatio: selectedAspectRatio,
+          cropPosition: selectedCropPosition
         })
       });
 

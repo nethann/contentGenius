@@ -53,6 +53,22 @@ export class AdminService {
   static async getAllUsers() {
     try {
       console.log('🔍 Attempting to fetch users from user_profiles table...');
+      
+      // Check if user is authenticated first
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) {
+        console.error('❌ No authenticated user for admin query');
+        return { users: [], error: { message: 'Authentication required' } };
+      }
+
+      // Check if current user is admin
+      if (!this.isAdmin(currentUser.email)) {
+        console.error('❌ User not authorized for admin operations:', currentUser.email);
+        return { users: [], error: { message: 'Admin access required' } };
+      }
+      
+      console.log('✅ Admin user verified:', currentUser.email);
+      
       const query = supabase
         .from('user_profiles')
         .select('*')
@@ -62,17 +78,45 @@ export class AdminService {
       
       if (error) {
         console.error('❌ Supabase error fetching all users:', error);
-        console.error('Error details:', error.message, error.details, error.hint);
-        // Return empty array on error to prevent loading state hang
-        return { users: [], error: null };
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        
+        // Handle specific error types
+        if (error.message.includes('relation "user_profiles" does not exist')) {
+          return { 
+            users: [], 
+            error: { 
+              message: 'Database not set up. Please run minimal_setup.sql in Supabase.',
+              needsSetup: true
+            } 
+          };
+        }
+        
+        if (error.message.includes('permission') || error.message.includes('RLS')) {
+          return { 
+            users: [], 
+            error: { 
+              message: 'Database permission denied. Admin policies may not be configured.',
+              permission: true
+            } 
+          };
+        }
+        
+        return { users: [], error: { message: error.message } };
       }
       
       console.log(`✅ Successfully fetched ${data?.length || 0} users from database`);
       return { users: data || [], error: null };
     } catch (error) {
       console.error('❌ JavaScript error fetching all users:', error);
-      // Return empty array on error to prevent loading state hang
-      return { users: [], error: null };
+      return { 
+        users: [], 
+        error: { message: error.message || 'Unknown error occurred' }
+      };
     }
   }
 

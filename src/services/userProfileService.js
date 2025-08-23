@@ -74,17 +74,49 @@ export class UserProfileService {
     console.log(`🔄 UserProfileService: Updating tier for ${userId} to ${newTier}`);
     
     try {
-      const { data, error } = await supabase
+      // First check if the user profile exists
+      const { data: existingProfile, error: checkError } = await supabase
         .from('user_profiles')
-        .upsert({
-          id: userId,
-          user_tier: newTier,
-          subscription_status: newTier === 'pro' ? 'active' : 'inactive',
-          updated_at: new Date().toISOString()
-        })
-        .select()
+        .select('*')
+        .eq('id', userId)
         .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('❌ Error checking existing profile:', checkError);
+        throw checkError;
+      }
+
+      let result;
+      if (existingProfile) {
+        // Update existing profile
+        result = await supabase
+          .from('user_profiles')
+          .update({
+            user_tier: newTier,
+            subscription_status: newTier === 'pro' ? 'active' : 'inactive',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId)
+          .select()
+          .single();
+      } else {
+        // Create new profile if it doesn't exist
+        console.log('🆕 Creating new profile for user');
+        result = await supabase
+          .from('user_profiles')
+          .insert({
+            id: userId,
+            user_tier: newTier,
+            subscription_status: newTier === 'pro' ? 'active' : 'inactive',
+            email: '', // Will be updated by trigger or separate call
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+      }
       
+      const { data, error } = result;
       if (error) throw error;
       
       console.log(`✅ Successfully updated user ${userId} tier to ${newTier}`, data);
@@ -92,6 +124,7 @@ export class UserProfileService {
       
     } catch (error) {
       console.error('❌ Error updating user tier:', error);
+      console.error('❌ Full error details:', JSON.stringify(error, null, 2));
       
       if (error.message.includes('relation "user_profiles" does not exist') || 
           error.message.includes('Could not find the table')) {
@@ -104,17 +137,17 @@ export class UserProfileService {
         };
       }
 
-      if (error.message.includes('permission')) {
+      if (error.message.includes('permission') || error.message.includes('RLS')) {
         return { 
           profile: null, 
           error: { 
-            message: 'Permission denied. Please check your database policies.',
+            message: 'Permission denied. Database policies may not allow this operation.',
             permission: true 
           }
         };
       }
       
-      return { profile: null, error: { message: error.message } };
+      return { profile: null, error: { message: error.message || 'Unknown database error' } };
     }
   }
 

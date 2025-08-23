@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useUserTier } from '../contexts/UserTierContext';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import { AdminService } from '../services/adminService';
 import TierChangeModal from './TierChangeModal';
 import { 
@@ -23,11 +22,53 @@ import {
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, signOut, userProfile } = useAuth();
-  const { userTier, getTierLimits, setUserTier, upgradeToPro, USER_TIERS } = useUserTier();
+  const [searchParams] = useSearchParams();
+  const { user, isLoaded: userLoaded } = useUser();
+  const { signOut } = useAuth();
+  
+  // Simple tier management
+  const [userTier, setUserTierState] = React.useState('guest');
+  
+  // Get tier from URL parameter (for new signups) or local storage
+  const urlTier = searchParams.get('tier');
+  
+  // Simple tier detection based on email or URL parameter
+  const getUserTier = () => {
+    if (!user?.emailAddresses?.[0]?.emailAddress) return urlTier || 'guest';
+    
+    const email = user.emailAddresses[0].emailAddress.toLowerCase();
+    const adminEmails = ['nethan.nagendran@gmail.com', 'nethmarket@gmail.com'];
+    
+    // Check if admin email
+    if (adminEmails.includes(email)) return 'developer';
+    
+    // Check localStorage for saved tier
+    const savedTier = localStorage.getItem(`userTier_${user.id}`);
+    if (savedTier) return savedTier;
+    
+    // Use URL parameter if available
+    if (urlTier) return urlTier;
+    
+    return 'guest';
+  };
+
+  // Initialize tier
+  useEffect(() => {
+    if (user) {
+      const detectedTier = getUserTier();
+      setUserTierState(detectedTier);
+      
+      // Save tier to localStorage if from URL
+      if (urlTier && urlTier !== 'guest') {
+        localStorage.setItem(`userTier_${user.id}`, urlTier);
+        // Clear the URL parameter
+        navigate('/app', { replace: true });
+      }
+    }
+  }, [user, urlTier, navigate]);
   
   // Check admin access
-  const isAdmin = user && AdminService.isAdmin(user.email);
+  const isAdmin = user && AdminService.isAdmin(user?.emailAddresses?.[0]?.emailAddress);
   const isDeveloper = userTier === 'developer';
   const [showTierDropdown, setShowTierDropdown] = React.useState(false);
   const [modalState, setModalState] = React.useState({
@@ -37,33 +78,17 @@ const Dashboard = () => {
   });
   const dropdownRef = useRef(null);
 
-  // Check for tier parameter from signup redirect (run once on mount)
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const tierParam = searchParams.get('tier');
-    
-    if (tierParam && user) {
-      console.log(`Processing tier parameter from URL: ${tierParam}`);
-      
-      // Only set tier if it's different from current tier
-      if (tierParam === 'pro' && userTier !== USER_TIERS.PRO) {
-        console.log('Setting user to Pro tier from signup');
-        setUserTier(USER_TIERS.PRO).then(() => {
-          console.log('Pro tier update completed');
-        });
-      } else if (tierParam === 'guest' && userTier !== USER_TIERS.GUEST) {
-        console.log('Setting user to Guest tier from signup');
-        setUserTier(USER_TIERS.GUEST).then(() => {
-          console.log('Guest tier update completed');
-        });
-      } else {
-        console.log(`Tier already matches URL parameter: ${tierParam}`);
-      }
-      
-      // Clear the URL parameter immediately
-      navigate('/app', { replace: true });
+  // Simple tier limits
+  const getTierLimits = () => {
+    switch (userTier) {
+      case 'pro':
+        return { name: 'Pro', maxClips: -1, maxVideoLength: -1 };
+      case 'developer':
+        return { name: 'Developer', maxClips: -1, maxVideoLength: -1 };
+      default:
+        return { name: 'Guest', maxClips: 3, maxVideoLength: 600 };
     }
-  }, [location.search]); // Only depend on location.search to avoid infinite loops
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -93,12 +118,8 @@ const Dashboard = () => {
       console.log('✅ Signed out successfully');
     } catch (error) {
       console.error('❌ Sign out error:', error);
-      // Show error modal but still try to navigate
-      setModalState({
-        isOpen: true,
-        type: 'error',
-        message: 'Sign out failed. Please try again.'
-      });
+      // Still navigate to home even if signout fails
+      navigate('/', { replace: true });
     }
   };
 
@@ -110,48 +131,28 @@ const Dashboard = () => {
       return;
     }
 
-    if (userTier === USER_TIERS.PRO) {
+    if (userTier === 'pro') {
       alert('You are already a Pro user!');
       setShowTierDropdown(false);
       return;
     }
 
     try {
-      console.log('Current tier:', userTier);
-      console.log('Calling upgradeToPro...');
+      // Simple localStorage upgrade
+      setUserTierState('pro');
+      localStorage.setItem(`userTier_${user.id}`, 'pro');
       
-      const result = await upgradeToPro();
-      console.log('Upgrade result:', result);
-      
-      if (result?.error) {
-        console.error('Upgrade failed:', result.error);
-        if (result.error.needsSetup) {
-          setModalState({
-            isOpen: true,
-            type: 'error',
-            message: '🛠️ Database Setup Required!\n\nPlease set up the user_profiles table in Supabase first:\n\n1. Go to your Supabase SQL Editor\n2. Run the setup SQL from minimal_setup.sql\n3. Then try upgrading again'
-          });
-        } else {
-          setModalState({
-            isOpen: true,
-            type: 'error',
-            message: `Failed to upgrade: ${result.error.message || 'Unknown error'}`
-          });
-        }
-      } else {
-        console.log('✅ Successfully upgraded to Pro!');
-        setModalState({
-          isOpen: true,
-          type: 'upgrade',
-          message: '🎉 Welcome to Pro!\n\nYou now have access to:\n• All aspect ratios (16:9, 1:1, 4:5, 21:9)\n• AI-powered smart cropping\n• Bulk export in multiple formats\n• Custom crop positioning\n• Unlimited clips'
-        });
-      }
+      setModalState({
+        isOpen: true,
+        type: 'upgrade',
+        message: '🎉 Welcome to Pro!\n\nYou now have access to:\n• Unlimited video length\n• Unlimited clips per video\n• Detailed viral analytics\n• No watermarks\n• Priority processing'
+      });
     } catch (error) {
       console.error('❌ Upgrade error:', error);
       setModalState({
         isOpen: true,
         type: 'error',
-        message: 'Failed to upgrade to Pro. Please try again or contact support if the issue persists.'
+        message: 'Failed to upgrade to Pro. Please try again.'
       });
     } finally {
       setShowTierDropdown(false);
@@ -161,29 +162,19 @@ const Dashboard = () => {
   const handleDowngradeToGuest = async () => {
     try {
       console.log('🔄 Starting downgrade process...');
-      console.log('Current user tier:', userTier);
-      console.log('Target tier:', USER_TIERS.GUEST);
       
-      const result = await setUserTier(USER_TIERS.GUEST);
-      console.log('Downgrade result:', result);
+      // Simple localStorage downgrade
+      setUserTierState('guest');
+      localStorage.setItem(`userTier_${user.id}`, 'guest');
       
-      if (result?.error) {
-        console.error('Downgrade error details:', result.error);
-        if (result.error.needsSetup) {
-          alert('🛠️ Database Setup Required!\n\nPlease set up the user_profiles table in Supabase first:\n\n1. Go to your Supabase SQL Editor\n2. Run the setup SQL from minimal_setup.sql\n3. Then try downgrading again');
-        } else {
-          alert('Failed to downgrade: ' + (result.error.message || JSON.stringify(result.error)));
-        }
-      } else {
-        setModalState({
-          isOpen: true,
-          type: 'downgrade', 
-          message: 'You\'ve been switched back to Guest tier. You can upgrade again anytime!'
-        });
-      }
+      setModalState({
+        isOpen: true,
+        type: 'downgrade', 
+        message: 'You\'ve been switched back to Guest tier. You can upgrade again anytime!'
+      });
     } catch (error) {
       console.error('Downgrade exception:', error);
-      alert('Failed to downgrade. Please try again. Error: ' + error.message);
+      alert('Failed to downgrade. Please try again.');
     }
     setShowTierDropdown(false);
   };
@@ -269,6 +260,30 @@ const Dashboard = () => {
     return colors[color] || colors.purple;
   };
 
+  // Loading state
+  if (!userLoaded) {
+    return (
+      <div className="dashboard-container">
+        <div className="dashboard-loading">
+          <div className="loading-spinner"></div>
+          <p>Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not signed in
+  if (!user) {
+    return (
+      <div className="dashboard-container">
+        <div className="dashboard-loading">
+          <p>Please sign in to continue</p>
+          <button onClick={() => navigate('/')}>Go to Sign In</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-container">
       {/* Header */}
@@ -282,7 +297,7 @@ const Dashboard = () => {
           <div className="dashboard-user-section">
             <div className="dashboard-user-info">
               <span className="dashboard-user-name">
-                Welcome, {user?.user_metadata?.full_name || user?.email || 'User'}
+                Welcome, {user?.fullName || user?.emailAddresses?.[0]?.emailAddress || 'User'}
               </span>
             </div>
             
@@ -314,7 +329,7 @@ const Dashboard = () => {
                         {getTierLimits().name} Plan
                       </span>
                       <span className="tier-db-status">
-                        DB: {userProfile?.user_tier || 'Loading...'}
+                        Auth: Clerk
                       </span>
                     </div>
                   </div>

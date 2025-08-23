@@ -105,7 +105,7 @@ const Pricing = () => {
             ))}
           </div>
 
-          <Link to="/signup?tier=guest" className="pricing-card-cta pricing-cta-guest">
+          <Link to="/clerk-signup?tier=guest" className="pricing-card-cta pricing-cta-guest">
             Get Started Free
           </Link>
         </div>
@@ -146,7 +146,7 @@ const Pricing = () => {
             ))}
           </div>
 
-          <Link to="/signup?tier=pro" className="pricing-card-cta pricing-cta-pro">
+          <Link to="/clerk-signup?tier=pro" className="pricing-card-cta pricing-cta-pro">
             Start Pro Trial
             <Sparkles className="w-4 h-4" />
           </Link>
@@ -194,7 +194,7 @@ const Pricing = () => {
             Join thousands of creators using ClipGenius to grow their audience
           </p>
           <div className="pricing-bottom-actions">
-            <Link to="/signup?tier=guest" className="pricing-bottom-btn-primary">
+            <Link to="/clerk-signup?tier=guest" className="pricing-bottom-btn-primary">
               Start Creating Now
             </Link>
             <Link to="/" className="pricing-bottom-btn-secondary">
