@@ -13,30 +13,73 @@ export const useAuth = () => {
 }
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
-  const [userProfile, setUserProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
+  // Initialize state from localStorage
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('auth_user')
+      return savedUser ? JSON.parse(savedUser) : null
+    } catch {
+      return null
+    }
+  })
+  
+  const [userProfile, setUserProfile] = useState(() => {
+    try {
+      const savedProfile = localStorage.getItem('user_profile')
+      return savedProfile ? JSON.parse(savedProfile) : null
+    } catch {
+      return null
+    }
+  })
+  
+  const [loading, setLoading] = useState(() => {
+    // If we have user data in localStorage, start with loading false
+    try {
+      const savedUser = localStorage.getItem('auth_user')
+      return !savedUser
+    } catch {
+      return true
+    }
+  })
   const [error, setError] = useState(null)
 
   useEffect(() => {
     // Get initial session and user profile
     const getSession = async () => {
       try {
+        // If we already have user from localStorage, validate the session in background
+        const hasStoredUser = localStorage.getItem('auth_user')
+        
         const { data: { session }, error } = await supabase.auth.getSession()
         if (error) throw error
         
         const currentUser = session?.user ?? null
-        setUser(currentUser)
         
-        // Load user profile if user exists
-        if (currentUser) {
-          await loadUserProfile(currentUser)
-        } else {
+        // If session doesn't match localStorage, update everything
+        if (!currentUser && hasStoredUser) {
+          // Session expired, clear localStorage
+          localStorage.removeItem('auth_user')
+          localStorage.removeItem('user_profile')
+          setUser(null)
           setUserProfile(null)
+        } else if (currentUser) {
+          // Valid session, update user and profile
+          setUser(currentUser)
+          localStorage.setItem('auth_user', JSON.stringify(currentUser))
+          
+          // Only load profile if we don't have it in localStorage or user changed
+          if (!userProfile || userProfile.id !== currentUser.id) {
+            await loadUserProfile(currentUser)
+          }
         }
       } catch (error) {
         console.error('Error getting session:', error)
         setError(error.message)
+        // Clear localStorage on error
+        localStorage.removeItem('auth_user')
+        localStorage.removeItem('user_profile')
+        setUser(null)
+        setUserProfile(null)
       } finally {
         setLoading(false)
       }
@@ -51,10 +94,16 @@ export const AuthProvider = ({ children }) => {
         setUser(currentUser)
         setError(null)
         
-        // Load user profile when user signs in
-        if (currentUser && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-          await loadUserProfile(currentUser)
-        } else if (!currentUser) {
+        // Update localStorage
+        if (currentUser) {
+          localStorage.setItem('auth_user', JSON.stringify(currentUser))
+          // Load user profile when user signs in
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            await loadUserProfile(currentUser)
+          }
+        } else {
+          localStorage.removeItem('auth_user')
+          localStorage.removeItem('user_profile')
           setUserProfile(null)
         }
         
@@ -75,6 +124,7 @@ export const AuthProvider = ({ children }) => {
         setUserProfile({ user_tier: 'guest' })
       } else {
         setUserProfile(profile)
+        localStorage.setItem('user_profile', JSON.stringify(profile))
         console.log('✅ User profile loaded:', profile)
       }
     } catch (error) {
@@ -98,6 +148,7 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error
       
       setUserProfile(profile)
+      localStorage.setItem('user_profile', JSON.stringify(profile))
       return { profile, error: null }
     } catch (error) {
       console.error('Error updating user tier:', error)
@@ -171,6 +222,10 @@ export const AuthProvider = ({ children }) => {
       setError(null)
       const { error } = await supabase.auth.signOut()
       if (error) throw error
+      
+      // Clear localStorage on sign out
+      localStorage.removeItem('auth_user')
+      localStorage.removeItem('user_profile')
     } catch (error) {
       setError(error.message)
     }

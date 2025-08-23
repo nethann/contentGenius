@@ -193,7 +193,7 @@ SELECT
     ROUND(
         CASE 
             WHEN COUNT(*) > 0 THEN 
-                (COUNT(CASE WHEN user_tier != 'guest' THEN 1 END)::float / COUNT(*)::float) * 100 
+                (COUNT(CASE WHEN user_tier != 'guest' THEN 1 END)::NUMERIC / COUNT(*)::NUMERIC) * 100 
             ELSE 0 
         END, 1
     ) as conversion_rate,
