@@ -394,9 +394,43 @@ const ViralClipGenerator = () => {
       border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.8);
     `;
 
-    // Create video element
+    // Create video element with dynamic aspect ratio
     const video = document.createElement("video");
-    video.style.cssText = "width: 800px; height: 450px; display: block;";
+    const aspectConfig = ASPECT_RATIOS[selectedAspectRatio] || ASPECT_RATIOS['16:9'];
+    const maxWidth = Math.min(window.innerWidth * 0.8, 800);
+    const maxHeight = Math.min(window.innerHeight * 0.7, 600);
+    
+    // Calculate video dimensions based on selected aspect ratio
+    let videoWidth, videoHeight;
+    const targetAspectRatio = aspectConfig.width / aspectConfig.height;
+    
+    if (targetAspectRatio > maxWidth / maxHeight) {
+      // Width constrained
+      videoWidth = maxWidth;
+      videoHeight = maxWidth / targetAspectRatio;
+    } else {
+      // Height constrained
+      videoHeight = maxHeight;
+      videoWidth = maxHeight * targetAspectRatio;
+    }
+    
+    // Apply crop positioning
+    const objectPosition = {
+      'center': 'center center',
+      'top': 'center top', 
+      'bottom': 'center bottom',
+      'left': 'left center',
+      'right': 'right center'
+    }[selectedCropPosition] || 'center center';
+    
+    video.style.cssText = `
+      width: ${videoWidth}px; 
+      height: ${videoHeight}px; 
+      display: block; 
+      object-fit: cover;
+      object-position: ${objectPosition};
+      border-radius: 8px;
+    `;
     video.controls = false;
     video.muted = false;
     video.currentTime = moment.startTimeSeconds || 0;
@@ -876,12 +910,26 @@ const ViralClipGenerator = () => {
       }
     }, 100);
 
-    // Add title
+    // Add title with aspect ratio indicator
     const title = document.createElement("h3");
     title.textContent = moment.title;
     title.style.cssText = `
-      color: white; font-size: 24px; margin-bottom: 20px; 
+      color: white; font-size: 24px; margin-bottom: 10px; 
       text-align: center; font-weight: bold;
+    `;
+
+    // Add aspect ratio indicator
+    const aspectIndicator = document.createElement("div");
+    const indicatorConfig = ASPECT_RATIOS[selectedAspectRatio] || ASPECT_RATIOS['16:9'];
+    aspectIndicator.innerHTML = `
+      <div style="
+        color: #8b5cf6; font-size: 14px; text-align: center; margin-bottom: 20px;
+        background: rgba(139, 92, 246, 0.1); padding: 8px 16px; border-radius: 20px;
+        border: 1px solid rgba(139, 92, 246, 0.3); display: inline-block;
+      ">
+        ${indicatorConfig.icon} ${selectedAspectRatio} • ${indicatorConfig.name}
+        ${selectedCropPosition !== 'center' ? ` • ${selectedCropPosition} crop` : ''}
+      </div>
     `;
 
     // Assemble the modal
@@ -894,6 +942,7 @@ const ViralClipGenerator = () => {
     modal.appendChild(downloadBtn);
     modal.appendChild(closeBtn);
     modal.appendChild(title);
+    modal.appendChild(aspectIndicator);
     modal.appendChild(videoContainer);
     modal.appendChild(controls);
 

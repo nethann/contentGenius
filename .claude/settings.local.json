@@ -18,7 +18,9 @@
       "Bash(set NODE_ENV=development)",
       "Bash(curl:*)",
       "Bash(powershell:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(tasklist:*)",
+      "Bash(ffmpeg:*)"
     ],
     "deny": [],
     "ask": [],
