@@ -39,22 +39,34 @@ const AdminDashboard = () => {
       return;
     }
     loadAdminData();
-  }, [isAdmin, isDeveloper, navigate]);
+  }, []);
 
   const loadAdminData = async () => {
     setLoading(true);
+    console.log('🔄 Loading admin data...');
     try {
+      console.log('📊 Fetching users and analytics...');
       const [usersResult, analyticsResult] = await Promise.all([
         AdminService.getAllUsers(),
         AdminService.getAppAnalytics()
       ]);
 
-      if (usersResult.users) setUsers(usersResult.users);
-      if (analyticsResult.analytics) setAnalytics(analyticsResult.analytics);
+      console.log('👥 Users result:', usersResult);
+      console.log('📈 Analytics result:', analyticsResult);
+
+      if (usersResult.users) {
+        setUsers(usersResult.users);
+        console.log(`✅ Loaded ${usersResult.users.length} users`);
+      }
+      if (analyticsResult.analytics) {
+        setAnalytics(analyticsResult.analytics);
+        console.log('✅ Loaded analytics:', analyticsResult.analytics);
+      }
     } catch (error) {
-      console.error('Error loading admin data:', error);
+      console.error('❌ Error loading admin data:', error);
     } finally {
       setLoading(false);
+      console.log('✅ Admin data loading completed');
     }
   };
 

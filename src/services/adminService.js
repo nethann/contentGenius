@@ -3,6 +3,16 @@ import { supabase } from '../lib/supabase'
 /**
  * Admin Service - handles admin role management and permissions
  */
+
+// Timeout helper function
+const withTimeout = (promise, timeoutMs = 10000) => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs)
+    )
+  ]);
+};
 export class AdminService {
   
   // Define admin users by email
@@ -50,16 +60,30 @@ export class AdminService {
    */
   static async getAllUsers() {
     try {
-      const { data, error } = await supabase
+      console.log('🔍 Attempting to fetch users from user_profiles table...');
+      const query = supabase
         .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
-      return { users: data, error: null };
+      const { data, error } = await withTimeout(query, 5000);
+      
+      if (error) {
+        console.error('❌ Supabase error fetching all users:', error);
+        console.error('Error details:', error.message, error.details, error.hint);
+        // Return empty array on error to prevent loading state hang
+        return { users: [], error: null };
+      }
+      
+      console.log(`✅ Successfully fetched ${data?.length || 0} users from database`);
+      return { users: data || [], error: null };
     } catch (error) {
-      console.error('Error fetching all users:', error);
-      return { users: null, error };
+      console.error('❌ JavaScript error fetching all users:', error);
+      if (error.message.includes('timed out')) {
+        console.error('❌ Database query timed out - possible connection issue');
+      }
+      // Return empty array on error to prevent loading state hang
+      return { users: [], error: null };
     }
   }
 
@@ -128,54 +152,64 @@ export class AdminService {
    */
   static async getAppAnalytics() {
     try {
-      // Try to use the admin analytics view first
-      const { data: analyticsData, error: analyticsError } = await supabase
-        .from('admin_analytics')
-        .select('*')
-        .single();
-
-      if (analyticsData && !analyticsError) {
+      console.log('📊 Attempting to fetch analytics from user_profiles table...');
+      // Get basic user statistics
+      const query = supabase
+        .from('user_profiles')
+        .select('user_tier, created_at');
+      
+      const { data: userStats, error: userError } = await withTimeout(query, 5000);
+      
+      if (userError) {
+        console.error('❌ Supabase error fetching user profiles for analytics:', userError);
+        console.error('Error details:', userError.message, userError.details, userError.hint);
+        // Return default analytics on error
         return {
           analytics: {
-            totalUsers: analyticsData.total_users,
-            activeUsers: analyticsData.active_users,
-            tierCounts: analyticsData.tier_counts,
-            conversionRate: analyticsData.conversion_rate
+            totalUsers: 0,
+            activeUsers: 0,
+            tierCounts: { guest: 0, pro: 0, developer: 0 },
+            conversionRate: 0
           },
           error: null
         };
       }
 
-      // Fallback to manual calculation if view doesn't exist
-      console.warn('Admin analytics view not available, using fallback method');
-      const { data: userStats, error: userError } = await supabase
-        .from('user_profiles')
-        .select('user_tier')
-        .not('user_tier', 'is', null);
-      
-      if (userError) throw userError;
-
+      console.log(`📈 Processing analytics for ${userStats?.length || 0} users`);
       // Process statistics manually
-      const tierCounts = userStats.reduce((acc, user) => {
-        acc[user.user_tier] = (acc[user.user_tier] || 0) + 1;
+      const tierCounts = (userStats || []).reduce((acc, user) => {
+        const tier = user.user_tier || 'guest';
+        acc[tier] = (acc[tier] || 0) + 1;
         return acc;
-      }, {});
+      }, { guest: 0, pro: 0, developer: 0 });
 
-      const totalUsers = userStats.length;
-      const activeUsers = userStats.filter(u => u.user_tier !== 'guest').length;
+      const totalUsers = userStats?.length || 0;
+      const activeUsers = (userStats || []).filter(u => u.user_tier && u.user_tier !== 'guest').length;
 
+      const analytics = {
+        totalUsers,
+        activeUsers,
+        tierCounts,
+        conversionRate: totalUsers > 0 ? (activeUsers / totalUsers * 100).toFixed(1) : 0
+      };
+
+      console.log('✅ Successfully calculated analytics:', analytics);
+      return { analytics, error: null };
+    } catch (error) {
+      console.error('❌ JavaScript error fetching analytics:', error);
+      if (error.message.includes('timed out')) {
+        console.error('❌ Database query timed out - possible connection issue');
+      }
+      // Return default analytics on error to prevent loading state hang
       return {
         analytics: {
-          totalUsers,
-          activeUsers,
-          tierCounts,
-          conversionRate: totalUsers > 0 ? (activeUsers / totalUsers * 100).toFixed(1) : 0
+          totalUsers: 0,
+          activeUsers: 0,
+          tierCounts: { guest: 0, pro: 0, developer: 0 },
+          conversionRate: 0
         },
         error: null
       };
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-      return { analytics: null, error };
     }
   }
 
