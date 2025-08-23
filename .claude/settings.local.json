@@ -13,7 +13,8 @@
       "Bash(echo:*)",
       "Bash(echo \"Shell: $0\")",
       "Bash(start test-connection.html)",
-      "Bash(start get-anon-key.html)"
+      "Bash(start get-anon-key.html)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": [],

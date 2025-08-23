@@ -21,6 +21,9 @@ import {
 
 const VideoProcessor = () => {
   const { userTier } = useUserTier();
+  
+  // Debug logging
+  console.log('🎯 VideoProcessor - Current tier:', userTier);
   const [file, setFile] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [selectedAspectRatio, setSelectedAspectRatio] = useState('9:16'); // Default to 9:16
@@ -42,27 +45,36 @@ const VideoProcessor = () => {
     },
     pro: {
       maxClips: Infinity,
-      aspectRatios: ['9:16', '16:9', '1:1', '4:5', '21:9'],
+      aspectRatios: ['9:16', '16:9', '1:1', '4:5', '21:9', '3:4', '2:3', '16:10'],
       cropPositions: ['center', 'top', 'bottom', 'left', 'right', 'custom'],
       features: ['bulk_export', 'ai_cropping', 'custom_positioning']
     },
     developer: {
       maxClips: Infinity,
-      aspectRatios: ['9:16', '16:9', '1:1', '4:5', '21:9'],
+      aspectRatios: ['9:16', '16:9', '1:1', '4:5', '21:9', '3:4', '2:3', '16:10'],
       cropPositions: ['center', 'top', 'bottom', 'left', 'right', 'custom'],
       features: ['bulk_export', 'ai_cropping', 'custom_positioning', 'advanced_features']
     }
   };
 
   const currentTierLimits = TIER_LIMITS[userTier] || TIER_LIMITS.guest;
+  
+  // Debug logging for tier limits
+  console.log('🎯 VideoProcessor - Tier limits:', currentTierLimits);
+  console.log('🎯 VideoProcessor - Available aspect ratios:', currentTierLimits.aspectRatios);
+  console.log('🎯 VideoProcessor - Has bulk export:', currentTierLimits.features.includes('bulk_export'));
+  console.log('🎯 VideoProcessor - Has AI cropping:', currentTierLimits.features.includes('ai_cropping'));
 
   // Aspect ratio configurations
   const ASPECT_RATIOS = {
-    '9:16': { name: 'Vertical (TikTok/Shorts)', width: 9, height: 16, icon: '📱' },
-    '16:9': { name: 'Horizontal (YouTube)', width: 16, height: 9, icon: '📺' },
-    '1:1': { name: 'Square (Instagram)', width: 1, height: 1, icon: '⬜' },
-    '4:5': { name: 'Portrait (Instagram)', width: 4, height: 5, icon: '🖼️' },
-    '21:9': { name: 'Cinematic', width: 21, height: 9, icon: '🎬' }
+    '9:16': { name: 'Vertical (TikTok/Shorts)', width: 9, height: 16, icon: '📱', platforms: 'TikTok, Instagram Reels, YouTube Shorts' },
+    '16:9': { name: 'Horizontal (YouTube)', width: 16, height: 9, icon: '📺', platforms: 'YouTube, Facebook, Twitter' },
+    '1:1': { name: 'Square (Instagram)', width: 1, height: 1, icon: '⬜', platforms: 'Instagram Feed, Facebook, LinkedIn' },
+    '4:5': { name: 'Portrait (Instagram)', width: 4, height: 5, icon: '🖼️', platforms: 'Instagram Stories, Pinterest' },
+    '21:9': { name: 'Cinematic', width: 21, height: 9, icon: '🎬', platforms: 'Cinematic content, Ultra-wide' },
+    '3:4': { name: 'Portrait (Facebook)', width: 3, height: 4, icon: '📄', platforms: 'Facebook Stories, Snapchat' },
+    '2:3': { name: 'Portrait (Pinterest)', width: 2, height: 3, icon: '📌', platforms: 'Pinterest, Tumblr' },
+    '16:10': { name: 'Widescreen', width: 16, height: 10, icon: '💻', platforms: 'Presentations, Desktop' }
   };
 
   // Check if feature is available for current tier
@@ -101,6 +113,56 @@ const VideoProcessor = () => {
       setTimeout(() => setProcessing(false), 2000);
     } catch (error) {
       setError(`Bulk export failed: ${error.message}`);
+      setProcessing(false);
+    }
+  };
+
+  // AI-powered smart cropping
+  const handleAISmartCrop = async (moment) => {
+    if (!hasFeature('ai_cropping')) {
+      alert('AI Smart Cropping is available for Pro users only!');
+      return;
+    }
+
+    setProcessing(true);
+    setCurrentStep('Analyzing video for faces and subjects...');
+
+    try {
+      // Call AI analysis API
+      const response = await fetch(`${API_URL}/ai-crop-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          videoFile: uploadedFileInfo.filename,
+          moment: moment,
+          aspectRatio: selectedAspectRatio
+        }),
+      });
+
+      if (!response.ok) throw new Error('AI analysis failed');
+
+      const { cropPosition, confidence, faces, subjects } = await response.json();
+      
+      setCurrentStep(`AI detected ${faces} faces and ${subjects} subjects with ${confidence}% confidence`);
+      
+      // Apply AI-suggested crop position
+      setSelectedCropPosition(cropPosition);
+      
+      // Download with AI-optimized cropping
+      await downloadVideoWithSubtitles(moment, selectedAspectRatio, { 
+        position: cropPosition, 
+        aiOptimized: true,
+        confidence: confidence
+      });
+      
+    } catch (error) {
+      // Fallback to center crop if AI fails
+      console.warn('AI cropping failed, using center crop:', error);
+      setCurrentStep('AI analysis failed, using center crop...');
+      await downloadVideoWithSubtitles(moment, selectedAspectRatio, { position: 'center' });
+    } finally {
       setProcessing(false);
     }
   };
@@ -1276,6 +1338,28 @@ const VideoProcessor = () => {
           </div>
         )}
 
+        {/* Debug Tier Override (temporary) */}
+        <div className="max-w-4xl mx-auto mb-6">
+          <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div>
+                  <h3 className="font-semibold text-yellow-200">Debug: Force Tier Update</h3>
+                  <p className="text-sm text-yellow-300">
+                    Current: {userTier} | DB shows: developer | If not working, click refresh context
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm transition-colors"
+              >
+                Refresh Context
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Tier Information Banner */}
         <div className="max-w-4xl mx-auto mb-6">
           <div className={`border rounded-lg p-4 ${
@@ -1298,8 +1382,8 @@ const VideoProcessor = () => {
                   </h3>
                   <p className="text-sm text-gray-300">
                     {userTier === 'guest' && `9:16 vertical only • Center crop • Max ${currentTierLimits.maxClips} clips`}
-                    {userTier === 'pro' && 'All aspect ratios • AI smart cropping • Bulk export • Custom positioning'}
-                    {userTier === 'developer' && 'All features • Unlimited clips • Advanced controls'}
+                    {userTier === 'pro' && '8 aspect ratios • AI smart cropping • Bulk export • Custom drag positioning'}
+                    {userTier === 'developer' && 'All features • Unlimited clips • Advanced AI controls'}
                   </p>
                 </div>
               </div>
@@ -1609,6 +1693,18 @@ const VideoProcessor = () => {
                                   </button>
                                 )}
 
+                                {/* AI Smart Crop Button for Pro Users */}
+                                {hasFeature('ai_cropping') && (
+                                  <button
+                                    onClick={() => handleAISmartCrop(moment)}
+                                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                                    title="AI detects faces and subjects for optimal cropping"
+                                  >
+                                    <Zap className="w-4 h-4" />
+                                    AI Crop
+                                  </button>
+                                )}
+
                                 {/* Custom Crop Button for Pro Users */}
                                 {hasFeature('custom_positioning') && selectedCropPosition === 'custom' && (
                                   <button
@@ -1629,8 +1725,8 @@ const VideoProcessor = () => {
                                     <div className="flex items-center gap-2">
                                       <Crown className="w-4 h-4 text-purple-400" />
                                       <div>
-                                        <p className="text-sm text-purple-200 font-medium">Unlock All Formats</p>
-                                        <p className="text-xs text-purple-300">Get 16:9, 1:1, 4:5 + bulk export</p>
+                                        <p className="text-sm text-purple-200 font-medium">Unlock Pro Features</p>
+                                        <p className="text-xs text-purple-300">8 aspect ratios • AI smart cropping • Bulk export • Custom positioning</p>
                                       </div>
                                     </div>
                                     <button 

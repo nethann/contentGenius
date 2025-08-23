@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Move, RotateCcw, Check, X } from 'lucide-react';
+import { Move, RotateCcw, Check, X, Maximize2, MousePointer } from 'lucide-react';
 
 const CustomCropInterface = ({ videoUrl, aspectRatio, onCropChange, onClose, onApply }) => {
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 100, height: 100 });

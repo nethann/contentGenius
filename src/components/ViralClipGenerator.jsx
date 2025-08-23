@@ -15,6 +15,13 @@ import {
   Mic,
   ArrowLeft,
   LogOut,
+  Crown,
+  Lock,
+  Grid3X3,
+  Settings,
+  Layers,
+  Maximize2,
+  MousePointer
 } from "lucide-react";
 
 const ViralClipGenerator = () => {
@@ -23,6 +30,54 @@ const ViralClipGenerator = () => {
   const { userTier, getTierLimits, canUploadVideo } = useUserTier();
   const [file, setFile] = useState(null);
   const [processing, setProcessing] = useState(false);
+  
+  // Pro feature states
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState('9:16');
+  const [selectedCropPosition, setSelectedCropPosition] = useState('center');
+  const [bulkExportMode, setBulkExportMode] = useState(false);
+  const [selectedBulkRatios, setSelectedBulkRatios] = useState(['9:16', '16:9', '1:1']);
+  
+  console.log('🎯 ViralClipGenerator - Current tier:', userTier);
+
+  // Pro feature configurations
+  const TIER_LIMITS = {
+    guest: {
+      maxClips: 3,
+      aspectRatios: ['9:16'],
+      cropPositions: ['center'],
+      features: ['basic_export']
+    },
+    pro: {
+      maxClips: Infinity,
+      aspectRatios: ['9:16', '16:9', '1:1', '4:5', '21:9', '3:4', '2:3', '16:10'],
+      cropPositions: ['center', 'top', 'bottom', 'left', 'right', 'custom'],
+      features: ['bulk_export', 'ai_cropping', 'custom_positioning']
+    },
+    developer: {
+      maxClips: Infinity,
+      aspectRatios: ['9:16', '16:9', '1:1', '4:5', '21:9', '3:4', '2:3', '16:10'],
+      cropPositions: ['center', 'top', 'bottom', 'left', 'right', 'custom'],
+      features: ['bulk_export', 'ai_cropping', 'custom_positioning', 'advanced_features']
+    }
+  };
+
+  const ASPECT_RATIOS = {
+    '9:16': { name: 'Vertical (TikTok/Shorts)', width: 9, height: 16, icon: '📱', platforms: 'TikTok, Instagram Reels, YouTube Shorts' },
+    '16:9': { name: 'Horizontal (YouTube)', width: 16, height: 9, icon: '📺', platforms: 'YouTube, Facebook, Twitter' },
+    '1:1': { name: 'Square (Instagram)', width: 1, height: 1, icon: '⬜', platforms: 'Instagram Feed, Facebook, LinkedIn' },
+    '4:5': { name: 'Portrait (Instagram)', width: 4, height: 5, icon: '🖼️', platforms: 'Instagram Stories, Pinterest' },
+    '21:9': { name: 'Cinematic', width: 21, height: 9, icon: '🎬', platforms: 'Cinematic content, Ultra-wide' },
+    '3:4': { name: 'Portrait (Facebook)', width: 3, height: 4, icon: '📄', platforms: 'Facebook Stories, Snapchat' },
+    '2:3': { name: 'Portrait (Pinterest)', width: 2, height: 3, icon: '📌', platforms: 'Pinterest, Tumblr' },
+    '16:10': { name: 'Widescreen', width: 16, height: 10, icon: '💻', platforms: 'Presentations, Desktop' }
+  };
+
+  const currentTierLimits = TIER_LIMITS[userTier] || TIER_LIMITS.guest;
+  const hasFeature = (feature) => currentTierLimits.features.includes(feature);
+  const isAspectRatioAvailable = (ratio) => currentTierLimits.aspectRatios.includes(ratio);
+
+  console.log('🎯 ViralClipGenerator - Has bulk export:', hasFeature('bulk_export'));
+  console.log('🎯 ViralClipGenerator - Has AI cropping:', hasFeature('ai_cropping'));
 
   const handleBackToDashboard = () => {
     navigate('/app');
@@ -542,7 +597,11 @@ const ViralClipGenerator = () => {
             endTime: moment.endTimeSeconds,
             subtitles: moment.subtitles,
             words: moment.words || [], // Include word-level timestamps for karaoke highlighting
-            segmentId: moment.id
+            segmentId: moment.id,
+            // Pro feature settings
+            aspectRatio: selectedAspectRatio,
+            cropPosition: selectedCropPosition,
+            userTier: userTier
           })
         });
 
@@ -555,7 +614,7 @@ const ViralClipGenerator = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `segment-${moment.id}-with-subtitles.mp4`;
+        a.download = `segment-${moment.id}-${selectedAspectRatio}-${selectedCropPosition}.mp4`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -572,9 +631,136 @@ const ViralClipGenerator = () => {
       }
     };
 
+    // AI Smart Cropping function
+    const handleAISmartCrop = async () => {
+      if (!hasFeature('ai_cropping')) {
+        alert('AI Smart Cropping is available for Pro users only!');
+        return;
+      }
+
+      try {
+        downloadBtn.innerHTML = '🤖';
+        downloadBtn.disabled = true;
+        downloadBtn.style.backgroundColor = 'rgba(255,165,0,0.8)';
+
+        // Call AI analysis API
+        const response = await fetch(`${API_URL}/ai-crop-analysis`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            videoFile: uploadedFileInfo.filename,
+            moment: moment,
+            aspectRatio: selectedAspectRatio
+          }),
+        });
+
+        if (!response.ok) throw new Error('AI analysis failed');
+
+        const { cropPosition, confidence, faces, subjects } = await response.json();
+        
+        console.log(`🤖 AI detected ${faces} faces and ${subjects} subjects with ${confidence}% confidence`);
+        
+        // Update crop position with AI suggestion
+        setSelectedCropPosition(cropPosition);
+        
+        // Show AI analysis result
+        alert(`🤖 AI Analysis Complete!\n\nDetected: ${faces} faces, ${subjects} subjects\nConfidence: ${confidence}%\nRecommended: ${cropPosition} crop\n\nProceeding with optimized download...`);
+        
+        // Download with AI-optimized settings
+        setTimeout(() => downloadVideo(), 1000);
+        
+      } catch (error) {
+        console.warn('AI cropping failed, using current settings:', error);
+        alert('AI analysis failed, proceeding with current crop settings...');
+        setTimeout(() => downloadVideo(), 500);
+      }
+    };
+
+    // Bulk Export function
+    const handleBulkExport = async () => {
+      if (!hasFeature('bulk_export') || !bulkExportMode) {
+        downloadVideo();
+        return;
+      }
+
+      try {
+        downloadBtn.innerHTML = '📦';
+        downloadBtn.disabled = true;
+        downloadBtn.style.backgroundColor = 'rgba(139,92,246,0.8)';
+
+        let successCount = 0;
+        
+        for (let i = 0; i < selectedBulkRatios.length; i++) {
+          const ratio = selectedBulkRatios[i];
+          downloadBtn.innerHTML = `📦 ${i + 1}/${selectedBulkRatios.length}`;
+          
+          try {
+            const response = await fetch(`${API_URL}/download-video`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                filename: uploadedFileInfo.filename,
+                startTime: moment.startTimeSeconds,
+                endTime: moment.endTimeSeconds,
+                subtitles: moment.subtitles,
+                words: moment.words || [],
+                segmentId: moment.id,
+                aspectRatio: ratio,
+                cropPosition: selectedCropPosition,
+                userTier: userTier
+              })
+            });
+
+            if (!response.ok) throw new Error(`Download failed for ${ratio}`);
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `segment-${moment.id}-${ratio}-${selectedCropPosition}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            successCount++;
+            
+            // Small delay between downloads
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+          } catch (error) {
+            console.error(`Failed to download ${ratio}:`, error);
+          }
+        }
+        
+        alert(`📦 Bulk Export Complete!\n\nSuccessfully downloaded ${successCount}/${selectedBulkRatios.length} formats`);
+        
+      } catch (error) {
+        console.error('Bulk export error:', error);
+        alert('Bulk export failed: ' + error.message);
+      } finally {
+        downloadBtn.innerHTML = '⬇';
+        downloadBtn.disabled = false;
+        downloadBtn.style.backgroundColor = 'rgba(0,128,0,0.8)';
+      }
+    };
+
+    // Determine which download function to use based on Pro settings
+    const smartDownloadHandler = () => {
+      if (bulkExportMode && hasFeature('bulk_export')) {
+        handleBulkExport();
+      } else {
+        downloadVideo();
+      }
+    };
+
     // Event listeners
     playBtn.onclick = togglePlay;
-    downloadBtn.onclick = downloadVideo;
+    downloadBtn.onclick = smartDownloadHandler;
 
     // Keyboard controls
     const handleKeyPress = (e) => {
@@ -1457,6 +1643,140 @@ const ViralClipGenerator = () => {
             <div className="error-alert">
               <AlertCircle className="error-icon" />
               <span className="error-text">{error}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Pro/Developer Features Panel */}
+        {(userTier === 'pro' || userTier === 'developer') && (
+          <div className="upload-container">
+            <div className="pro-features-panel" style={{
+              background: '#1f2937',
+              border: '1px solid #374151',
+              borderRadius: '12px',
+              padding: '24px',
+              marginBottom: '20px'
+            }}>
+              <h3 style={{
+                color: 'white',
+                fontSize: '18px',
+                fontWeight: '600',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <Grid3X3 style={{ width: '20px', height: '20px' }} />
+                🎯 Pro Export Settings
+              </h3>
+              
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+                gap: '24px' 
+              }}>
+                {/* Aspect Ratios */}
+                <div>
+                  <label style={{ color: '#d1d5db', fontSize: '14px', fontWeight: '500', display: 'block', marginBottom: '12px' }}>
+                    📐 Aspect Ratio Selection
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                    {Object.entries(ASPECT_RATIOS).slice(0, 8).map(([ratio, config]) => (
+                      <button
+                        key={ratio}
+                        onClick={() => setSelectedAspectRatio(ratio)}
+                        style={{
+                          padding: '12px',
+                          border: selectedAspectRatio === ratio ? '2px solid #8b5cf6' : '1px solid #4b5563',
+                          borderRadius: '8px',
+                          background: selectedAspectRatio === ratio ? '#8b5cf620' : '#374151',
+                          color: selectedAspectRatio === ratio ? '#c4b5fd' : '#d1d5db',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          fontSize: '13px',
+                          transition: 'all 0.2s'
+                        }}
+                        title={config.platforms}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '14px' }}>{config.icon}</span>
+                          <span style={{ fontWeight: '600' }}>{ratio}</span>
+                        </div>
+                        <div style={{ fontSize: '11px', opacity: '0.8' }}>{config.name}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bulk Export */}
+                <div>
+                  <label style={{ color: '#d1d5db', fontSize: '14px', fontWeight: '500', display: 'block', marginBottom: '12px' }}>
+                    📦 Bulk Export Mode
+                  </label>
+                  <button
+                    onClick={() => setBulkExportMode(!bulkExportMode)}
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: bulkExportMode ? '#8b5cf6' : '#4b5563',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      transition: 'all 0.2s',
+                      marginBottom: '12px'
+                    }}
+                  >
+                    {bulkExportMode ? '✅ Bulk Export ON' : '📤 Single Export'}
+                  </button>
+                  {bulkExportMode && (
+                    <div style={{ fontSize: '12px', color: '#c4b5fd', marginBottom: '12px' }}>
+                      🚀 Generate same moment in multiple formats
+                    </div>
+                  )}
+                  
+                  {bulkExportMode && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {['9:16', '16:9', '1:1', '4:5'].map(ratio => (
+                        <button
+                          key={ratio}
+                          onClick={() => {
+                            if (selectedBulkRatios.includes(ratio)) {
+                              setSelectedBulkRatios(selectedBulkRatios.filter(r => r !== ratio));
+                            } else {
+                              setSelectedBulkRatios([...selectedBulkRatios, ratio]);
+                            }
+                          }}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: selectedBulkRatios.includes(ratio) ? '2px solid #8b5cf6' : '1px solid #6b7280',
+                            background: selectedBulkRatios.includes(ratio) ? '#8b5cf620' : '#374151',
+                            color: selectedBulkRatios.includes(ratio) ? '#c4b5fd' : '#d1d5db',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          {ASPECT_RATIOS[ratio]?.icon} {ratio}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div style={{ 
+                marginTop: '16px', 
+                padding: '12px', 
+                background: '#065f4620', 
+                borderRadius: '8px',
+                border: '1px solid #059669',
+                color: '#10b981',
+                fontSize: '13px'
+              }}>
+                ✨ <strong>Pro Features Active:</strong> 8 aspect ratios • AI smart cropping • Bulk export • Custom positioning
+              </div>
             </div>
           </div>
         )}
