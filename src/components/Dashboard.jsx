@@ -37,24 +37,33 @@ const Dashboard = () => {
   });
   const dropdownRef = useRef(null);
 
-  // Check for tier parameter from signup redirect
+  // Check for tier parameter from signup redirect (run once on mount)
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const tierParam = searchParams.get('tier');
     
     if (tierParam && user) {
+      console.log(`Processing tier parameter from URL: ${tierParam}`);
+      
+      // Only set tier if it's different from current tier
       if (tierParam === 'pro' && userTier !== USER_TIERS.PRO) {
         console.log('Setting user to Pro tier from signup');
-        setUserTier(USER_TIERS.PRO);
+        setUserTier(USER_TIERS.PRO).then(() => {
+          console.log('Pro tier update completed');
+        });
       } else if (tierParam === 'guest' && userTier !== USER_TIERS.GUEST) {
         console.log('Setting user to Guest tier from signup');
-        setUserTier(USER_TIERS.GUEST);
+        setUserTier(USER_TIERS.GUEST).then(() => {
+          console.log('Guest tier update completed');
+        });
+      } else {
+        console.log(`Tier already matches URL parameter: ${tierParam}`);
       }
       
-      // Clear the URL parameter after processing
+      // Clear the URL parameter immediately
       navigate('/app', { replace: true });
     }
-  }, [user, location.search, userTier, setUserTier, USER_TIERS, navigate]);
+  }, [location.search]); // Only depend on location.search to avoid infinite loops
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -72,34 +81,81 @@ const Dashboard = () => {
 
   const handleSignOut = async () => {
     try {
+      console.log('🚪 Signing out...');
       await signOut();
-      navigate('/');
+      
+      // Clear any local state
+      setShowTierDropdown(false);
+      setModalState({ isOpen: false, type: '', message: '' });
+      
+      // Navigate to home page
+      navigate('/', { replace: true });
+      console.log('✅ Signed out successfully');
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error('❌ Sign out error:', error);
+      // Show error modal but still try to navigate
+      setModalState({
+        isOpen: true,
+        type: 'error',
+        message: 'Sign out failed. Please try again.'
+      });
     }
   };
 
   const handleUpgradeToPro = async () => {
+    console.log('🚀 Starting Pro upgrade process...');
+    
+    if (!user) {
+      alert('Please sign in first to upgrade to Pro.');
+      return;
+    }
+
+    if (userTier === USER_TIERS.PRO) {
+      alert('You are already a Pro user!');
+      setShowTierDropdown(false);
+      return;
+    }
+
     try {
+      console.log('Current tier:', userTier);
+      console.log('Calling upgradeToPro...');
+      
       const result = await upgradeToPro();
+      console.log('Upgrade result:', result);
+      
       if (result?.error) {
+        console.error('Upgrade failed:', result.error);
         if (result.error.needsSetup) {
-          alert('🛠️ Database Setup Required!\n\nPlease set up the user_profiles table in Supabase first:\n\n1. Go to your Supabase SQL Editor\n2. Run the setup SQL from minimal_setup.sql\n3. Then try upgrading again');
+          setModalState({
+            isOpen: true,
+            type: 'error',
+            message: '🛠️ Database Setup Required!\n\nPlease set up the user_profiles table in Supabase first:\n\n1. Go to your Supabase SQL Editor\n2. Run the setup SQL from minimal_setup.sql\n3. Then try upgrading again'
+          });
         } else {
-          alert('Failed to upgrade: ' + result.error.message);
+          setModalState({
+            isOpen: true,
+            type: 'error',
+            message: `Failed to upgrade: ${result.error.message || 'Unknown error'}`
+          });
         }
       } else {
+        console.log('✅ Successfully upgraded to Pro!');
         setModalState({
           isOpen: true,
           type: 'upgrade',
-          message: 'You now have access to detailed AI analytics, unlimited clips, and no watermarks!'
+          message: '🎉 Welcome to Pro!\n\nYou now have access to:\n• All aspect ratios (16:9, 1:1, 4:5, 21:9)\n• AI-powered smart cropping\n• Bulk export in multiple formats\n• Custom crop positioning\n• Unlimited clips'
         });
       }
     } catch (error) {
-      console.error('Upgrade error:', error);
-      alert('Failed to upgrade. Please try again.');
+      console.error('❌ Upgrade error:', error);
+      setModalState({
+        isOpen: true,
+        type: 'error',
+        message: 'Failed to upgrade to Pro. Please try again or contact support if the issue persists.'
+      });
+    } finally {
+      setShowTierDropdown(false);
     }
-    setShowTierDropdown(false);
   };
 
   const handleDowngradeToGuest = async () => {
@@ -304,6 +360,15 @@ const Dashboard = () => {
                 <Shield className="w-5 h-5" />
               </button>
             )}
+
+            {/* Database Diagnostic Button */}
+            <button
+              onClick={() => navigate('/dbtest')}
+              className="dashboard-admin-btn"
+              title="Simple DB Test"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
             
             <button
               onClick={handleSignOut}

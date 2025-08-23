@@ -1,4 +1,6 @@
 import React, { useState, useRef } from "react";
+import { useUserTier } from '../contexts/UserTierContext';
+import CustomCropInterface from './CustomCropInterface';
 import {
   Upload,
   Play,
@@ -10,11 +12,126 @@ import {
   FileAudio,
   AlertCircle,
   Mic,
+  Crown,
+  Lock,
+  Grid3X3,
+  Settings,
+  Layers,
 } from "lucide-react";
 
 const VideoProcessor = () => {
+  const { userTier } = useUserTier();
   const [file, setFile] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState('9:16'); // Default to 9:16
+  const [selectedCropPosition, setSelectedCropPosition] = useState('center');
+  const [showAspectRatioSelector, setShowAspectRatioSelector] = useState(false);
+  const [bulkExportMode, setBulkExportMode] = useState(false);
+  const [selectedBulkRatios, setSelectedBulkRatios] = useState(['9:16', '16:9', '1:1']);
+  const [showCustomCropInterface, setShowCustomCropInterface] = useState(false);
+  const [customCropData, setCustomCropData] = useState(null);
+  const [currentMomentForCrop, setCurrentMomentForCrop] = useState(null);
+  
+  // Define tier limitations and features
+  const TIER_LIMITS = {
+    guest: {
+      maxClips: 3,
+      aspectRatios: ['9:16'],
+      cropPositions: ['center'],
+      features: ['basic_export']
+    },
+    pro: {
+      maxClips: Infinity,
+      aspectRatios: ['9:16', '16:9', '1:1', '4:5', '21:9'],
+      cropPositions: ['center', 'top', 'bottom', 'left', 'right', 'custom'],
+      features: ['bulk_export', 'ai_cropping', 'custom_positioning']
+    },
+    developer: {
+      maxClips: Infinity,
+      aspectRatios: ['9:16', '16:9', '1:1', '4:5', '21:9'],
+      cropPositions: ['center', 'top', 'bottom', 'left', 'right', 'custom'],
+      features: ['bulk_export', 'ai_cropping', 'custom_positioning', 'advanced_features']
+    }
+  };
+
+  const currentTierLimits = TIER_LIMITS[userTier] || TIER_LIMITS.guest;
+
+  // Aspect ratio configurations
+  const ASPECT_RATIOS = {
+    '9:16': { name: 'Vertical (TikTok/Shorts)', width: 9, height: 16, icon: '📱' },
+    '16:9': { name: 'Horizontal (YouTube)', width: 16, height: 9, icon: '📺' },
+    '1:1': { name: 'Square (Instagram)', width: 1, height: 1, icon: '⬜' },
+    '4:5': { name: 'Portrait (Instagram)', width: 4, height: 5, icon: '🖼️' },
+    '21:9': { name: 'Cinematic', width: 21, height: 9, icon: '🎬' }
+  };
+
+  // Check if feature is available for current tier
+  const hasFeature = (feature) => {
+    return currentTierLimits.features.includes(feature);
+  };
+
+  // Check if aspect ratio is available for current tier
+  const isAspectRatioAvailable = (ratio) => {
+    return currentTierLimits.aspectRatios.includes(ratio);
+  };
+
+  // Bulk export function for pro users
+  const handleBulkExport = async (moment) => {
+    if (!hasFeature('bulk_export')) {
+      alert('Bulk export is available for Pro users only!');
+      return;
+    }
+
+    setProcessing(true);
+    setCurrentStep('Generating clips in multiple formats...');
+
+    try {
+      for (let i = 0; i < selectedBulkRatios.length; i++) {
+        const ratio = selectedBulkRatios[i];
+        setCurrentStep(`Generating ${ASPECT_RATIOS[ratio].name} format... (${i + 1}/${selectedBulkRatios.length})`);
+        
+        // Call backend with specific aspect ratio
+        await downloadVideoWithSubtitles(moment, ratio);
+        
+        // Small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      setCurrentStep('Bulk export completed!');
+      setTimeout(() => setProcessing(false), 2000);
+    } catch (error) {
+      setError(`Bulk export failed: ${error.message}`);
+      setProcessing(false);
+    }
+  };
+
+  // Custom crop interface handlers
+  const handleCustomCrop = (moment) => {
+    if (!hasFeature('custom_positioning')) {
+      alert('Custom positioning is available for Pro users only!');
+      return;
+    }
+    
+    setCurrentMomentForCrop(moment);
+    setShowCustomCropInterface(true);
+  };
+
+  const handleCropChange = (cropData) => {
+    setCustomCropData(cropData);
+  };
+
+  const applyCropAndDownload = async () => {
+    if (!currentMomentForCrop || !customCropData) return;
+    
+    setShowCustomCropInterface(false);
+    
+    // Download with custom crop data
+    await downloadVideoWithSubtitles(currentMomentForCrop, selectedAspectRatio, customCropData);
+    
+    // Reset
+    setCurrentMomentForCrop(null);
+    setCustomCropData(null);
+  };
 
   // Client-side function to highlight attention-grabbing words (mirrors server-side logic)
   const highlightAttentionWordsClient = (text) => {
@@ -605,7 +722,7 @@ const VideoProcessor = () => {
     showVideoClipModal(moment);
   };
 
-  const downloadVideoWithSubtitles = async (moment) => {
+  const downloadVideoWithSubtitles = async (moment, aspectRatio = selectedAspectRatio, customCrop = null) => {
     if (!moment.subtitles || moment.subtitles.length === 0) {
       alert('No subtitles available for download');
       return;
@@ -615,6 +732,8 @@ const VideoProcessor = () => {
       setCurrentStep(`Generating video with subtitles for segment ${moment.id}...`);
       setProcessing(true);
 
+      const aspectRatioConfig = ASPECT_RATIOS[aspectRatio];
+      
       const response = await fetch(`${API_URL}/download-video`, {
         method: 'POST',
         headers: {
@@ -625,8 +744,13 @@ const VideoProcessor = () => {
           startTime: moment.startTimeSeconds,
           endTime: moment.endTimeSeconds,
           subtitles: moment.subtitles,
-          words: moment.words || [], // Include word-level timestamps for karaoke highlighting
-          segmentId: moment.id
+          words: moment.words || [],
+          segmentId: moment.id,
+          aspectRatio: aspectRatio,
+          aspectRatioConfig: aspectRatioConfig,
+          cropPosition: customCrop ? 'custom' : selectedCropPosition,
+          customCropData: customCrop,
+          userTier: userTier
         })
       });
 
@@ -1029,9 +1153,10 @@ const VideoProcessor = () => {
       setCurrentStep("Creating video segments...");
       setProgress(30);
 
-      // Generate time segments based on duration
+      // Generate time segments based on duration and tier limits
       const duration = fileInfo.duration;
-      const numMoments = Math.min(5, Math.max(3, Math.floor(duration / 120)));
+      const maxClips = currentTierLimits.maxClips;
+      const numMoments = Math.min(maxClips, Math.min(5, Math.max(3, Math.floor(duration / 120))));
       const segments = [];
       
       for (let i = 0; i < numMoments; i++) {
@@ -1151,6 +1276,196 @@ const VideoProcessor = () => {
           </div>
         )}
 
+        {/* Tier Information Banner */}
+        <div className="max-w-4xl mx-auto mb-6">
+          <div className={`border rounded-lg p-4 ${
+            userTier === 'guest' 
+              ? 'bg-blue-900/20 border-blue-500/30' 
+              : userTier === 'pro'
+              ? 'bg-purple-900/20 border-purple-500/30'
+              : 'bg-green-900/20 border-green-500/30'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {userTier === 'guest' && <Lock className="w-5 h-5 text-blue-400" />}
+                {userTier === 'pro' && <Crown className="w-5 h-5 text-purple-400" />}
+                {userTier === 'developer' && <Settings className="w-5 h-5 text-green-400" />}
+                <div>
+                  <h3 className="font-semibold text-white">
+                    {userTier === 'guest' && 'Guest Version'}
+                    {userTier === 'pro' && 'Pro Version'}  
+                    {userTier === 'developer' && 'Developer Version'}
+                  </h3>
+                  <p className="text-sm text-gray-300">
+                    {userTier === 'guest' && `9:16 vertical only • Center crop • Max ${currentTierLimits.maxClips} clips`}
+                    {userTier === 'pro' && 'All aspect ratios • AI smart cropping • Bulk export • Custom positioning'}
+                    {userTier === 'developer' && 'All features • Unlimited clips • Advanced controls'}
+                  </p>
+                </div>
+              </div>
+              {userTier === 'guest' && (
+                <button 
+                  onClick={() => window.location.href = '/pricing'}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition-colors"
+                >
+                  Upgrade to Pro
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Pro/Developer Features Panel */}
+        {(userTier === 'pro' || userTier === 'developer') && (
+          <div className="max-w-4xl mx-auto mb-6">
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Grid3X3 className="w-5 h-5" />
+                Export Settings
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Aspect Ratio Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Aspect Ratio
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(ASPECT_RATIOS).map(([ratio, config]) => (
+                      <button
+                        key={ratio}
+                        onClick={() => setSelectedAspectRatio(ratio)}
+                        disabled={!isAspectRatioAvailable(ratio)}
+                        className={`p-3 rounded-lg border text-left transition-all ${
+                          selectedAspectRatio === ratio
+                            ? 'border-purple-500 bg-purple-500/20 text-purple-200'
+                            : isAspectRatioAvailable(ratio)
+                            ? 'border-gray-600 bg-gray-700 hover:bg-gray-600 text-gray-300'
+                            : 'border-gray-700 bg-gray-800 text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">{config.icon}</span>
+                          <span className="font-semibold text-sm">{ratio}</span>
+                          {!isAspectRatioAvailable(ratio) && <Lock className="w-3 h-3" />}
+                        </div>
+                        <div className="text-xs text-gray-400">{config.name}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Crop Position */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Crop Position
+                  </label>
+                  <div className="space-y-2">
+                    {['center', 'top', 'bottom', 'left', 'right'].map((position) => (
+                      <button
+                        key={position}
+                        onClick={() => setSelectedCropPosition(position)}
+                        disabled={!currentTierLimits.cropPositions.includes(position)}
+                        className={`w-full p-2 rounded-lg border text-left text-sm transition-all ${
+                          selectedCropPosition === position
+                            ? 'border-purple-500 bg-purple-500/20 text-purple-200'
+                            : currentTierLimits.cropPositions.includes(position)
+                            ? 'border-gray-600 bg-gray-700 hover:bg-gray-600 text-gray-300'
+                            : 'border-gray-700 bg-gray-800 text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="capitalize">{position} Crop</span>
+                          {!currentTierLimits.cropPositions.includes(position) && <Lock className="w-3 h-3" />}
+                        </div>
+                      </button>
+                    ))}
+                    
+                    {/* Custom Crop Option for Pro Users */}
+                    {hasFeature('custom_positioning') && (
+                      <button
+                        onClick={() => setSelectedCropPosition('custom')}
+                        className={`w-full p-2 rounded-lg border text-left text-sm transition-all ${
+                          selectedCropPosition === 'custom'
+                            ? 'border-purple-500 bg-purple-500/20 text-purple-200'
+                            : 'border-gray-600 bg-gray-700 hover:bg-gray-600 text-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Settings className="w-3 h-3" />
+                            <span>Custom Position</span>
+                          </div>
+                          <Crown className="w-3 h-3 text-purple-400" />
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Bulk Export Settings */}
+              {hasFeature('bulk_export') && (
+                <div className="mt-6 pt-6 border-t border-gray-700">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Layers className="w-5 h-5 text-purple-400" />
+                    <label className="block text-sm font-medium text-gray-300">
+                      Bulk Export Mode
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-4 mb-4">
+                    <button
+                      onClick={() => setBulkExportMode(!bulkExportMode)}
+                      className={`px-4 py-2 rounded-lg text-sm transition-all ${
+                        bulkExportMode
+                          ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                          : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      }`}
+                    >
+                      {bulkExportMode ? 'Bulk Export ON' : 'Single Export'}
+                    </button>
+                    {bulkExportMode && (
+                      <span className="text-sm text-purple-300">
+                        Generate same moment in multiple formats
+                      </span>
+                    )}
+                  </div>
+
+                  {bulkExportMode && (
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-2">
+                        Select formats for bulk export:
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(ASPECT_RATIOS).map(([ratio, config]) => (
+                          <button
+                            key={ratio}
+                            onClick={() => {
+                              if (selectedBulkRatios.includes(ratio)) {
+                                setSelectedBulkRatios(selectedBulkRatios.filter(r => r !== ratio));
+                              } else {
+                                setSelectedBulkRatios([...selectedBulkRatios, ratio]);
+                              }
+                            }}
+                            className={`px-3 py-2 rounded-lg text-sm border transition-all ${
+                              selectedBulkRatios.includes(ratio)
+                                ? 'border-purple-500 bg-purple-500/20 text-purple-200'
+                                : 'border-gray-600 bg-gray-700 hover:bg-gray-600 text-gray-300'
+                            }`}
+                          >
+                            <span className="mr-1">{config.icon}</span>
+                            {ratio}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Upload Section */}
         <div className="max-w-4xl mx-auto">
           {!file ? (
@@ -1244,36 +1559,103 @@ const VideoProcessor = () => {
                           </div>
                         </div>
                         
-                        <div className="flex gap-3">
-                          <button
-                            onClick={() => {
-                              if (moment.clipGenerated) {
-                                showVideoClipModal(moment);
-                              } else {
-                                generateVideoClip(moment);
-                              }
-                            }}
-                            disabled={clipProgress[moment.id] !== undefined}
-                            className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
-                          >
-                            {clipProgress[moment.id] !== undefined ? (
-                              <span>Generating... {clipProgress[moment.id]}%</span>
-                            ) : moment.clipGenerated ? (
-                              <span className="flex items-center gap-1"><Play className="w-4 h-4" />View Clip</span>
-                            ) : (
-                              <span className="flex items-center gap-1"><Scissors className="w-4 h-4" />Generate Clip</span>
-                            )}
-                          </button>
-                          
-                          {moment.clipGenerated && moment.subtitles && moment.subtitles.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex gap-3">
                             <button
-                              onClick={() => downloadVideoWithSubtitles(moment)}
-                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
-                              title="Download video with subtitles"
+                              onClick={() => {
+                                if (moment.clipGenerated) {
+                                  showVideoClipModal(moment);
+                                } else {
+                                  generateVideoClip(moment);
+                                }
+                              }}
+                              disabled={clipProgress[moment.id] !== undefined}
+                              className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
                             >
-                              <Download className="w-4 h-4" />
-                              Download
+                              {clipProgress[moment.id] !== undefined ? (
+                                <span>Generating... {clipProgress[moment.id]}%</span>
+                              ) : moment.clipGenerated ? (
+                                <span className="flex items-center gap-1"><Play className="w-4 h-4" />View Clip</span>
+                              ) : (
+                                <span className="flex items-center gap-1"><Scissors className="w-4 h-4" />Generate Clip</span>
+                              )}
                             </button>
+                          </div>
+
+                          {/* Download Options */}
+                          {moment.clipGenerated && moment.subtitles && moment.subtitles.length > 0 && (
+                            <div className="space-y-2">
+                              <div className="flex gap-2">
+                                {/* Single Download */}
+                                <button
+                                  onClick={() => downloadVideoWithSubtitles(moment)}
+                                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                                  title={`Download as ${selectedAspectRatio}`}
+                                >
+                                  <Download className="w-4 h-4" />
+                                  <span className="text-xs">{ASPECT_RATIOS[selectedAspectRatio].icon}</span>
+                                  Download {selectedAspectRatio}
+                                </button>
+
+                                {/* Bulk Download for Pro Users */}
+                                {hasFeature('bulk_export') && bulkExportMode && (
+                                  <button
+                                    onClick={() => handleBulkExport(moment)}
+                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                                    title="Download in multiple formats"
+                                  >
+                                    <Layers className="w-4 h-4" />
+                                    Bulk ({selectedBulkRatios.length})
+                                  </button>
+                                )}
+
+                                {/* Custom Crop Button for Pro Users */}
+                                {hasFeature('custom_positioning') && selectedCropPosition === 'custom' && (
+                                  <button
+                                    onClick={() => handleCustomCrop(moment)}
+                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                                    title="Adjust crop position manually"
+                                  >
+                                    <Settings className="w-4 h-4" />
+                                    Adjust Crop
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Guest Upgrade Prompt */}
+                              {userTier === 'guest' && (
+                                <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Crown className="w-4 h-4 text-purple-400" />
+                                      <div>
+                                        <p className="text-sm text-purple-200 font-medium">Unlock All Formats</p>
+                                        <p className="text-xs text-purple-300">Get 16:9, 1:1, 4:5 + bulk export</p>
+                                      </div>
+                                    </div>
+                                    <button 
+                                      onClick={() => window.location.href = '/pricing'}
+                                      className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs transition-colors"
+                                    >
+                                      Upgrade
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Format Preview for Pro Users */}
+                              {(userTier === 'pro' || userTier === 'developer') && !bulkExportMode && (
+                                <div className="text-xs text-gray-400 flex items-center gap-2">
+                                  <span>Available formats:</span>
+                                  {currentTierLimits.aspectRatios.map(ratio => (
+                                    <span key={ratio} className="inline-flex items-center gap-1">
+                                      <span>{ASPECT_RATIOS[ratio].icon}</span>
+                                      <span>{ratio}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1285,6 +1667,21 @@ const VideoProcessor = () => {
           )}
         </div>
       </div>
+
+      {/* Custom Crop Interface Modal */}
+      {showCustomCropInterface && currentMomentForCrop && file && (
+        <CustomCropInterface
+          videoUrl={URL.createObjectURL(file)}
+          aspectRatio={selectedAspectRatio}
+          onCropChange={handleCropChange}
+          onClose={() => {
+            setShowCustomCropInterface(false);
+            setCurrentMomentForCrop(null);
+            setCustomCropData(null);
+          }}
+          onApply={applyCropAndDownload}
+        />
+      )}
     </div>
   );
 };

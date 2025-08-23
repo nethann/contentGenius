@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Get Anon Key</title>
+</head>
+<body>
+    <h2>Instructions to Get Your Anon Key:</h2>
+    <ol>
+        <li>Go to: <a href="https://app.supabase.com/project/tfxncujtkajtihizutfj/settings/api" target="_blank">Your Supabase API Settings</a></li>
+        <li>Find the section "Project API keys"</li>
+        <li>Copy the <strong>anon public</strong> key (NOT the service_role key)</li>
+        <li>It should start with "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmeG..."</li>
+        <li>The payload should have "role":"anon" (not "service_role")</li>
+    </ol>
+    
+    <h3>Then paste it in your chat so I can fix the .env file</h3>
+    
+    <p><strong>Current issue:</strong> You're getting a 401 error because the anon key is incorrect.</p>
+</body>
+</html>

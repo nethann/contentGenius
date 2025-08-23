@@ -4,15 +4,7 @@ import { supabase } from '../lib/supabase'
  * Admin Service - handles admin role management and permissions
  */
 
-// Timeout helper function
-const withTimeout = (promise, timeoutMs = 10000) => {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs)
-    )
-  ]);
-};
+// Admin service for handling admin functionality
 export class AdminService {
   
   // Define admin users by email
@@ -66,7 +58,7 @@ export class AdminService {
         .select('*')
         .order('created_at', { ascending: false });
       
-      const { data, error } = await withTimeout(query, 5000);
+      const { data, error } = await query;
       
       if (error) {
         console.error('❌ Supabase error fetching all users:', error);
@@ -79,9 +71,6 @@ export class AdminService {
       return { users: data || [], error: null };
     } catch (error) {
       console.error('❌ JavaScript error fetching all users:', error);
-      if (error.message.includes('timed out')) {
-        console.error('❌ Database query timed out - possible connection issue');
-      }
       // Return empty array on error to prevent loading state hang
       return { users: [], error: null };
     }
@@ -158,7 +147,7 @@ export class AdminService {
         .from('user_profiles')
         .select('user_tier, created_at');
       
-      const { data: userStats, error: userError } = await withTimeout(query, 5000);
+      const { data: userStats, error: userError } = await query;
       
       if (userError) {
         console.error('❌ Supabase error fetching user profiles for analytics:', userError);

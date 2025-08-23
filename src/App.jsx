@@ -9,6 +9,8 @@ import Pricing from './components/Pricing';
 import Dashboard from './components/Dashboard';
 import ViralClipGenerator from './components/ViralClipGenerator';
 import AdminDashboard from './components/AdminDashboard';
+import DatabaseDiagnostic from './components/DatabaseDiagnostic';
+import SimpleDBTest from './components/SimpleDBTest';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 import './App.css';
@@ -52,6 +54,26 @@ function App() {
                 <AdminProtectedRoute>
                   <AdminDashboard />
                 </AdminProtectedRoute>
+              } 
+            />
+
+            {/* Database Diagnostic Route (Protected) */}
+            <Route 
+              path="/diagnostic" 
+              element={
+                <ProtectedRoute>
+                  <DatabaseDiagnostic />
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Simple Database Test Route (Protected) */}
+            <Route 
+              path="/dbtest" 
+              element={
+                <ProtectedRoute>
+                  <SimpleDBTest />
+                </ProtectedRoute>
               } 
             />
             

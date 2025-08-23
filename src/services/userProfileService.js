@@ -71,41 +71,29 @@ export class UserProfileService {
    * Update user tier (guest -> pro or pro -> guest)
    */
   static async updateUserTier(userId, newTier) {
+    console.log(`🔄 UserProfileService: Updating tier for ${userId} to ${newTier}`);
+    
     try {
-      // First ensure the profile exists
-      const { profile: existingProfile } = await this.getUserProfile(userId)
-      
-      if (!existingProfile) {
-        // Create profile first
-        const { profile: newProfile, error: createError } = await this.upsertUserProfile(userId, {
-          user_tier: newTier,
-          subscription_status: newTier === 'pro' ? 'active' : 'inactive'
-        })
-        
-        if (createError) throw createError
-        return { profile: newProfile, error: null }
-      }
-      
-      // Update existing profile
       const { data, error } = await supabase
         .from('user_profiles')
-        .update({ 
+        .upsert({
+          id: userId,
           user_tier: newTier,
           subscription_status: newTier === 'pro' ? 'active' : 'inactive',
           updated_at: new Date().toISOString()
         })
-        .eq('id', userId)
         .select()
-        .single()
+        .single();
       
-      if (error) throw error
-      console.log(`✅ Updated user ${userId} tier to ${newTier}`)
-      return { profile: data, error: null }
+      if (error) throw error;
+      
+      console.log(`✅ Successfully updated user ${userId} tier to ${newTier}`, data);
+      return { profile: data, error: null };
+      
     } catch (error) {
-      console.error('Error updating user tier:', error)
+      console.error('❌ Error updating user tier:', error);
       
-      // If table doesn't exist, provide helpful error
-      if (error.message.includes('relation "public.user_profiles" does not exist') || 
+      if (error.message.includes('relation "user_profiles" does not exist') || 
           error.message.includes('Could not find the table')) {
         return { 
           profile: null, 
@@ -113,10 +101,20 @@ export class UserProfileService {
             message: 'Database table not set up. Please run the Supabase SQL setup first.',
             needsSetup: true 
           }
-        }
+        };
+      }
+
+      if (error.message.includes('permission')) {
+        return { 
+          profile: null, 
+          error: { 
+            message: 'Permission denied. Please check your database policies.',
+            permission: true 
+          }
+        };
       }
       
-      return { profile: null, error }
+      return { profile: null, error: { message: error.message } };
     }
   }
 

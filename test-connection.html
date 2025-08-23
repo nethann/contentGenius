@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Database Connection Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Database Connection Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        const { createClient } = supabase;
+        
+        const supabaseUrl = 'https://tfxncujtkajtihizutfj.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmeG5jdWp0a2FqdGloaXp1dGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5MDc3ODcsImV4cCI6MjA2NDQ4Mzc4N30.VzZpFl792L5XnBCGaR2ugVIz7vIkXwEOWVvA6ECF08o';
+        
+        const client = createClient(supabaseUrl, supabaseKey);
+        
+        async function testConnection() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing connection...</p>';
+            
+            try {
+                // Test 1: Check your profile
+                console.log('Testing profile fetch...');
+                const { data: profile, error: profileError } = await client
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('id', 'c2e903e3-aff3-43a2-9a99-97d18882e5e8')
+                    .single();
+                
+                if (profileError) {
+                    results.innerHTML += `<p style="color: red;">❌ Profile Error: ${profileError.message}</p>`;
+                } else {
+                    results.innerHTML += `<p style="color: green;">✅ Profile found: ${profile.email} - ${profile.user_tier}</p>`;
+                }
+                
+                // Test 2: Update tier (this should work now)
+                console.log('Testing tier update...');
+                const { data: updateData, error: updateError } = await client
+                    .from('user_profiles')
+                    .update({ user_tier: 'pro', updated_at: new Date().toISOString() })
+                    .eq('id', 'c2e903e3-aff3-43a2-9a99-97d18882e5e8')
+                    .select()
+                    .single();
+                
+                if (updateError) {
+                    results.innerHTML += `<p style="color: red;">❌ Update Error: ${updateError.message}</p>`;
+                } else {
+                    results.innerHTML += `<p style="color: green;">✅ Tier updated to: ${updateData.user_tier}</p>`;
+                }
+                
+            } catch (error) {
+                results.innerHTML += `<p style="color: red;">❌ Test failed: ${error.message}</p>`;
+            }
+        }
+        
+        testConnection();
+    </script>
+</body>
+</html>

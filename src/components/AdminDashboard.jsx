@@ -38,8 +38,22 @@ const AdminDashboard = () => {
       navigate('/app');
       return;
     }
-    loadAdminData();
-  }, []);
+    
+    // Only load data once when component mounts
+    let mounted = true;
+    
+    const loadData = async () => {
+      if (mounted) {
+        await loadAdminData();
+      }
+    };
+    
+    loadData();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []); // Empty dependency array - only run once
 
   const loadAdminData = async () => {
     setLoading(true);

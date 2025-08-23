@@ -11,7 +11,9 @@
       "Bash(taskkill:*)",
       "Bash(cmd.exe:*)",
       "Bash(echo:*)",
-      "Bash(echo \"Shell: $0\")"
+      "Bash(echo \"Shell: $0\")",
+      "Bash(start test-connection.html)",
+      "Bash(start get-anon-key.html)"
     ],
     "deny": [],
     "ask": [],
