@@ -59,7 +59,8 @@ const ViralClipGenerator = () => {
           maxVideoLength: -1,
           aspectRatios: ['9:16', '16:9', '1:1', '4:5', '21:9'],
           cropPositions: ['center', 'top', 'bottom', 'left', 'right'],
-          features: ['basic_export', 'bulk_export', 'custom_positioning', 'ai_cropping']
+          features: ['basic_export', 'bulk_export', 'custom_positioning', 'ai_cropping'],
+          hasDetailedAnalytics: true
         };
       default:
         return { 
@@ -68,7 +69,8 @@ const ViralClipGenerator = () => {
           maxVideoLength: 600,
           aspectRatios: ['9:16'],
           cropPositions: ['center'],
-          features: ['basic_export']
+          features: ['basic_export'],
+          hasDetailedAnalytics: false
         };
     }
   };
@@ -1472,15 +1474,24 @@ const ViralClipGenerator = () => {
           while (true) {
             const { done, value } = await reader.read();
             if (done) {
+              console.log('📤 Stream completed');
               // Process any remaining data in buffer
               if (currentDataBuffer.trim()) {
                 try {
                   const data = JSON.parse(currentDataBuffer);
                   if (data.type === 'complete') {
                     await handleCompleteMessage(data);
+                  } else if (data.type === 'error') {
+                    console.error('❌ Server error:', data.error);
+                    setError(`Analysis failed: ${data.error}`);
+                    setProcessing(false);
+                    return;
                   }
                 } catch (e) {
                   console.error('Error parsing final buffer:', e);
+                  setError('Failed to parse analysis results');
+                  setProcessing(false);
+                  return;
                 }
               }
               break;
@@ -1526,6 +1537,11 @@ const ViralClipGenerator = () => {
                         setCurrentStep(data.status);
                       } else if (data.type === 'complete') {
                         await handleCompleteMessage(data);
+                      } else if (data.type === 'error') {
+                        console.error('❌ Server error during processing:', data.error);
+                        setError(`Analysis failed: ${data.error}`);
+                        setProcessing(false);
+                        return;
                       }
                     } catch (parseError) {
                       // Start buffering for large message
@@ -1553,6 +1569,8 @@ const ViralClipGenerator = () => {
         console.log('🎯 AI result:', result);
         console.log('🎯 Viral analysis:', result.viralAnalysis);
         console.log('🎯 Has detailed analytics:', !!result.viralAnalysis?.detailedAnalytics);
+        console.log('🔍 FRONTEND DEBUG - Raw viral moments:', result.viralMoments);
+        console.log('🔍 FRONTEND DEBUG - Number of viral moments:', result.viralMoments?.length);
         const segments = [];
         
         if (result.viralMoments && result.viralMoments.length > 0) {
@@ -1594,14 +1612,22 @@ const ViralClipGenerator = () => {
               segment.improvements = moment.improvements || result.viralAnalysis?.improvements;
               segment.hashtags = moment.hashtags || result.viralAnalysis?.hashtags;
               
+              // Add new pro features
+              segment.contentStrategy = moment.contentStrategy || result.viralAnalysis?.contentStrategy?.recommendations || result.viralAnalysis?.contentStrategy;
+              segment.platformTips = moment.platformTips || result.viralAnalysis?.platformTips;
+              segment.competitiveInsights = moment.competitiveInsights || result.viralAnalysis?.competitiveInsights?.analysis || result.viralAnalysis?.competitiveInsights;
+              
               // Debug logging for each moment
               console.log(`🔍 Moment ${index + 1} analytics:`, {
                 hasIndividualAnalytics: !!moment.detailedAnalytics,
                 hasGlobalAnalytics: !!result.viralAnalysis?.detailedAnalytics,
                 finalAnalytics: segment.detailedAnalytics,
                 improvements: segment.improvements,
-                hashtags: segment.hashtags
+                hashtags: segment.hashtags,
+                rawMoment: moment
               });
+              
+              console.log(`🔍 Final segment ${index + 1}:`, segment);
               
               // Only show fallback message if no AI analytics were provided
               if (!segment.detailedAnalytics && !segment.improvements && !segment.hashtags) {
@@ -1895,6 +1921,68 @@ const ViralClipGenerator = () => {
                 </div>
               </div>
               
+              {/* AI Enhancement Tips */}
+              <div style={{ 
+                marginTop: '20px', 
+                padding: '16px', 
+                background: '#1f2937',
+                borderRadius: '12px',
+                border: '2px solid #8b5cf6'
+              }}>
+                <h4 style={{
+                  color: '#c4b5fd',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  🤖 AI-Powered Enhancement Tips
+                </h4>
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <div style={{ 
+                    padding: '12px', 
+                    background: '#8b5cf610', 
+                    borderRadius: '8px',
+                    border: '1px solid #8b5cf640'
+                  }}>
+                    <div style={{ color: '#e9d5ff', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>
+                      🎯 Smart Content Analysis
+                    </div>
+                    <div style={{ color: '#c4b5fd', fontSize: '13px' }}>
+                      AI analyzes your content for viral potential, competitor analysis, and trend alignment
+                    </div>
+                  </div>
+                  <div style={{ 
+                    padding: '12px', 
+                    background: '#8b5cf610', 
+                    borderRadius: '8px',
+                    border: '1px solid #8b5cf640'
+                  }}>
+                    <div style={{ color: '#e9d5ff', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>
+                      💡 Personalized Suggestions
+                    </div>
+                    <div style={{ color: '#c4b5fd', fontSize: '13px' }}>
+                      Get 5-8 actionable tips tailored to your content's unique characteristics
+                    </div>
+                  </div>
+                  <div style={{ 
+                    padding: '12px', 
+                    background: '#8b5cf610', 
+                    borderRadius: '8px',
+                    border: '1px solid #8b5cf640'
+                  }}>
+                    <div style={{ color: '#e9d5ff', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>
+                      📱 Platform-Specific Hashtags
+                    </div>
+                    <div style={{ color: '#c4b5fd', fontSize: '13px' }}>
+                      AI-generated hashtags with engagement scores for maximum reach
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               <div style={{ 
                 marginTop: '16px', 
                 padding: '12px', 
@@ -1904,7 +1992,7 @@ const ViralClipGenerator = () => {
                 color: '#10b981',
                 fontSize: '13px'
               }}>
-                ✨ <strong>Pro Features Active:</strong> 8 aspect ratios • AI smart cropping • Bulk export • Custom positioning
+                ✨ <strong>Pro Features Active:</strong> Advanced AI analytics • 8 aspect ratios • AI smart cropping • Bulk export • Content strategy • Competitive insights
               </div>
             </div>
           </div>
@@ -2056,42 +2144,250 @@ const ViralClipGenerator = () => {
                                 <div className="detailed-analytics">
                                   <div className="analytics-grid">
                                     <div className="analytics-metric">
-                                      <span className="metric-label">Hook Strength:</span>
+                                      <span className="metric-label">🎣 Hook Strength:</span>
                                       <span className="metric-value">{moment.detailedAnalytics.hookStrength}%</span>
                                     </div>
                                     <div className="analytics-metric">
-                                      <span className="metric-label">Retention:</span>
+                                      <span className="metric-label">📊 Retention:</span>
                                       <span className="metric-value">{moment.detailedAnalytics.retentionRate}%</span>
                                     </div>
                                     <div className="analytics-metric">
-                                      <span className="metric-label">Engagement:</span>
+                                      <span className="metric-label">💬 Engagement:</span>
                                       <span className="metric-value">{moment.detailedAnalytics.engagementPotential}%</span>
                                     </div>
                                     <div className="analytics-metric">
-                                      <span className="metric-label">Sentiment:</span>
+                                      <span className="metric-label">😊 Sentiment:</span>
                                       <span className="metric-value">{moment.detailedAnalytics.sentiment}</span>
                                     </div>
+                                    {moment.detailedAnalytics.competitorAnalysis && (
+                                      <div className="analytics-metric">
+                                        <span className="metric-label">🏆 Vs Competitors:</span>
+                                        <span className="metric-value">{moment.detailedAnalytics.competitorAnalysis}%</span>
+                                      </div>
+                                    )}
+                                    {moment.detailedAnalytics.trendAlignment && (
+                                      <div className="analytics-metric">
+                                        <span className="metric-label">📈 Trend Alignment:</span>
+                                        <span className="metric-value">{moment.detailedAnalytics.trendAlignment}%</span>
+                                      </div>
+                                    )}
+                                    {moment.detailedAnalytics.audienceReach && (
+                                      <div className="analytics-metric">
+                                        <span className="metric-label">👥 Audience Reach:</span>
+                                        <span className="metric-value">{moment.detailedAnalytics.audienceReach}%</span>
+                                      </div>
+                                    )}
+                                    {moment.detailedAnalytics.platformOptimization && (
+                                      <div className="analytics-metric">
+                                        <span className="metric-label">📱 Platform Score:</span>
+                                        <span className="metric-value">{moment.detailedAnalytics.platformOptimization}%</span>
+                                      </div>
+                                    )}
                                   </div>
                                   
-                                  {moment.improvements && (
-                                    <div className="improvements-section">
-                                      <h5 className="improvements-title">💡 Suggestions:</h5>
-                                      <ul className="improvements-list">
-                                        {moment.improvements.map((improvement, idx) => (
-                                          <li key={idx} className="improvement-item">{improvement}</li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  )}
                                   
                                   {moment.hashtags && (
                                     <div className="hashtags-section">
-                                      <span className="hashtags-label">📱 Suggested hashtags:</span>
+                                      <span className="hashtags-label">📱 Trending hashtags:</span>
                                       <div className="hashtags-list">
-                                        {moment.hashtags.map((tag, idx) => (
-                                          <span key={idx} className="hashtag">{tag}</span>
-                                        ))}
+                                        {moment.hashtags.map((tag, idx) => {
+                                          // Handle the actual server format: {hashtag: "text", engagementScore: number}
+                                          let hashtagText = '';
+                                          let engagementScore = '';
+                                          
+                                          if (typeof tag === 'object' && tag.hashtag) {
+                                            // Server format: {hashtag: "#EntrepreneurMindset", engagementScore: 85}
+                                            hashtagText = tag.hashtag;
+                                            engagementScore = tag.engagementScore ? `${tag.engagementScore}%` : '';
+                                          } else if (typeof tag === 'object') {
+                                            // Fallback for other object formats
+                                            const key = Object.keys(tag)[0];
+                                            hashtagText = key;
+                                            engagementScore = tag[key] ? `${tag[key]}%` : '';
+                                          } else if (typeof tag === 'string') {
+                                            // Simple string format
+                                            hashtagText = tag;
+                                          }
+                                          
+                                          return (
+                                            <span 
+                                              key={idx} 
+                                              className="hashtag enhanced"
+                                              onClick={() => {
+                                                navigator.clipboard?.writeText(hashtagText);
+                                                // Show quick feedback
+                                                const element = document.getElementById(`hashtag-${idx}`);
+                                                if (element) {
+                                                  const originalText = element.textContent;
+                                                  element.textContent = 'Copied!';
+                                                  element.style.background = '#10b981';
+                                                  setTimeout(() => {
+                                                    element.textContent = originalText;
+                                                    element.style.background = '';
+                                                  }, 1000);
+                                                }
+                                              }}
+                                              id={`hashtag-${idx}`}
+                                              title={`Click to copy${engagementScore ? ` • Engagement: ${engagementScore}` : ''}`}
+                                              style={{ 
+                                                position: 'relative',
+                                                cursor: 'pointer',
+                                                transition: 'background-color 0.3s ease'
+                                              }}
+                                            >
+                                              {hashtagText}
+                                              {engagementScore && (
+                                                <small style={{ 
+                                                  color: '#a5b4fc', 
+                                                  fontSize: '10px', 
+                                                  marginLeft: '4px',
+                                                  opacity: 0.8
+                                                }}>
+                                                  ({engagementScore})
+                                                </small>
+                                              )}
+                                            </span>
+                                          );
+                                        })}
                                       </div>
+                                      <button 
+                                        className="copy-all-hashtags"
+                                        id={`copy-all-btn-${moment.id}`}
+                                        onClick={() => {
+                                          const hashtagTexts = moment.hashtags.map(tag => {
+                                            if (typeof tag === 'object' && tag.hashtag) {
+                                              return tag.hashtag;
+                                            } else if (typeof tag === 'object') {
+                                              return Object.keys(tag)[0];
+                                            }
+                                            return tag;
+                                          }).filter(Boolean); // Remove any empty values
+                                          
+                                          navigator.clipboard?.writeText(hashtagTexts.join(' '));
+                                          
+                                          // Show feedback
+                                          const button = document.getElementById(`copy-all-btn-${moment.id}`);
+                                          if (button) {
+                                            const originalText = button.textContent;
+                                            button.textContent = '✅ Copied!';
+                                            button.style.background = '#10b981';
+                                            button.style.color = 'white';
+                                            button.style.borderColor = '#10b981';
+                                            setTimeout(() => {
+                                              button.textContent = originalText;
+                                              button.style.background = 'transparent';
+                                              button.style.color = '#8b5cf6';
+                                              button.style.borderColor = '#8b5cf6';
+                                            }, 2000);
+                                          }
+                                        }}
+                                        style={{
+                                          marginTop: '8px',
+                                          padding: '6px 12px',
+                                          borderRadius: '6px',
+                                          border: '1px solid #8b5cf6',
+                                          background: 'transparent',
+                                          color: '#8b5cf6',
+                                          fontSize: '12px',
+                                          cursor: 'pointer',
+                                          transition: 'all 0.3s ease'
+                                        }}
+                                      >
+                                        📋 Copy All
+                                      </button>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Content Strategy Section */}
+                                  {moment.contentStrategy && (
+                                    <div className="content-strategy-section" style={{
+                                      marginTop: '16px',
+                                      padding: '12px',
+                                      background: '#065f4620',
+                                      borderRadius: '8px',
+                                      border: '1px solid #059669'
+                                    }}>
+                                      <h5 style={{ 
+                                        color: '#10b981', 
+                                        fontSize: '14px', 
+                                        fontWeight: '600', 
+                                        marginBottom: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                      }}>
+                                        🎯 Content Strategy
+                                      </h5>
+                                      <p style={{ 
+                                        color: '#d1fae5', 
+                                        fontSize: '13px', 
+                                        lineHeight: '1.4',
+                                        margin: 0
+                                      }}>
+                                        {moment.contentStrategy}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Platform Tips Section */}
+                                  {moment.platformTips && (
+                                    <div className="platform-tips-section" style={{
+                                      marginTop: '12px',
+                                      padding: '12px',
+                                      background: '#1e40af20',
+                                      borderRadius: '8px',
+                                      border: '1px solid #3b82f6'
+                                    }}>
+                                      <h5 style={{ 
+                                        color: '#60a5fa', 
+                                        fontSize: '14px', 
+                                        fontWeight: '600', 
+                                        marginBottom: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                      }}>
+                                        📱 Platform Optimization
+                                      </h5>
+                                      <p style={{ 
+                                        color: '#dbeafe', 
+                                        fontSize: '13px', 
+                                        lineHeight: '1.4',
+                                        margin: 0
+                                      }}>
+                                        {moment.platformTips}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Competitive Insights Section */}
+                                  {moment.competitiveInsights && (
+                                    <div className="competitive-insights-section" style={{
+                                      marginTop: '12px',
+                                      padding: '12px',
+                                      background: '#7c2d1220',
+                                      borderRadius: '8px',
+                                      border: '1px solid #f97316'
+                                    }}>
+                                      <h5 style={{ 
+                                        color: '#fb923c', 
+                                        fontSize: '14px', 
+                                        fontWeight: '600', 
+                                        marginBottom: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                      }}>
+                                        🏆 Competitive Edge
+                                      </h5>
+                                      <p style={{ 
+                                        color: '#fed7aa', 
+                                        fontSize: '13px', 
+                                        lineHeight: '1.4',
+                                        margin: 0
+                                      }}>
+                                        {moment.competitiveInsights}
+                                      </p>
                                     </div>
                                   )}
                                 </div>
@@ -2099,8 +2395,63 @@ const ViralClipGenerator = () => {
                               
                               {/* Guest Tier Notice or AI Pending */}
                               {!moment.detailedAnalytics && !moment.noAiAnalytics && userTier === 'guest' && (
-                                <div className="upgrade-notice">
-                                  <p className="upgrade-text">🔒 Upgrade to Pro for detailed analytics, optimization tips, and hashtag suggestions</p>
+                                <div className="upgrade-notice" style={{
+                                  marginTop: '16px',
+                                  padding: '16px',
+                                  background: 'linear-gradient(135deg, #7c3aed20 0%, #8b5cf620 100%)',
+                                  borderRadius: '12px',
+                                  border: '2px solid #8b5cf6'
+                                }}>
+                                  <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '12px',
+                                    marginBottom: '12px'
+                                  }}>
+                                    <div style={{
+                                      background: '#8b5cf6',
+                                      borderRadius: '50%',
+                                      width: '32px',
+                                      height: '32px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '16px'
+                                    }}>
+                                      ✨
+                                    </div>
+                                    <div>
+                                      <h5 style={{ 
+                                        color: '#c4b5fd', 
+                                        fontSize: '16px', 
+                                        fontWeight: '600', 
+                                        margin: 0 
+                                      }}>
+                                        Unlock Pro AI Analytics
+                                      </h5>
+                                      <p style={{ 
+                                        color: '#a5b4fc', 
+                                        fontSize: '14px', 
+                                        margin: 0 
+                                      }}>
+                                        Get advanced insights to boost your viral potential
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div style={{ display: 'grid', gap: '8px', fontSize: '13px' }}>
+                                    <div style={{ color: '#e9d5ff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <span>🎯</span> Advanced viral scoring & competitor analysis
+                                    </div>
+                                    <div style={{ color: '#e9d5ff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <span>💡</span> 5-8 personalized optimization tips per moment
+                                    </div>
+                                    <div style={{ color: '#e9d5ff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <span>📱</span> AI-generated hashtags with engagement scores
+                                    </div>
+                                    <div style={{ color: '#e9d5ff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <span>🚀</span> Content strategy & platform-specific tips
+                                    </div>
+                                  </div>
                                 </div>
                               )}
                               {moment.noAiAnalytics && userTier === 'pro' && (
