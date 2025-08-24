@@ -8,7 +8,7 @@ import fs from 'fs-extra';
 import ffmpeg from 'fluent-ffmpeg';
 import { v4 as uuidv4 } from 'uuid';
 import Groq from 'groq-sdk';
-import { performCompleteAnalysis } from './services/aiAnalysis.js';
+import { performCompleteAnalysis, transcribeAudio } from './services/aiAnalysis.js';
 
 // Load environment variables
 dotenv.config();
@@ -656,17 +656,23 @@ function highlightAttentionWords(text) {
 // Transcribe video segment
 app.post('/api/transcribe-segment', async (req, res) => {
   try {
+    console.log('🎬 Transcribe-segment request received:', req.body);
     const { filename, startTime, endTime, segmentId } = req.body;
 
     if (!filename || startTime === undefined || endTime === undefined) {
+      console.error('❌ Missing required parameters:', { filename, startTime, endTime, segmentId });
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
     const videoPath = join(uploadDir, filename);
     const audioPath = join(tempDir, `segment-${segmentId}-${uuidv4()}.mp3`);
 
+    console.log('🎬 Video path:', videoPath);
+    console.log('🎬 Audio path:', audioPath);
+
     // Check if video file exists
     if (!await fs.pathExists(videoPath)) {
+      console.error('❌ Video file not found:', videoPath);
       return res.status(404).json({ error: 'Video file not found' });
     }
 
@@ -676,11 +682,15 @@ app.post('/api/transcribe-segment', async (req, res) => {
     const bufferTime = 15; // Extra seconds to capture full sentences
     const extendedEndTime = endTime + bufferTime;
     
+    console.log('🎬 Extracting audio segment...');
     // Extract audio segment with buffer
     await extractAudioSegment(videoPath, startTime, extendedEndTime, audioPath);
-
+    
+    console.log('🎬 Audio extraction completed, starting transcription...');
     // Transcribe the extended audio segment
     const transcription = await transcribeAudio(audioPath);
+    
+    console.log('🎬 Transcription completed:', transcription.text?.substring(0, 100) + '...');
 
     // Clean up temporary audio file
     await fs.remove(audioPath);

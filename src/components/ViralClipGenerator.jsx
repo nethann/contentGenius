@@ -8,6 +8,7 @@ import {
   Download,
   Clock,
   Zap,
+  Settings,
   FileVideo,
   FileAudio,
   AlertCircle,
@@ -17,7 +18,6 @@ import {
   Crown,
   Lock,
   Grid3X3,
-  Settings,
   Layers,
   Maximize2,
   MousePointer
@@ -1802,201 +1802,6 @@ const ViralClipGenerator = () => {
           </div>
         )}
 
-        {/* Pro/Developer Features Panel */}
-        {(userTier === 'pro' || userTier === 'developer') && (
-          <div className="upload-container">
-            <div className="pro-features-panel" style={{
-              background: '#1f2937',
-              border: '1px solid #374151',
-              borderRadius: '12px',
-              padding: '24px',
-              marginBottom: '20px'
-            }}>
-              <h3 style={{
-                color: 'white',
-                fontSize: '18px',
-                fontWeight: '600',
-                marginBottom: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <Grid3X3 style={{ width: '20px', height: '20px' }} />
-                🎯 Pro Export Settings
-              </h3>
-              
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-                gap: '24px' 
-              }}>
-                {/* Aspect Ratios */}
-                <div>
-                  <label style={{ color: '#d1d5db', fontSize: '14px', fontWeight: '500', display: 'block', marginBottom: '12px' }}>
-                    📐 Aspect Ratio Selection
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                    {Object.entries(ASPECT_RATIOS).slice(0, 8).map(([ratio, config]) => (
-                      <button
-                        key={ratio}
-                        onClick={() => setSelectedAspectRatio(ratio)}
-                        style={{
-                          padding: '12px',
-                          border: selectedAspectRatio === ratio ? '2px solid #8b5cf6' : '1px solid #4b5563',
-                          borderRadius: '8px',
-                          background: selectedAspectRatio === ratio ? '#8b5cf620' : '#374151',
-                          color: selectedAspectRatio === ratio ? '#c4b5fd' : '#d1d5db',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          fontSize: '13px',
-                          transition: 'all 0.2s'
-                        }}
-                        title={config.platforms}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '14px' }}>{config.icon}</span>
-                          <span style={{ fontWeight: '600' }}>{ratio}</span>
-                        </div>
-                        <div style={{ fontSize: '11px', opacity: '0.8' }}>{config.name}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Bulk Export */}
-                <div>
-                  <label style={{ color: '#d1d5db', fontSize: '14px', fontWeight: '500', display: 'block', marginBottom: '12px' }}>
-                    📦 Bulk Export Mode
-                  </label>
-                  <button
-                    onClick={() => setBulkExportMode(!bulkExportMode)}
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      background: bulkExportMode ? '#8b5cf6' : '#4b5563',
-                      color: 'white',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      transition: 'all 0.2s',
-                      marginBottom: '12px'
-                    }}
-                  >
-                    {bulkExportMode ? '✅ Bulk Export ON' : '📤 Single Export'}
-                  </button>
-                  {bulkExportMode && (
-                    <div style={{ fontSize: '12px', color: '#c4b5fd', marginBottom: '12px' }}>
-                      🚀 Generate same moment in multiple formats
-                    </div>
-                  )}
-                  
-                  {bulkExportMode && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {['9:16', '16:9', '1:1', '4:5'].map(ratio => (
-                        <button
-                          key={ratio}
-                          onClick={() => {
-                            if (selectedBulkRatios.includes(ratio)) {
-                              setSelectedBulkRatios(selectedBulkRatios.filter(r => r !== ratio));
-                            } else {
-                              setSelectedBulkRatios([...selectedBulkRatios, ratio]);
-                            }
-                          }}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: selectedBulkRatios.includes(ratio) ? '2px solid #8b5cf6' : '1px solid #6b7280',
-                            background: selectedBulkRatios.includes(ratio) ? '#8b5cf620' : '#374151',
-                            color: selectedBulkRatios.includes(ratio) ? '#c4b5fd' : '#d1d5db',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          {ASPECT_RATIOS[ratio]?.icon} {ratio}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* AI Enhancement Tips */}
-              <div style={{ 
-                marginTop: '20px', 
-                padding: '16px', 
-                background: '#1f2937',
-                borderRadius: '12px',
-                border: '2px solid #8b5cf6'
-              }}>
-                <h4 style={{
-                  color: '#c4b5fd',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  marginBottom: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  🤖 AI-Powered Enhancement Tips
-                </h4>
-                <div style={{ display: 'grid', gap: '12px' }}>
-                  <div style={{ 
-                    padding: '12px', 
-                    background: '#8b5cf610', 
-                    borderRadius: '8px',
-                    border: '1px solid #8b5cf640'
-                  }}>
-                    <div style={{ color: '#e9d5ff', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>
-                      🎯 Smart Content Analysis
-                    </div>
-                    <div style={{ color: '#c4b5fd', fontSize: '13px' }}>
-                      AI analyzes your content for viral potential, competitor analysis, and trend alignment
-                    </div>
-                  </div>
-                  <div style={{ 
-                    padding: '12px', 
-                    background: '#8b5cf610', 
-                    borderRadius: '8px',
-                    border: '1px solid #8b5cf640'
-                  }}>
-                    <div style={{ color: '#e9d5ff', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>
-                      💡 Personalized Suggestions
-                    </div>
-                    <div style={{ color: '#c4b5fd', fontSize: '13px' }}>
-                      Get 5-8 actionable tips tailored to your content's unique characteristics
-                    </div>
-                  </div>
-                  <div style={{ 
-                    padding: '12px', 
-                    background: '#8b5cf610', 
-                    borderRadius: '8px',
-                    border: '1px solid #8b5cf640'
-                  }}>
-                    <div style={{ color: '#e9d5ff', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>
-                      📱 Platform-Specific Hashtags
-                    </div>
-                    <div style={{ color: '#c4b5fd', fontSize: '13px' }}>
-                      AI-generated hashtags with engagement scores for maximum reach
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div style={{ 
-                marginTop: '16px', 
-                padding: '12px', 
-                background: '#065f4620', 
-                borderRadius: '8px',
-                border: '1px solid #059669',
-                color: '#10b981',
-                fontSize: '13px'
-              }}>
-                ✨ <strong>Pro Features Active:</strong> Advanced AI analytics • 8 aspect ratios • AI smart cropping • Bulk export • Content strategy • Competitive insights
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Upload Section */}
         <div className="upload-container">
@@ -2113,6 +1918,151 @@ const ViralClipGenerator = () => {
                       🚀 Upload New Video
                     </button>
                   </div>
+
+                  {/* Pro Export Controls */}
+                  {(userTier === 'pro' || userTier === 'developer') && (
+                    <div style={{
+                      background: '#1f2937',
+                      border: '1px solid #374151',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      marginBottom: '24px'
+                    }}>
+                      <h4 style={{
+                        color: '#8b5cf6',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        marginBottom: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <Settings style={{ width: '18px', height: '18px' }} />
+                        🎬 Export Settings
+                      </h4>
+                      
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                        gap: '20px' 
+                      }}>
+                        {/* Aspect Ratios */}
+                        <div>
+                          <label style={{ 
+                            color: '#d1d5db', 
+                            fontSize: '14px', 
+                            fontWeight: '500', 
+                            display: 'block', 
+                            marginBottom: '12px' 
+                          }}>
+                            📐 Select Aspect Ratio
+                          </label>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                            {Object.entries(ASPECT_RATIOS).slice(0, 6).map(([ratio, config]) => (
+                              <button
+                                key={ratio}
+                                onClick={() => setSelectedAspectRatio(ratio)}
+                                style={{
+                                  padding: '10px',
+                                  border: selectedAspectRatio === ratio ? '2px solid #8b5cf6' : '1px solid #4b5563',
+                                  borderRadius: '8px',
+                                  background: selectedAspectRatio === ratio ? '#8b5cf620' : '#374151',
+                                  color: selectedAspectRatio === ratio ? '#c4b5fd' : '#d1d5db',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  fontSize: '12px',
+                                  transition: 'all 0.2s'
+                                }}
+                                title={`${config.platforms} - ${config.name}`}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                                  <span style={{ fontSize: '14px' }}>{config.icon}</span>
+                                  <span style={{ fontWeight: '600' }}>{ratio}</span>
+                                </div>
+                                <div style={{ fontSize: '10px', opacity: '0.8' }}>{config.name}</div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Bulk Export Toggle */}
+                        <div>
+                          <label style={{ 
+                            color: '#d1d5db', 
+                            fontSize: '14px', 
+                            fontWeight: '500', 
+                            display: 'block', 
+                            marginBottom: '12px' 
+                          }}>
+                            📦 Export Mode
+                          </label>
+                          <div style={{ marginBottom: '12px' }}>
+                            <button
+                              onClick={() => setBulkExportMode(!bulkExportMode)}
+                              style={{
+                                padding: '12px 16px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: bulkExportMode ? '#8b5cf6' : '#4b5563',
+                                color: 'white',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                transition: 'all 0.2s',
+                                width: '100%'
+                              }}
+                            >
+                              {bulkExportMode ? '✅ Bulk Export Mode' : '📤 Single Export Mode'}
+                            </button>
+                          </div>
+                          {bulkExportMode && (
+                            <>
+                              <div style={{ fontSize: '12px', color: '#c4b5fd', marginBottom: '8px' }}>
+                                Generate clips in multiple formats simultaneously
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {['9:16', '16:9', '1:1', '4:5'].map(ratio => (
+                                  <button
+                                    key={ratio}
+                                    onClick={() => {
+                                      if (selectedBulkRatios.includes(ratio)) {
+                                        setSelectedBulkRatios(selectedBulkRatios.filter(r => r !== ratio));
+                                      } else {
+                                        setSelectedBulkRatios([...selectedBulkRatios, ratio]);
+                                      }
+                                    }}
+                                    style={{
+                                      padding: '4px 8px',
+                                      borderRadius: '4px',
+                                      border: selectedBulkRatios.includes(ratio) ? '2px solid #8b5cf6' : '1px solid #6b7280',
+                                      background: selectedBulkRatios.includes(ratio) ? '#8b5cf620' : '#374151',
+                                      color: selectedBulkRatios.includes(ratio) ? '#c4b5fd' : '#d1d5db',
+                                      cursor: 'pointer',
+                                      fontSize: '11px'
+                                    }}
+                                  >
+                                    {ASPECT_RATIOS[ratio]?.icon} {ratio}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ 
+                        marginTop: '16px', 
+                        padding: '12px', 
+                        background: '#065f4620', 
+                        borderRadius: '8px',
+                        border: '1px solid #059669',
+                        color: '#10b981',
+                        fontSize: '13px'
+                      }}>
+                        ✨ <strong>Pro Export Controls:</strong> Choose aspect ratios for each clip • Bulk export multiple formats • AI-optimized cropping
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="segments-grid">
                     {extractedMoments.map((moment) => (
@@ -2298,36 +2248,6 @@ const ViralClipGenerator = () => {
                                     </div>
                                   )}
                                   
-                                  {/* Content Strategy Section */}
-                                  {moment.contentStrategy && (
-                                    <div className="content-strategy-section" style={{
-                                      marginTop: '16px',
-                                      padding: '12px',
-                                      background: '#065f4620',
-                                      borderRadius: '8px',
-                                      border: '1px solid #059669'
-                                    }}>
-                                      <h5 style={{ 
-                                        color: '#10b981', 
-                                        fontSize: '14px', 
-                                        fontWeight: '600', 
-                                        marginBottom: '8px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px'
-                                      }}>
-                                        🎯 Content Strategy
-                                      </h5>
-                                      <p style={{ 
-                                        color: '#d1fae5', 
-                                        fontSize: '13px', 
-                                        lineHeight: '1.4',
-                                        margin: 0
-                                      }}>
-                                        {moment.contentStrategy}
-                                      </p>
-                                    </div>
-                                  )}
                                   
                                   {/* Platform Tips Section */}
                                   {moment.platformTips && (
@@ -2360,36 +2280,6 @@ const ViralClipGenerator = () => {
                                     </div>
                                   )}
                                   
-                                  {/* Competitive Insights Section */}
-                                  {moment.competitiveInsights && (
-                                    <div className="competitive-insights-section" style={{
-                                      marginTop: '12px',
-                                      padding: '12px',
-                                      background: '#7c2d1220',
-                                      borderRadius: '8px',
-                                      border: '1px solid #f97316'
-                                    }}>
-                                      <h5 style={{ 
-                                        color: '#fb923c', 
-                                        fontSize: '14px', 
-                                        fontWeight: '600', 
-                                        marginBottom: '8px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px'
-                                      }}>
-                                        🏆 Competitive Edge
-                                      </h5>
-                                      <p style={{ 
-                                        color: '#fed7aa', 
-                                        fontSize: '13px', 
-                                        lineHeight: '1.4',
-                                        margin: 0
-                                      }}>
-                                        {moment.competitiveInsights}
-                                      </p>
-                                    </div>
-                                  )}
                                 </div>
                               )}
                               
