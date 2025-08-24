@@ -2178,7 +2178,7 @@ const ViralClipGenerator = () => {
                                                 }
                                               }}
                                               id={`hashtag-${idx}`}
-                                              title={`Click to copy${engagementScore ? ` • Engagement: ${engagementScore}` : ''}`}
+                                              title="Click to copy hashtag"
                                               style={{ 
                                                 position: 'relative',
                                                 cursor: 'pointer',
@@ -2186,16 +2186,6 @@ const ViralClipGenerator = () => {
                                               }}
                                             >
                                               {hashtagText}
-                                              {engagementScore && (
-                                                <small style={{ 
-                                                  color: '#a5b4fc', 
-                                                  fontSize: '10px', 
-                                                  marginLeft: '4px',
-                                                  opacity: 0.8
-                                                }}>
-                                                  ({engagementScore})
-                                                </small>
-                                              )}
                                             </span>
                                           );
                                         })}
@@ -2330,16 +2320,16 @@ const ViralClipGenerator = () => {
                                   </div>
                                   <div style={{ display: 'grid', gap: '8px', fontSize: '13px' }}>
                                     <div style={{ color: '#e9d5ff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <span>🎯</span> Advanced viral scoring & competitor analysis
+                                      <span>🎯</span> Advanced viral scoring with 8+ detailed metrics
                                     </div>
                                     <div style={{ color: '#e9d5ff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <span>💡</span> 5-8 personalized optimization tips per moment
+                                      <span>🔥</span> Trend alignment & competitor analysis insights
                                     </div>
                                     <div style={{ color: '#e9d5ff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <span>📱</span> AI-generated hashtags with engagement scores
+                                      <span>📱</span> 8-12 trending hashtags curated by AI
                                     </div>
                                     <div style={{ color: '#e9d5ff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <span>🚀</span> Content strategy & platform-specific tips
+                                      <span>🚀</span> Platform-specific optimization recommendations
                                     </div>
                                   </div>
                                 </div>
