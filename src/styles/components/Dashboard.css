@@ -783,7 +783,7 @@
   align-items: center;
   justify-content: center;
   padding: 0.625rem;
-  color: var(--text-secondary);
+  color: #ef4444;
   background: var(--glass-bg);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -795,7 +795,7 @@
 }
 
 .dashboard-signout-btn:hover {
-  color: var(--text-primary);
+  color: #ef4444;
   background: var(--glass-bg-strong);
   border-color: var(--glass-border-strong);
   transform: translateY(-2px);
