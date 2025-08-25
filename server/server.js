@@ -117,40 +117,6 @@ async function extractAudioSegment(videoPath, startTime, endTime, outputPath) {
   });
 }
 
-// Transcribe audio using Groq Whisper
-async function transcribeAudio(audioPath) {
-  try {
-    console.log(`🎤 Transcribing audio: ${audioPath}`);
-    
-    const audioBuffer = await fs.readFile(audioPath);
-    
-    const transcription = await groq.audio.transcriptions.create({
-      file: new File([audioBuffer], 'audio.mp3', { type: 'audio/mp3' }),
-      model: 'whisper-large-v3',
-      response_format: 'verbose_json',
-      timestamp_granularities: ['word'],
-      language: 'en'
-    });
-
-    console.log(`✅ Transcription complete`);
-    console.log(`📊 Transcription result:`, {
-      textLength: transcription.text?.length || 0,
-      wordsCount: transcription.words?.length || 0,
-      segmentsCount: transcription.segments?.length || 0,
-      hasWords: !!transcription.words,
-      sampleWords: transcription.words?.slice(0, 3) || []
-    });
-    
-    return {
-      text: transcription.text,
-      words: transcription.words || [],
-      segments: transcription.segments || []
-    };
-  } catch (error) {
-    console.error('❌ Transcription error:', error);
-    throw error;
-  }
-}
 
 // Routes
 
