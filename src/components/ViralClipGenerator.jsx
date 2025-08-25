@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
+import { TokenService } from '../services/tokenService';
 import {
   Upload,
   Play,
@@ -1437,6 +1438,22 @@ const ViralClipGenerator = () => {
 
   const analyzeContent = async (fileInfo) => {
     try {
+      // Check if user has tokens before starting analysis
+      if (!TokenService.hasTokens(user.id, userTier)) {
+        setError(`❌ Insufficient tokens. ${userTier === 'guest' ? 'Guests get 1 token total.' : `${userTier} users get ${TokenService.getTokenInfo(userTier).maxTokens} tokens.`}`);
+        setProcessing(false);
+        return;
+      }
+
+      // Consume a token before starting analysis
+      if (!TokenService.useToken(user.id, userTier)) {
+        setError("❌ Failed to consume token. Please try again.");
+        setProcessing(false);
+        return;
+      }
+
+      console.log(`🪙 Token consumed. Remaining tokens: ${TokenService.getCurrentTokens(user.id, userTier) === -1 ? '∞' : TokenService.getCurrentTokens(user.id, userTier)}`);
+
       setCurrentStep("Starting AI analysis...");
       setProgress(10);
 

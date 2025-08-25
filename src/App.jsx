@@ -1,9 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
 import Homepage from './components/Homepage';
-import Login from './components/Login';
-import Signup from './components/Signup';
 import Pricing from './components/Pricing';
 import Dashboard from './components/Dashboard';
 import ViralClipGenerator from './components/ViralClipGenerator';

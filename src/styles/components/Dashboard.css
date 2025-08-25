@@ -975,6 +975,13 @@
   gap: 0.75rem;
 }
 
+/* Card Pills Container */
+.card-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* Beta Pill */
 .beta-pill {
   display: inline-flex;
@@ -990,6 +997,23 @@
   box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);
 }
 
+/* Token Cost Pill */
+.token-cost-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.9) 0%, rgba(168, 85, 247, 0.9) 100%);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 1rem;
+  text-transform: none;
+  letter-spacing: 0.025em;
+  box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
 .dashboard-card-description {
   color: rgba(255, 255, 255, 0.9);
   font-size: 0.875rem;
@@ -999,6 +1023,9 @@
 
 .dashboard-card-action {
   margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .dashboard-card-action-text {
@@ -1469,6 +1496,87 @@
   cursor: not-allowed;
 }
 
+/* Token Display Styles - Main Content Area */
+.token-display-main {
+  position: absolute;
+  top: 1rem;
+  right: 2rem;
+  z-index: 40;
+}
+
+/* Token Display Styles - Legacy (remove if not used elsewhere) */
+.token-display {
+  flex-shrink: 0;
+}
+
+.token-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+  border-radius: 0.75rem;
+  transition: all 0.3s ease;
+  min-width: fit-content;
+}
+
+.token-container:hover {
+  background: var(--glass-bg-strong);
+  border-color: var(--glass-border-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.token-icon {
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.token-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.token-count {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.token-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1;
+  font-weight: 500;
+}
+
+/* Token count variations for different tiers */
+.token-container.tier-guest .token-count {
+  color: #6b7280;
+}
+
+.token-container.tier-pro .token-count {
+  background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+}
+
+.token-container.tier-developer .token-count {
+  background: linear-gradient(135deg, #10b981, #06d6a0);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 480px) {
   .report-modal-content {
@@ -1482,5 +1590,24 @@
   
   .report-type-selector {
     flex-direction: column;
+  }
+  
+  /* Token display mobile adjustments */
+  .token-display-main {
+    position: static;
+    margin: 0 auto 1rem auto;
+    width: fit-content;
+  }
+  
+  .token-container {
+    padding: 0.375rem 0.625rem;
+  }
+  
+  .token-count {
+    font-size: 0.8rem;
+  }
+  
+  .token-label {
+    font-size: 0.7rem;
   }
 }

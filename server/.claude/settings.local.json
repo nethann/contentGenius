@@ -4,7 +4,9 @@
       "Bash(node server.js)",
       "Bash(taskkill:*)",
       "Bash(cmd /c:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(npm install)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

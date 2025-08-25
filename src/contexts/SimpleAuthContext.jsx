@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import React, { createContext, useContext, useState } from 'react'
 
 const SimpleAuthContext = createContext({})
 
@@ -20,122 +19,56 @@ const getTierByEmail = (email) => {
 export const SimpleAuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [userTier, setUserTier] = useState('guest')
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        const currentUser = session?.user ?? null
-        
-        setUser(currentUser)
-        if (currentUser) {
-          const tier = getTierByEmail(currentUser.email)
-          setUserTier(tier)
-          console.log(`✅ User: ${currentUser.email}, Tier: ${tier}`)
-        }
-      } catch (error) {
-        console.error('Session error:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    getSession()
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event)
-        const currentUser = session?.user ?? null
-        setUser(currentUser)
-        
-        if (currentUser) {
-          const tier = getTierByEmail(currentUser.email)
-          setUserTier(tier)
-          console.log(`✅ Auth change - User: ${currentUser.email}, Tier: ${tier}`)
-        } else {
-          setUserTier('guest')
-        }
-        
-        setLoading(false)
-      }
-    )
-
-    return () => subscription.unsubscribe()
-  }, [])
+  const [loading, setLoading] = useState(false)
 
   const signInWithGoogle = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/app`
-        }
-      })
-      if (error) throw error
-    } catch (error) {
-      console.error('Sign in error:', error)
-      return { error: error.message }
-    }
+    // Mock implementation since Supabase is removed
+    console.log('Google sign in not implemented in simple auth')
+    return { error: 'Google sign in not available' }
   }
 
   const signUp = async (email, password) => {
+    setLoading(true)
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/app`
-        }
-      })
-      if (error) throw error
-      
-      // Immediately set tier based on email
-      if (data.user) {
-        const tier = getTierByEmail(data.user.email)
-        setUserTier(tier)
-      }
-      
-      return { data, error: null }
+      // Mock sign up implementation
+      const mockUser = { id: Date.now().toString(), email, name: email.split('@')[0] }
+      setUser(mockUser)
+      const tier = getTierByEmail(email)
+      setUserTier(tier)
+      return { data: mockUser, error: null }
     } catch (error) {
       console.error('Sign up error:', error)
       return { data: null, error: error.message }
+    } finally {
+      setLoading(false)
     }
   }
 
   const signIn = async (email, password) => {
+    setLoading(true)
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-      if (error) throw error
-      
-      // Immediately set tier based on email
-      if (data.user) {
-        const tier = getTierByEmail(data.user.email)
-        setUserTier(tier)
-      }
-      
-      return { data, error: null }
+      // Mock sign in implementation
+      const mockUser = { id: Date.now().toString(), email, name: email.split('@')[0] }
+      setUser(mockUser)
+      const tier = getTierByEmail(email)
+      setUserTier(tier)
+      return { data: mockUser, error: null }
     } catch (error) {
       console.error('Sign in error:', error)
       return { data: null, error: error.message }
+    } finally {
+      setLoading(false)
     }
   }
 
   const signOut = async () => {
     try {
       console.log('🚪 Signing out...')
-      await supabase.auth.signOut()
       setUser(null)
       setUserTier('guest')
       console.log('✅ Signed out successfully')
     } catch (error) {
       console.error('Sign out error:', error)
-      // Force clear even on error
       setUser(null)
       setUserTier('guest')
     }

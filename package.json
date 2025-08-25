@@ -15,7 +15,6 @@
   "dependencies": {
     "@clerk/clerk-react": "^5.43.1",
     "@clerk/nextjs": "^6.31.4",
-    "@supabase/supabase-js": "^2.55.0",
     "drizzle-kit": "^0.31.4",
     "drizzle-orm": "^0.44.4",
     "lucide-react": "^0.541.0",

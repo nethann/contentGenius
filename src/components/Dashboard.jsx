@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { AdminService } from '../services/adminService';
+import { TokenService } from '../services/tokenService';
 import TierChangeModal from './TierChangeModal';
 import { 
   Zap, 
@@ -87,17 +88,20 @@ const Dashboard = () => {
   });
   const dropdownRef = useRef(null);
 
-  // Simple tier limits
-  const getTierLimits = () => {
-    switch (userTier) {
-      case 'pro':
-        return { name: 'Pro', maxClips: -1, maxVideoLength: -1 };
-      case 'developer':
-        return { name: 'Developer', maxClips: -1, maxVideoLength: -1 };
-      default:
-        return { name: 'Guest', maxClips: 3, maxVideoLength: 600 };
+  // Token system using TokenService
+  const getTokenInfo = () => TokenService.getTokenInfo(userTier);
+  const getCurrentTokens = () => TokenService.getCurrentTokens(user?.id, userTier);
+  const useToken = () => {
+    if (!user) return false;
+    const result = TokenService.useToken(user.id, userTier);
+    if (result) {
+      // Force re-render by updating state
+      setUserTierState(prev => ({ ...prev, tokensUsed: Date.now() }));
     }
+    return result;
   };
+
+  const userTokens = getCurrentTokens();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -378,7 +382,7 @@ const Dashboard = () => {
                     ) : (
                       <span className="w-4 h-4">🔓</span>
                     )}
-                    <span className="tier-name">{getTierLimits().name}</span>
+                    <span className="tier-name">{getTokenInfo().name}</span>
                   </div>
                   <ChevronDown className={`w-4 h-4 transition-transform ${showTierDropdown ? 'rotate-180' : ''}`} />
                 </div>
@@ -390,7 +394,7 @@ const Dashboard = () => {
                     <span className="tier-dropdown-title">Current Plan</span>
                     <div className="tier-current-info">
                       <span className={`tier-current-badge tier-${userTier}`}>
-                        {getTierLimits().name} Plan
+                        {getTokenInfo().name} Plan
                       </span>
                       <span className="tier-db-status">
                         Auth: Clerk
@@ -467,6 +471,21 @@ const Dashboard = () => {
       {/* Main Content */}
       <main className="dashboard-main">
         <div className="dashboard-content">
+          {/* Token Display - Positioned on the right */}
+          <div className="token-display-main">
+            <div className={`token-container tier-${userTier}`}>
+              <span className="token-icon">🪙</span>
+              <div className="token-info">
+                <span className="token-count">
+                  {userTokens === -1 ? '∞' : userTokens}
+                </span>
+                <span className="token-label">
+                  {userTokens === -1 ? 'Unlimited' : 'Tokens'}
+                </span>
+              </div>
+            </div>
+          </div>
+          
           <div className="dashboard-welcome">
             <h1 className="dashboard-title">
               Welcome to Your Content Studio
@@ -521,6 +540,11 @@ const Dashboard = () => {
                           <span className="dashboard-card-action-text">
                             Get Started →
                           </span>
+                          {feature.id === 'viral-clips' && (
+                            <span className="token-cost-pill">
+                              -1 🪙
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
