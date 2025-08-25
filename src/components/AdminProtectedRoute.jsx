@@ -23,11 +23,18 @@ const AdminProtectedRoute = ({ children }) => {
 
   // Check admin access using Clerk user email
   const userEmail = user?.emailAddresses?.[0]?.emailAddress;
+  console.log('🔍 AdminProtectedRoute - User email:', userEmail);
+  console.log('🔍 AdminProtectedRoute - Admin emails:', AdminService.ADMIN_EMAILS);
+  
   const isAdmin = userEmail && AdminService.isAdmin(userEmail);
+  console.log('🔍 AdminProtectedRoute - Is admin:', isAdmin);
 
   if (!isAdmin) {
+    console.log('❌ AdminProtectedRoute - Access denied, redirecting to /app');
     return <Navigate to="/app" replace />;
   }
+  
+  console.log('✅ AdminProtectedRoute - Admin access granted');
 
   return children;
 };

@@ -826,6 +826,30 @@
   box-shadow: 0 4px 20px 0 rgba(139, 92, 246, 0.25);
 }
 
+.dashboard-report-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+}
+
+.dashboard-report-btn:hover {
+  color: #2563eb;
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px 0 rgba(59, 130, 246, 0.25);
+}
+
 .dashboard-main {
   padding: 2rem;
   position: relative;
@@ -1180,5 +1204,283 @@
   
   .viral-clip-header-actions {
     gap: 0.5rem;
+  }
+}
+
+/* Report Modal Styles */
+.report-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.report-modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+    rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+.report-modal-content {
+  position: relative;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.02) 50%,
+    rgba(255, 255, 255, 0.05) 75%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.2) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.1) inset;
+  animation: jelloModal 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  overflow: hidden;
+}
+
+@keyframes jelloModal {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale3d(1, 1, 1);
+  }
+  11.1% {
+    opacity: 0.8;
+    transform: translateY(0) scale3d(0.9, 1.1, 1);
+  }
+  22.2% {
+    transform: translateY(0) scale3d(1.1, 0.9, 1);
+  }
+  33.3% {
+    transform: translateY(0) scale3d(1.0, 1.0, 1);
+  }
+  44.4% {
+    transform: translateY(0) scale3d(1.03, 0.97, 1);
+  }
+  55.5% {
+    transform: translateY(0) scale3d(0.97, 1.03, 1);
+  }
+  66.6% {
+    transform: translateY(0) scale3d(1.02, 0.98, 1);
+  }
+  77.7% {
+    transform: translateY(0) scale3d(0.99, 1.01, 1);
+  }
+  88.8% {
+    transform: translateY(0) scale3d(1.01, 0.99, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale3d(1, 1, 1);
+  }
+}
+
+.report-modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.1) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+}
+
+.report-modal-close:hover {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0.2) 100%);
+  color: var(--text-primary);
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: 0 8px 20px rgba(255, 255, 255, 0.1);
+}
+
+.report-modal-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.report-modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 1rem 0 0.5rem 0;
+}
+
+.report-modal-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.report-type-selector {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.25rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.report-type-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.report-type-btn.active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(139, 92, 246, 0.8));
+  color: white;
+  font-weight: 600;
+}
+
+.report-type-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.report-form-group {
+  margin-bottom: 1.5rem;
+}
+
+.report-form-label {
+  display: block;
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.report-form-input,
+.report-form-textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  resize: vertical;
+}
+
+.report-form-input::placeholder,
+.report-form-textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.report-form-input:focus,
+.report-form-textarea:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.5);
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.1) 100%);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.report-form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
+.report-form-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.report-form-btn-cancel {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 100%);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.report-form-btn-cancel:hover {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.1) 100%);
+  color: var(--text-primary);
+}
+
+.report-form-btn-submit {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(139, 92, 246, 0.8));
+  color: white;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.report-form-btn-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(139, 92, 246, 0.9));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+}
+
+.report-form-btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .report-modal-content {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
+  
+  .report-form-actions {
+    flex-direction: column;
+  }
+  
+  .report-type-selector {
+    flex-direction: column;
   }
 }

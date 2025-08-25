@@ -1,8 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { UserTierProvider } from './contexts/UserTierContext';
-import { SimpleAuthProvider } from './contexts/SimpleAuthContext';
 import Homepage from './components/Homepage';
 import Login from './components/Login';
 import Signup from './components/Signup';
@@ -10,10 +8,6 @@ import Pricing from './components/Pricing';
 import Dashboard from './components/Dashboard';
 import ViralClipGenerator from './components/ViralClipGenerator';
 import AdminDashboard from './components/AdminDashboard';
-import DatabaseDiagnostic from './components/DatabaseDiagnostic';
-import SimpleDBTest from './components/SimpleDBTest';
-import DatabaseTest from './components/DatabaseTest';
-import EmergencyFix from './components/EmergencyFix';
 import SimpleDashboard from './components/SimpleDashboard';
 import ClerkDashboard from './components/ClerkDashboard';
 import SimpleClerkDashboard from './components/SimpleClerkDashboard';
@@ -66,39 +60,13 @@ function App() {
                 </AdminProtectedRoute>
               } 
             />
-
-            {/* Database Diagnostic Route (Protected) */}
+            
+            {/* Temporary unprotected admin route for testing */}
             <Route 
-              path="/diagnostic" 
-              element={
-                <ProtectedRoute>
-                  <DatabaseDiagnostic />
-                </ProtectedRoute>
-              } 
+              path="/admin-test" 
+              element={<AdminDashboard />}
             />
 
-            {/* Simple Database Test Route (Protected) */}
-            <Route 
-              path="/dbtest" 
-              element={
-                <ProtectedRoute>
-                  <SimpleDBTest />
-                </ProtectedRoute>
-              } 
-            />
-
-            {/* Enhanced Database Test Route (Protected) */}
-            <Route 
-              path="/database-test" 
-              element={
-                <ProtectedRoute>
-                  <DatabaseTest />
-                </ProtectedRoute>
-              } 
-            />
-
-            {/* Emergency Fix Route (No Auth Required) */}
-            <Route path="/emergency-fix" element={<EmergencyFix />} />
             
             {/* Simple Dashboard (No Database Required) */}
             <Route path="/simple-dashboard" element={<SimpleDashboard />} />

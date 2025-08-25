@@ -16,7 +16,8 @@ import {
   Settings,
   Crown,
   ChevronDown,
-  Shield
+  Shield,
+  MessageSquare
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -32,8 +33,8 @@ const Dashboard = () => {
   // Get tier from URL parameter (for new signups) or local storage
   const urlTier = searchParams.get('tier');
   
-  // Simple tier detection based on email or URL parameter
-  const getUserTier = () => {
+  // Memoized tier detection to prevent infinite loops
+  const getUserTier = React.useCallback(() => {
     if (!user?.emailAddresses?.[0]?.emailAddress) return urlTier || 'guest';
     
     const email = user.emailAddresses[0].emailAddress.toLowerCase();
@@ -50,9 +51,9 @@ const Dashboard = () => {
     if (urlTier) return urlTier;
     
     return 'guest';
-  };
+  }, [user?.id, user?.emailAddresses, urlTier]);
 
-  // Initialize tier
+  // Initialize tier only once
   useEffect(() => {
     if (user) {
       const detectedTier = getUserTier();
@@ -65,16 +66,24 @@ const Dashboard = () => {
         navigate('/app', { replace: true });
       }
     }
-  }, [user, urlTier, navigate]);
+  }, [user, getUserTier, urlTier, navigate]);
   
-  // Check admin access
-  const isAdmin = user && AdminService.isAdmin(user?.emailAddresses?.[0]?.emailAddress);
-  const isDeveloper = userTier === 'developer';
+  // Check admin access (memoized to prevent re-renders)
+  const userEmail = user?.emailAddresses?.[0]?.emailAddress;
+  const isAdmin = React.useMemo(() => user && AdminService.isAdmin(userEmail), [user, userEmail]);
+  const isDeveloper = React.useMemo(() => userTier === 'developer', [userTier]);
   const [showTierDropdown, setShowTierDropdown] = React.useState(false);
   const [modalState, setModalState] = React.useState({
     isOpen: false,
     type: '',
     message: ''
+  });
+  const [reportModal, setReportModal] = React.useState({
+    isOpen: false,
+    type: 'bug', // 'bug' or 'idea'
+    title: '',
+    description: '',
+    submitting: false
   });
   const dropdownRef = useRef(null);
 
@@ -177,6 +186,61 @@ const Dashboard = () => {
       alert('Failed to downgrade. Please try again.');
     }
     setShowTierDropdown(false);
+  };
+
+  const handleReportSubmit = async () => {
+    if (!reportModal.title || !reportModal.description) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    setReportModal(prev => ({ ...prev, submitting: true }));
+
+    try {
+      // Store report in localStorage for admin panel
+      const reports = JSON.parse(localStorage.getItem('user_reports') || '[]');
+      const newReport = {
+        id: Date.now(),
+        type: reportModal.type,
+        title: reportModal.title,
+        description: reportModal.description,
+        user: {
+          id: user?.id,
+          email: user?.emailAddresses?.[0]?.emailAddress,
+          name: user?.fullName || 'Anonymous'
+        },
+        timestamp: new Date().toISOString(),
+        status: 'open'
+      };
+      
+      reports.push(newReport);
+      localStorage.setItem('user_reports', JSON.stringify(reports));
+
+      // Reset modal
+      setReportModal({
+        isOpen: false,
+        type: 'bug',
+        title: '',
+        description: '',
+        submitting: false
+      });
+
+      setModalState({
+        isOpen: true,
+        type: 'success',
+        message: '🎉 Report submitted successfully!\n\nThank you for helping us improve ClipGenius. We\'ll review your feedback and get back to you soon!'
+      });
+
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      setModalState({
+        isOpen: true,
+        type: 'error',
+        message: 'Failed to submit report. Please try again.'
+      });
+    } finally {
+      setReportModal(prev => ({ ...prev, submitting: false }));
+    }
   };
 
   const features = [
@@ -368,13 +432,26 @@ const Dashboard = () => {
             {/* Admin Panel Button */}
             {(isAdmin || isDeveloper) && (
               <button
-                onClick={() => navigate('/admin')}
+                onClick={() => {
+                  console.log('🔍 Admin button clicked, navigating to /admin-test');
+                  navigate('/admin-test');
+                }}
                 className="dashboard-admin-btn"
-                title="Admin Panel"
+                title="Admin Panel (Test Route)"
               >
                 <Shield className="w-5 h-5" />
               </button>
             )}
+
+            {/* Report Button */}
+            <button
+              onClick={() => setReportModal({ ...reportModal, isOpen: true })}
+              className="dashboard-report-btn"
+              title="Report Bug or Suggestion"
+            >
+              <MessageSquare className="w-5 h-5" />
+            </button>
+
 
             <button
               onClick={handleSignOut}
@@ -495,6 +572,86 @@ const Dashboard = () => {
         message={modalState.message}
         onClose={() => setModalState({ isOpen: false, type: '', message: '' })}
       />
+
+      {/* Report Modal */}
+      {reportModal.isOpen && (
+        <div className="report-modal-overlay">
+          <div className="report-modal-backdrop" onClick={() => setReportModal({ ...reportModal, isOpen: false })}></div>
+          <div className="report-modal-content">
+            <button
+              onClick={() => setReportModal({ ...reportModal, isOpen: false })}
+              className="report-modal-close"
+            >
+              ✕
+            </button>
+            
+            <div className="report-modal-header">
+              <MessageSquare className="w-8 h-8 text-blue-500" />
+              <h2 className="report-modal-title">Help Us Improve</h2>
+              <p className="report-modal-subtitle">Report bugs or share your ideas</p>
+            </div>
+
+            <div className="report-modal-form">
+              <div className="report-type-selector">
+                <button
+                  onClick={() => setReportModal({ ...reportModal, type: 'bug' })}
+                  className={`report-type-btn ${reportModal.type === 'bug' ? 'active' : ''}`}
+                >
+                  🐛 Bug Report
+                </button>
+                <button
+                  onClick={() => setReportModal({ ...reportModal, type: 'idea' })}
+                  className={`report-type-btn ${reportModal.type === 'idea' ? 'active' : ''}`}
+                >
+                  💡 Feature Idea
+                </button>
+              </div>
+
+              <div className="report-form-group">
+                <label className="report-form-label">
+                  {reportModal.type === 'bug' ? 'Bug Title' : 'Idea Title'}
+                </label>
+                <input
+                  type="text"
+                  className="report-form-input"
+                  placeholder={reportModal.type === 'bug' ? 'Brief description of the bug...' : 'What feature would you like to see?'}
+                  value={reportModal.title}
+                  onChange={(e) => setReportModal({ ...reportModal, title: e.target.value })}
+                />
+              </div>
+
+              <div className="report-form-group">
+                <label className="report-form-label">
+                  {reportModal.type === 'bug' ? 'Bug Description' : 'Idea Description'}
+                </label>
+                <textarea
+                  className="report-form-textarea"
+                  rows="4"
+                  placeholder={reportModal.type === 'bug' ? 'Steps to reproduce, expected vs actual behavior...' : 'How would this feature work? Why would it be useful?'}
+                  value={reportModal.description}
+                  onChange={(e) => setReportModal({ ...reportModal, description: e.target.value })}
+                />
+              </div>
+
+              <div className="report-form-actions">
+                <button
+                  onClick={() => setReportModal({ ...reportModal, isOpen: false })}
+                  className="report-form-btn report-form-btn-cancel"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleReportSubmit}
+                  disabled={reportModal.submitting || !reportModal.title || !reportModal.description}
+                  className="report-form-btn report-form-btn-submit"
+                >
+                  {reportModal.submitting ? 'Submitting...' : 'Submit Report'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

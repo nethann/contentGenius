@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useUserTier } from '../contexts/UserTierContext';
+import { useUser } from '@clerk/clerk-react';
 import { AdminService } from '../services/adminService';
 import {
   Shield,
@@ -21,23 +20,47 @@ import '../styles/components/AdminDashboard.css';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { userTier } = useUserTier();
+  const { user } = useUser();
+  
+  console.log('🔍 AdminDashboard - Raw user object:', user);
+  
+  // Simple tier detection for admin
+  const getUserTier = () => {
+    if (!user?.emailAddresses?.[0]?.emailAddress) return 'guest';
+    const email = user.emailAddresses[0].emailAddress.toLowerCase();
+    const adminEmails = ['nethan.nagendran@gmail.com', 'nethmarket@gmail.com'];
+    if (adminEmails.includes(email)) return 'developer';
+    const savedTier = localStorage.getItem(`userTier_${user.id}`);
+    return savedTier || 'guest';
+  };
+  
+  const userTier = getUserTier();
   
   const [users, setUsers] = useState([]);
   const [analytics, setAnalytics] = useState(null);
+  const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
 
   // Check admin access
-  const isAdmin = user && AdminService.isAdmin(user.email);
+  const userEmail = user?.emailAddresses?.[0]?.emailAddress;
+  const isAdmin = user && AdminService.isAdmin(userEmail);
   const isDeveloper = userTier === 'developer';
 
   useEffect(() => {
+    console.log('🔍 AdminDashboard - useEffect check');
+    console.log('🔍 AdminDashboard - User email:', userEmail);
+    console.log('🔍 AdminDashboard - User tier:', userTier);
+    console.log('🔍 AdminDashboard - Is admin:', isAdmin);
+    console.log('🔍 AdminDashboard - Is developer:', isDeveloper);
+    
     if (!isAdmin && !isDeveloper) {
+      console.log('❌ AdminDashboard - Access denied, redirecting to /app');
       navigate('/app');
       return;
     }
+    
+    console.log('✅ AdminDashboard - Access granted, loading data...');
     
     // Only load data once when component mounts
     let mounted = true;
@@ -59,7 +82,12 @@ const AdminDashboard = () => {
     setLoading(true);
     console.log('🔄 Loading admin data...');
     try {
-      console.log('📊 Fetching users and analytics...');
+      console.log('📊 Fetching users, analytics, and reports...');
+      
+      // Load reports from localStorage
+      const userReports = JSON.parse(localStorage.getItem('user_reports') || '[]');
+      setReports(userReports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+      
       const [usersResult, analyticsResult] = await Promise.all([
         AdminService.getAllUsers(),
         AdminService.getAppAnalytics()
@@ -209,6 +237,13 @@ const AdminDashboard = () => {
             <Users className="w-5 h-5 mr-2" />
             User Management
           </button>
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`admin-nav-btn ${activeTab === 'reports' ? 'active' : ''}`}
+          >
+            <Shield className="w-5 h-5 mr-2" />
+            User Reports ({reports.length})
+          </button>
           {isDeveloper && (
             <button
               onClick={() => setActiveTab('developer')}
@@ -332,6 +367,96 @@ const AdminDashboard = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Reports Tab */}
+              {activeTab === 'reports' && (
+                <div className="admin-reports">
+                  <div className="admin-section-header">
+                    <h3>User Reports & Feedback</h3>
+                    <div className="admin-section-stats">
+                      <span className="stat-badge">
+                        {reports.filter(r => r.type === 'bug').length} Bugs
+                      </span>
+                      <span className="stat-badge">
+                        {reports.filter(r => r.type === 'idea').length} Ideas
+                      </span>
+                    </div>
+                  </div>
+
+                  {reports.length === 0 ? (
+                    <div className="admin-empty-state">
+                      <Shield className="w-16 h-16 mb-4 opacity-50" />
+                      <h4>No Reports Yet</h4>
+                      <p>User reports and suggestions will appear here.</p>
+                    </div>
+                  ) : (
+                    <div className="admin-reports-list">
+                      {reports.map((report) => (
+                        <div key={report.id} className={`admin-report-card ${report.type}`}>
+                          <div className="report-header">
+                            <div className="report-type">
+                              <span className="report-type-icon">
+                                {report.type === 'bug' ? '🐛' : '💡'}
+                              </span>
+                              <span className="report-type-text">
+                                {report.type === 'bug' ? 'Bug Report' : 'Feature Idea'}
+                              </span>
+                            </div>
+                            <div className="report-meta">
+                              <span className="report-date">
+                                {new Date(report.timestamp).toLocaleDateString()}
+                              </span>
+                              <span className={`report-status ${report.status}`}>
+                                {report.status}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="report-content">
+                            <h4 className="report-title">{report.title}</h4>
+                            <p className="report-description">{report.description}</p>
+                          </div>
+                          
+                          <div className="report-footer">
+                            <div className="report-user">
+                              <UserCheck className="w-4 h-4" />
+                              <span>{report.user.name} ({report.user.email})</span>
+                            </div>
+                            <div className="report-actions">
+                              <button 
+                                className="report-action-btn"
+                                onClick={() => {
+                                  const updatedReports = reports.map(r => 
+                                    r.id === report.id 
+                                      ? { ...r, status: r.status === 'open' ? 'resolved' : 'open' }
+                                      : r
+                                  );
+                                  setReports(updatedReports);
+                                  localStorage.setItem('user_reports', JSON.stringify(updatedReports));
+                                }}
+                              >
+                                {report.status === 'open' ? 'Mark Resolved' : 'Reopen'}
+                              </button>
+                              <button 
+                                className="report-action-btn delete"
+                                onClick={() => {
+                                  if (confirm('Delete this report?')) {
+                                    const filteredReports = reports.filter(r => r.id !== report.id);
+                                    setReports(filteredReports);
+                                    localStorage.setItem('user_reports', JSON.stringify(filteredReports));
+                                  }
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

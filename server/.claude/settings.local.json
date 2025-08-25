@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node server.js)"
+      "Bash(node server.js)",
+      "Bash(taskkill:*)",
+      "Bash(cmd /c:*)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

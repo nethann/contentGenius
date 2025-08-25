@@ -1,10 +1,7 @@
-import { supabase } from '../lib/supabase'
-
 /**
  * Admin Service - handles admin role management and permissions
+ * Now using local storage instead of Supabase
  */
-
-// Admin service for handling admin functionality
 export class AdminService {
   
   // Define admin users by email
@@ -48,69 +45,36 @@ export class AdminService {
   }
 
   /**
-   * Get all user profiles (admin only)
+   * Get all user profiles (admin only) - using local storage
    */
   static async getAllUsers() {
     try {
-      console.log('🔍 Attempting to fetch users from user_profiles table...');
+      console.log('🔍 Fetching users from local storage...');
       
-      // Check if user is authenticated first
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!currentUser) {
-        console.error('❌ No authenticated user for admin query');
-        return { users: [], error: { message: 'Authentication required' } };
-      }
-
-      // Check if current user is admin
-      if (!this.isAdmin(currentUser.email)) {
-        console.error('❌ User not authorized for admin operations:', currentUser.email);
-        return { users: [], error: { message: 'Admin access required' } };
-      }
+      // Get all user profiles from localStorage
+      const users = [];
       
-      console.log('✅ Admin user verified:', currentUser.email);
-      
-      const query = supabase
-        .from('user_profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error('❌ Supabase error fetching all users:', error);
-        console.error('Error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        
-        // Handle specific error types
-        if (error.message.includes('relation "user_profiles" does not exist')) {
-          return { 
-            users: [], 
-            error: { 
-              message: 'Database not set up. Please run minimal_setup.sql in Supabase.',
-              needsSetup: true
-            } 
-          };
+      // Iterate through localStorage to find user profiles
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('user_profile_')) {
+          try {
+            const profile = JSON.parse(localStorage.getItem(key));
+            users.push({
+              ...profile,
+              created_at: profile.created_at || new Date().toISOString()
+            });
+          } catch (parseError) {
+            console.warn(`Could not parse user profile for key: ${key}`);
+          }
         }
-        
-        if (error.message.includes('permission') || error.message.includes('RLS')) {
-          return { 
-            users: [], 
-            error: { 
-              message: 'Database permission denied. Admin policies may not be configured.',
-              permission: true
-            } 
-          };
-        }
-        
-        return { users: [], error: { message: error.message } };
       }
       
-      console.log(`✅ Successfully fetched ${data?.length || 0} users from database`);
-      return { users: data || [], error: null };
+      // Sort by creation date (newest first)
+      users.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      
+      console.log(`✅ Successfully fetched ${users.length} users from local storage`);
+      return { users, error: null };
     } catch (error) {
       console.error('❌ JavaScript error fetching all users:', error);
       return { 
@@ -121,59 +85,35 @@ export class AdminService {
   }
 
   /**
-   * Update user tier (admin only)
+   * Update user tier (admin only) - using local storage
    */
   static async updateUserTierAdmin(userId, newTier) {
     try {
-      // Get current user info for logging
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
-
-      // Get current user tier before update
-      const { data: currentProfile } = await supabase
-        .from('user_profiles')
-        .select('user_tier, email')
-        .eq('id', userId)
-        .single();
-
-      // Update the user tier
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .update({ 
-          user_tier: newTier,
-          subscription_status: newTier === 'guest' ? 'inactive' : 'active',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId)
-        .select()
-        .single();
+      console.log(`🔄 Admin updating user ${userId} tier to ${newTier}`);
       
-      if (error) throw error;
-
-      // Log the admin action (optional, requires admin_activity_log table)
-      try {
-        await supabase.rpc('log_admin_action', {
-          p_admin_user_id: user.id,
-          p_admin_email: user.email,
-          p_action_type: 'tier_change',
-          p_target_user_id: userId,
-          p_target_user_email: currentProfile?.email,
-          p_old_value: currentProfile?.user_tier,
-          p_new_value: newTier,
-          p_action_details: { 
-            timestamp: new Date().toISOString(),
-            admin_interface: true 
-          }
-        });
-      } catch (logError) {
-        console.warn('Could not log admin action:', logError);
-        // Don't fail the main operation if logging fails
+      // Find and update the user profile in localStorage
+      const profileKey = `user_profile_${userId}`;
+      const existingProfile = localStorage.getItem(profileKey);
+      
+      if (!existingProfile) {
+        throw new Error('User profile not found');
       }
-
-      console.log(`✅ Admin updated user ${userId} tier from ${currentProfile?.user_tier} to ${newTier}`);
-      return { profile: data, error: null };
+      
+      const profile = JSON.parse(existingProfile);
+      const oldTier = profile.user_tier;
+      
+      // Update the profile
+      const updatedProfile = {
+        ...profile,
+        user_tier: newTier,
+        subscription_status: newTier === 'guest' ? 'inactive' : 'active',
+        updated_at: new Date().toISOString()
+      };
+      
+      localStorage.setItem(profileKey, JSON.stringify(updatedProfile));
+      
+      console.log(`✅ Admin updated user ${userId} tier from ${oldTier} to ${newTier}`);
+      return { profile: updatedProfile, error: null };
     } catch (error) {
       console.error('Error updating user tier (admin):', error);
       return { profile: null, error };
@@ -181,34 +121,17 @@ export class AdminService {
   }
 
   /**
-   * Get app analytics (admin only)
+   * Get app analytics (admin only) - using local storage
    */
   static async getAppAnalytics() {
     try {
-      console.log('📊 Attempting to fetch analytics from user_profiles table...');
-      // Get basic user statistics
-      const query = supabase
-        .from('user_profiles')
-        .select('user_tier, created_at');
+      console.log('📊 Calculating analytics from local storage...');
       
-      const { data: userStats, error: userError } = await query;
+      // Get all user profiles
+      const { users: userStats } = await this.getAllUsers();
       
-      if (userError) {
-        console.error('❌ Supabase error fetching user profiles for analytics:', userError);
-        console.error('Error details:', userError.message, userError.details, userError.hint);
-        // Return default analytics on error
-        return {
-          analytics: {
-            totalUsers: 0,
-            activeUsers: 0,
-            tierCounts: { guest: 0, pro: 0, developer: 0 },
-            conversionRate: 0
-          },
-          error: null
-        };
-      }
-
       console.log(`📈 Processing analytics for ${userStats?.length || 0} users`);
+      
       // Process statistics manually
       const tierCounts = (userStats || []).reduce((acc, user) => {
         const tier = user.user_tier || 'guest';
@@ -230,9 +153,6 @@ export class AdminService {
       return { analytics, error: null };
     } catch (error) {
       console.error('❌ JavaScript error fetching analytics:', error);
-      if (error.message.includes('timed out')) {
-        console.error('❌ Database query timed out - possible connection issue');
-      }
       // Return default analytics on error to prevent loading state hang
       return {
         analytics: {
@@ -247,55 +167,29 @@ export class AdminService {
   }
 
   /**
-   * Delete user (admin only)
+   * Delete user (admin only) - using local storage
    */
   static async deleteUser(userId) {
     try {
-      // Get current user info for logging
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
-
-      // Get user info before deletion for logging
-      const { data: userToDelete } = await supabase
-        .from('user_profiles')
-        .select('email, user_tier, full_name')
-        .eq('id', userId)
-        .single();
-
-      // Delete the user
-      const { error } = await supabase
-        .from('user_profiles')
-        .delete()
-        .eq('id', userId);
+      console.log(`🗑️ Admin deleting user ${userId}`);
       
-      if (error) throw error;
-
-      // Log the admin action
-      try {
-        await supabase.rpc('log_admin_action', {
-          p_admin_user_id: user.id,
-          p_admin_email: user.email,
-          p_action_type: 'user_delete',
-          p_target_user_id: userId,
-          p_target_user_email: userToDelete?.email,
-          p_old_value: JSON.stringify({
-            tier: userToDelete?.user_tier,
-            name: userToDelete?.full_name
-          }),
-          p_new_value: 'deleted',
-          p_action_details: { 
-            timestamp: new Date().toISOString(),
-            admin_interface: true 
-          }
-        });
-      } catch (logError) {
-        console.warn('Could not log admin action:', logError);
-        // Don't fail the main operation if logging fails
+      // Get user info before deletion for logging
+      const profileKey = `user_profile_${userId}`;
+      const userToDelete = localStorage.getItem(profileKey);
+      
+      if (!userToDelete) {
+        throw new Error('User profile not found');
       }
-
-      console.log(`✅ Admin deleted user ${userId} (${userToDelete?.email})`);
+      
+      const userData = JSON.parse(userToDelete);
+      
+      // Delete the user profile from localStorage
+      localStorage.removeItem(profileKey);
+      
+      // Also remove user tier data
+      localStorage.removeItem(`userTier_${userId}`);
+      
+      console.log(`✅ Admin deleted user ${userId} (${userData?.email})`);
       return { error: null };
     } catch (error) {
       console.error('Error deleting user (admin):', error);
