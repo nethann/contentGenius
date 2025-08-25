@@ -20,7 +20,8 @@
       "Bash(powershell:*)",
       "Bash(grep:*)",
       "Bash(tasklist:*)",
-      "Bash(ffmpeg:*)"
+      "Bash(ffmpeg:*)",
+      "Bash(start create-sample-data.html)"
     ],
     "deny": [],
     "ask": [],

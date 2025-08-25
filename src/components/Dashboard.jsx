@@ -554,38 +554,6 @@ const Dashboard = () => {
             })}
           </div>
 
-          {/* Quick Stats */}
-          <div className="dashboard-stats">
-            <div className="dashboard-stats-card">
-              <div className="dashboard-stats-icon">
-                <Video className="w-5 h-5" />
-              </div>
-              <div className="dashboard-stats-content">
-                <span className="dashboard-stats-number">0</span>
-                <span className="dashboard-stats-label">Videos Processed</span>
-              </div>
-            </div>
-            
-            <div className="dashboard-stats-card">
-              <div className="dashboard-stats-icon">
-                <Scissors className="w-5 h-5" />
-              </div>
-              <div className="dashboard-stats-content">
-                <span className="dashboard-stats-number">0</span>
-                <span className="dashboard-stats-label">Clips Generated</span>
-              </div>
-            </div>
-            
-            <div className="dashboard-stats-card">
-              <div className="dashboard-stats-icon">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-              <div className="dashboard-stats-content">
-                <span className="dashboard-stats-number">0</span>
-                <span className="dashboard-stats-label">Viral Moments</span>
-              </div>
-            </div>
-          </div>
         </div>
       </main>
 
