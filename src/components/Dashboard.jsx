@@ -376,15 +376,6 @@ const Dashboard = () => {
               </button>
             )}
 
-            {/* Database Diagnostic Button */}
-            <button
-              onClick={() => navigate('/dbtest')}
-              className="dashboard-admin-btn"
-              title="Simple DB Test"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-            
             <button
               onClick={handleSignOut}
               className="dashboard-signout-btn"
