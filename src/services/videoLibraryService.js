@@ -84,13 +84,28 @@ export class VideoLibraryService {
       const libraryKey = `video_library_${userId}`;
       const videos = JSON.parse(localStorage.getItem(libraryKey) || '[]');
       
+      console.log('🔍 Looking for video to update:', {
+        videoId,
+        libraryKey,
+        totalVideos: videos.length,
+        videoIds: videos.map(v => ({ id: v.id, filename: v.filename }))
+      });
+      
       const videoIndex = videos.findIndex(v => v.id === videoId || v.filename === videoId);
+      console.log('📍 Video found at index:', videoIndex);
+      
       if (videoIndex >= 0) {
+        const oldVideo = { ...videos[videoIndex] };
         videos[videoIndex] = { ...videos[videoIndex], ...updateData };
         localStorage.setItem(libraryKey, JSON.stringify(videos));
         
-        console.log('✅ Video updated in library:', videos[videoIndex]);
+        console.log('✅ Video updated in library:');
+        console.log('  Before:', { status: oldVideo.status, extractedMoments: oldVideo.extractedMoments?.length || 0 });
+        console.log('  After:', { status: videos[videoIndex].status, extractedMoments: videos[videoIndex].extractedMoments?.length || 0 });
+        
         return videos[videoIndex];
+      } else {
+        console.log('❌ Video not found in library for update');
       }
       
       return null;
@@ -197,11 +212,21 @@ export class VideoLibraryService {
         extractedMoments: analysisData.extractedMoments || [],
         analysis: analysisData.analysis || null,
         uploadedFileInfo: analysisData.uploadedFileInfo || null,
+        thumbnail: analysisData.thumbnail || null,
         status: 'analyzed',
         analyzedAt: new Date().toISOString()
       };
       
-      return this.updateVideoInLibrary(userId, videoId, updateData);
+      console.log('📝 VideoLibraryService.saveVideoAnalysis called with:', {
+        userId,
+        videoId,
+        extractedMomentsCount: updateData.extractedMoments.length,
+        status: updateData.status
+      });
+      
+      const result = this.updateVideoInLibrary(userId, videoId, updateData);
+      console.log('📝 saveVideoAnalysis result:', result ? 'SUCCESS' : 'FAILED');
+      return result;
     } catch (error) {
       console.error('❌ Error saving video analysis:', error);
       return null;

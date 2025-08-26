@@ -22,8 +22,7 @@ import {
   Grid3X3,
   Layers,
   Maximize2,
-  MousePointer,
-  FileVideo
+  MousePointer
 } from "lucide-react";
 
 const ViralClipGenerator = () => {
@@ -39,6 +38,7 @@ const ViralClipGenerator = () => {
   
   // Video library state
   const [videoLibrary, setVideoLibrary] = useState([]);
+  const [videoToLoad, setVideoToLoad] = useState(null);
   
   // Load user's video library
   React.useEffect(() => {
@@ -47,6 +47,128 @@ const ViralClipGenerator = () => {
       setVideoLibrary(videos.slice(0, 5)); // Show last 5 videos
     }
   }, [user?.id]);
+
+  // Effect to handle video loading (separate from re-renders)
+  React.useEffect(() => {
+    console.log('🔍 useEffect triggered, videoToLoad:', !!videoToLoad, videoToLoad?.originalName);
+    if (videoToLoad) {
+      console.log('🎬 useEffect: Loading video from library:', videoToLoad.originalName);
+      
+      // Store in localStorage to survive re-renders
+      const loadingData = {
+        uploadedFileInfo: videoToLoad.uploadedFileInfo,
+        extractedMoments: videoToLoad.extractedMoments,
+        originalName: videoToLoad.originalName,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('temp_loading_video', JSON.stringify(loadingData));
+      
+      console.log('💾 Stored video data in localStorage for re-render protection');
+      
+      // Set the uploaded file info
+      if (videoToLoad.uploadedFileInfo) {
+        console.log('📁 useEffect: Setting uploaded file info');
+        setUploadedFileInfo(videoToLoad.uploadedFileInfo);
+        
+        // Create a dummy file object to satisfy the !file condition
+        const dummyFile = {
+          name: videoToLoad.originalName,
+          size: videoToLoad.uploadedFileInfo.size,
+          type: 'video/mp4' // Default type
+        };
+        setFile(dummyFile);
+        console.log('📁 Created dummy file object for rendering:', dummyFile);
+      }
+      
+      // Set extracted moments if they exist
+      if (videoToLoad.extractedMoments && videoToLoad.extractedMoments.length > 0) {
+        console.log('🎬 useEffect: Setting', videoToLoad.extractedMoments.length, 'segments');
+        
+        // Set state in sequence to ensure proper updates
+        setError(null);
+        setProcessing(false);
+        setCurrentStep('');
+        
+        // Use setTimeout to ensure state updates properly
+        setTimeout(() => {
+          setExtractedMoments(videoToLoad.extractedMoments);
+          setAnalysisComplete(true);
+          console.log('🎯 State set - analysisComplete: true, segments:', videoToLoad.extractedMoments.length);
+          
+          // Check if UI renders after another brief delay
+          setTimeout(() => {
+            const analysisSection = document.querySelector('.analysis-complete');
+            console.log('🔍 Looking for .analysis-complete element:', !!analysisSection);
+            if (analysisSection) {
+              analysisSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              console.log('📜 Successfully scrolled to segments');
+            } else {
+              console.log('❌ Segments UI not found - checking current state again');
+              console.log('Current analysisComplete:', analysisComplete);
+              console.log('Current extractedMoments length:', extractedMoments.length);
+            }
+          }, 200);
+        }, 50);
+      } else {
+        setAnalysisComplete(false);
+        setExtractedMoments([]);
+        setError(`This video "${videoToLoad.originalName}" was uploaded but never analyzed.`);
+      }
+      
+      setProcessing(false);
+      setCurrentStep('');
+      
+      // Don't clear file when loading from library - we need it to show analysis section
+      // setFile(null); - commented out to allow analysis section to render
+      
+      // Clear the videoToLoad after processing
+      setVideoToLoad(null);
+    }
+  }, [videoToLoad]);
+
+  // Effect to restore from localStorage on mount only
+  React.useEffect(() => {
+    const tempData = localStorage.getItem('temp_loading_video');
+    if (tempData && extractedMoments.length === 0 && !analysisComplete) {
+      try {
+        const data = JSON.parse(tempData);
+        // Only use if less than 10 seconds old (prevents stale data)
+        if (Date.now() - data.timestamp < 10000) {
+          console.log('🔄 Restoring video data from localStorage on mount');
+          
+          if (data.uploadedFileInfo) {
+            setUploadedFileInfo(data.uploadedFileInfo);
+          }
+          
+          if (data.extractedMoments && data.extractedMoments.length > 0) {
+            console.log('✅ Restoring', data.extractedMoments.length, 'segments from localStorage');
+            setExtractedMoments(data.extractedMoments);
+            setAnalysisComplete(true);
+            setError(null);
+            setProcessing(false);
+            setCurrentStep('');
+            console.log('🎯 State restored - should show segments UI now');
+            
+            // Force a scroll after state is set
+            setTimeout(() => {
+              const analysisSection = document.querySelector('.analysis-complete');
+              if (analysisSection) {
+                analysisSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                console.log('📜 Scrolled to segments section');
+              } else {
+                console.log('❌ Analysis section still not found after restore');
+              }
+            }, 500);
+          }
+        } else {
+          // Clean up old data
+          localStorage.removeItem('temp_loading_video');
+        }
+      } catch (error) {
+        localStorage.removeItem('temp_loading_video');
+      }
+    }
+  }, []); // Only run once on mount
 
   // Simple tier detection based on email or localStorage
   const getUserTier = () => {
@@ -101,7 +223,7 @@ const ViralClipGenerator = () => {
   const [bulkExportMode, setBulkExportMode] = useState(false);
   const [selectedBulkRatios, setSelectedBulkRatios] = useState(['9:16', '16:9', '1:1']);
   
-  console.log('🎯 ViralClipGenerator - Current tier:', userTier);
+  // Debug removed to prevent re-renders
 
   // Loading state
   if (!isLoaded) {
@@ -164,11 +286,7 @@ const ViralClipGenerator = () => {
   const hasFeature = (feature) => currentTierLimits.features.includes(feature);
   const isAspectRatioAvailable = (ratio) => currentTierLimits.aspectRatios.includes(ratio);
 
-  console.log('🎯 ViralClipGenerator - Has bulk export ACCESS:', hasFeature('bulk_export'));
-  console.log('🎯 ViralClipGenerator - Has AI cropping ACCESS:', hasFeature('ai_cropping'));
-  console.log('🎯 ViralClipGenerator - Bulk export MODE:', bulkExportMode);
-  console.log('🎯 ViralClipGenerator - Selected aspect ratio:', selectedAspectRatio);
-  console.log('🎯 ViralClipGenerator - Selected crop position:', selectedCropPosition);
+  // Debug logs removed to prevent infinite re-renders
 
   const handleBackToDashboard = () => {
     navigate('/app');
@@ -231,32 +349,17 @@ const ViralClipGenerator = () => {
 
   // Function to load previous video and restore its state
   const loadPreviousVideo = (video) => {
-    console.log('📼 Loading previous video:', video);
-    
-    // Set the uploaded file info
-    if (video.uploadedFileInfo) {
-      setUploadedFileInfo(video.uploadedFileInfo);
-    }
-    
-    // Set extracted moments if they exist
-    if (video.extractedMoments && video.extractedMoments.length > 0) {
-      setExtractedMoments(video.extractedMoments);
-      setAnalysisComplete(true);
-    }
-    
-    // Set file info
-    setFile(null); // Clear any current file selection
-    
-    // Set processing to false since we're loading completed work
-    setProcessing(false);
-    setCurrentStep('');
-    
-    console.log('✅ Previous video loaded with', video.extractedMoments?.length || 0, 'moments');
+    console.log('📼 Click handler: Setting video to load:', video.originalName);
+    console.log('📼 Click handler: Current videoToLoad before set:', !!videoToLoad);
+    setVideoToLoad(video);
+    console.log('📼 Click handler: setVideoToLoad called');
   };
 
 
 
   const handleFileUpload = async (event) => {
+    console.log('🚨 handleFileUpload called! This might be interfering with video loading');
+    console.log('🚨 Event:', event);
     const uploadedFile = event.target.files[0];
     if (!uploadedFile) return;
 
@@ -300,6 +403,7 @@ const ViralClipGenerator = () => {
     }
 
     setFile(uploadedFile);
+    console.log('🚨 RESETTING STATE IN handleFileUpload - this might be the culprit!');
     setExtractedMoments([]);
     setAnalysisComplete(false);
     setProgress(0);
@@ -1513,6 +1617,9 @@ const ViralClipGenerator = () => {
   };
 
   const analyzeContent = async (fileInfo) => {
+    console.log('🚀 analyzeContent called with:', fileInfo);
+    console.log('🚀 User ID:', user?.id, 'User tier:', userTier);
+    
     try {
       // Check if user has tokens before starting analysis
       if (!TokenService.hasTokens(user.id, userTier)) {
@@ -1773,7 +1880,11 @@ const ViralClipGenerator = () => {
         }
 
         // Update UI with results
-        console.log('🎯 About to update UI with segments:', segments);
+        console.log('🎯 About to update UI with segments:', segments.length, 'segments');
+        console.log('🎯 Analysis response:', response);
+        console.log('🎯 Current user:', user?.id);
+        console.log('🎯 Uploaded file info:', uploadedFileInfo);
+        
         setProgress(100);
         setCurrentStep("AI analysis complete!");
         setExtractedMoments(segments);
@@ -1781,23 +1892,40 @@ const ViralClipGenerator = () => {
         setProcessing(false);
 
         // Save the complete analysis to video library
-        if (user?.id && uploadedFileInfo) {
-          VideoLibraryService.saveVideoAnalysis(user.id, uploadedFileInfo.filename, {
-            extractedMoments: segments,
-            analysis: response, // Save the full analysis response
-            uploadedFileInfo: uploadedFileInfo
+        if (user?.id && fileInfo) {
+          console.log('🔄 Saving analysis for video:', fileInfo.filename);
+          console.log('📊 Analysis data being saved:', {
+            extractedMoments: segments.length,
+            hasFileInfo: !!fileInfo,
+            hasUploadedFileInfo: !!uploadedFileInfo,
+            userId: user.id
           });
           
-          // Refresh video library
-          const updatedVideos = VideoLibraryService.getUserVideoLibrary(user.id);
-          setVideoLibrary(updatedVideos.slice(0, 5));
+          const savedVideo = VideoLibraryService.saveVideoAnalysis(user.id, fileInfo.filename, {
+            extractedMoments: segments,
+            analysis: response, // Save the full analysis response
+            uploadedFileInfo: fileInfo, // Use fileInfo instead of uploadedFileInfo
+            thumbnail: segments.length > 0 ? segments[0].thumbnail : null // Use first segment's thumbnail
+          });
+          
+          console.log('💾 Video saved result:', savedVideo);
+          
+          // Refresh video library with a delay to ensure localStorage update completed
+          setTimeout(() => {
+            const updatedVideos = VideoLibraryService.getUserVideoLibrary(user.id);
+            console.log('📚 Updated video library:', updatedVideos.length, 'videos');
+            console.log('📚 Video statuses:', updatedVideos.map(v => ({ name: v.originalName, status: v.status, moments: v.extractedMoments?.length || 0 })));
+            setVideoLibrary(updatedVideos.slice(0, 5));
+          }, 100);
         }
 
         console.log(`✅ AI analysis complete: ${segments.length} viral moments identified`);
       };
 
+      console.log('🔄 About to start processStream...');
       // Start processing the stream
       await processStream();
+      console.log('✅ processStream completed successfully');
 
     } catch (error) {
       console.error("AI Analysis error:", error);
@@ -2004,7 +2132,7 @@ const ViralClipGenerator = () => {
               )}
 
               {/* Analysis Complete State */}
-              {analysisComplete && extractedMoments.length > 0 && (
+              {analysisComplete && extractedMoments.length > 0 ? (
                 <div className="analysis-complete">
                   <div className="analysis-header">
                     <h3 className="analysis-title">
@@ -2491,61 +2619,87 @@ const ViralClipGenerator = () => {
                     ))}
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
         </div>
 
         {/* Video Library Section */}
-        {videoLibrary.length > 0 && !processing && !analysisComplete && (
+        {!processing && (
           <div className="video-library-section">
             <h3 className="library-title">Recent Videos</h3>
-            <div className="library-videos-grid">
-              {videoLibrary.map((video) => (
-                <div 
-                  key={video.id} 
-                  className="library-video-card"
-                  onClick={() => loadPreviousVideo(video)}
-                >
-                  <div className="library-video-thumbnail">
-                    {video.thumbnail ? (
-                      <img src={video.thumbnail} alt={video.originalName} />
-                    ) : (
-                      <div className="library-video-placeholder">
-                        <FileVideo className="w-8 h-8" />
+            <p className="library-notice">
+              📝 Videos are automatically deleted after 5 days to save storage space
+            </p>
+            
+            {videoLibrary.length > 0 ? (
+              <>
+                <div className="library-videos-grid">
+                  {videoLibrary.map((video) => (
+                    <div 
+                      key={video.id} 
+                      className="library-video-card"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('🖱️ Video card clicked, calling loadPreviousVideo');
+                        console.log('🖱️ Current location:', window.location.href);
+                        loadPreviousVideo(video);
+                        // Prevent any navigation
+                        return false;
+                      }}
+                    >
+                      <div className="library-video-thumbnail">
+                        {video.thumbnail ? (
+                          <img src={video.thumbnail} alt={video.originalName} />
+                        ) : (
+                          <div className="library-video-placeholder">
+                            <FileVideo className="w-8 h-8" />
+                          </div>
+                        )}
+                        <div className="library-video-duration">
+                          {VideoLibraryService.formatDuration(video.duration)}
+                        </div>
+                        {video.extractedMoments && video.extractedMoments.length > 0 && (
+                          <div className="library-video-badge">
+                            {video.extractedMoments.length} segments
+                          </div>
+                        )}
                       </div>
-                    )}
-                    <div className="library-video-duration">
-                      {VideoLibraryService.formatDuration(video.duration)}
+                      <div className="library-video-info">
+                        <h4 className="library-video-title" title={video.originalName}>
+                          {video.originalName}
+                        </h4>
+                        <div className="library-video-meta">
+                          <span className="upload-date">
+                            {new Date(video.uploadDate).toLocaleDateString()}
+                          </span>
+                          <span className="file-size">
+                            {VideoLibraryService.formatFileSize(video.fileSize)}
+                          </span>
+                        </div>
+                        {video.status === 'analyzed' ? (
+                          <div className="library-video-status analyzed">
+                            ✨ Analyzed
+                          </div>
+                        ) : video.status === 'uploaded' ? (
+                          <div className="library-video-status uploaded">
+                            📤 Uploaded Only
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
-                    {video.extractedMoments && video.extractedMoments.length > 0 && (
-                      <div className="library-video-badge">
-                        {video.extractedMoments.length} segments
-                      </div>
-                    )}
-                  </div>
-                  <div className="library-video-info">
-                    <h4 className="library-video-title" title={video.originalName}>
-                      {video.originalName}
-                    </h4>
-                    <div className="library-video-meta">
-                      <span className="upload-date">
-                        {new Date(video.uploadDate).toLocaleDateString()}
-                      </span>
-                      <span className="file-size">
-                        {VideoLibraryService.formatFileSize(video.fileSize)}
-                      </span>
-                    </div>
-                    {video.status === 'analyzed' && (
-                      <div className="library-video-status analyzed">
-                        ✨ Analyzed
-                      </div>
-                    )}
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <p className="library-subtitle">Click on a video to load its analysis results</p>
+                <p className="library-subtitle">Click on a video to load its analysis results</p>
+              </>
+            ) : (
+              <div className="library-empty-state">
+                <FileVideo className="w-16 h-16 opacity-50" />
+                <h4>No History</h4>
+                <p>Upload and analyze videos to see them here</p>
+              </div>
+            )}
           </div>
         )}
       </div>
