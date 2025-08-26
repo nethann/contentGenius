@@ -2328,49 +2328,6 @@ const ViralClipGenerator = () => {
                               {/* Pro Tier - Detailed Analytics */}
                               {moment.detailedAnalytics && (
                                 <div className="detailed-analytics">
-                                  <div className="analytics-grid">
-                                    <div className="analytics-metric">
-                                      <span className="metric-label">🎣 Hook Strength:</span>
-                                      <span className="metric-value">{moment.detailedAnalytics.hookStrength}%</span>
-                                    </div>
-                                    <div className="analytics-metric">
-                                      <span className="metric-label">📊 Retention:</span>
-                                      <span className="metric-value">{moment.detailedAnalytics.retentionRate}%</span>
-                                    </div>
-                                    <div className="analytics-metric">
-                                      <span className="metric-label">💬 Engagement:</span>
-                                      <span className="metric-value">{moment.detailedAnalytics.engagementPotential}%</span>
-                                    </div>
-                                    <div className="analytics-metric">
-                                      <span className="metric-label">😊 Sentiment:</span>
-                                      <span className="metric-value">{moment.detailedAnalytics.sentiment}</span>
-                                    </div>
-                                    {moment.detailedAnalytics.competitorAnalysis && (
-                                      <div className="analytics-metric">
-                                        <span className="metric-label">🏆 Vs Competitors:</span>
-                                        <span className="metric-value">{moment.detailedAnalytics.competitorAnalysis}%</span>
-                                      </div>
-                                    )}
-                                    {moment.detailedAnalytics.trendAlignment && (
-                                      <div className="analytics-metric">
-                                        <span className="metric-label">📈 Trend Alignment:</span>
-                                        <span className="metric-value">{moment.detailedAnalytics.trendAlignment}%</span>
-                                      </div>
-                                    )}
-                                    {moment.detailedAnalytics.audienceReach && (
-                                      <div className="analytics-metric">
-                                        <span className="metric-label">👥 Audience Reach:</span>
-                                        <span className="metric-value">{moment.detailedAnalytics.audienceReach}%</span>
-                                      </div>
-                                    )}
-                                    {moment.detailedAnalytics.platformOptimization && (
-                                      <div className="analytics-metric">
-                                        <span className="metric-label">📱 Platform Score:</span>
-                                        <span className="metric-value">{moment.detailedAnalytics.platformOptimization}%</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                  
                                   
                                   {moment.hashtags && (
                                     <div className="hashtags-section">
