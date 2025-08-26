@@ -22,12 +22,14 @@
       "Bash(tasklist:*)",
       "Bash(ffmpeg:*)",
       "Bash(start create-sample-data.html)",
-      "Bash(start test-video-library.html)"
+      "Bash(start test-video-library.html)",
+      "Bash(dir \"C:\\Users\\netha\\Documents\\Programming\\ReactApps\\content-scalar\\server\\uploads\")"
     ],
     "deny": [],
     "ask": [],
     "additionalDirectories": [
-      "C:\\c\\Users\\netha\\Documents\\Programming\\ReactApps"
+      "C:\\c\\Users\\netha\\Documents\\Programming\\ReactApps",
+      "C:\\d C:\\Users\\netha\\Documents\\Programming\\ReactApps\\content-scalar"
     ]
   }
 }

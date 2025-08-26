@@ -34,6 +34,9 @@ const tempDir = join(__dirname, 'temp');
 await fs.ensureDir(uploadDir);
 await fs.ensureDir(tempDir);
 
+// Serve uploaded files statically
+app.use('/uploads', express.static(uploadDir));
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {

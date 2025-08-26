@@ -456,7 +456,11 @@ const ViralClipGenerator = () => {
   };
 
   const generateVideoClip = async (moment) => {
+    console.log('🎬 generateVideoClip called with:', moment);
+    console.log('🎬 uploadedFileInfo:', uploadedFileInfo);
+    
     if (!uploadedFileInfo) {
+      console.error('❌ No uploadedFileInfo available');
       setError("No uploaded file available");
       return;
     }
@@ -469,22 +473,34 @@ const ViralClipGenerator = () => {
       setClipProgress((prev) => ({ ...prev, [moment.id]: 20 }));
 
       // Call backend to transcribe this segment
+      const requestPayload = {
+        filename: uploadedFileInfo.filename,
+        startTime: moment.startTimeSeconds,
+        endTime: moment.endTimeSeconds,
+        segmentId: moment.id
+      };
+      
+      console.log('🎬 Sending request to transcribe-segment:', requestPayload);
+      console.log('🎬 Full URL:', `${API_URL}/transcribe-segment`);
+      
       const response = await fetch(`${API_URL}/transcribe-segment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          filename: uploadedFileInfo.filename,
-          startTime: moment.startTimeSeconds,
-          endTime: moment.endTimeSeconds,
-          segmentId: moment.id
-        })
+        body: JSON.stringify(requestPayload)
       });
 
       setClipProgress((prev) => ({ ...prev, [moment.id]: 60 }));
 
       if (!response.ok) {
+        console.error('❌ Response not OK:', response.status, response.statusText);
+        try {
+          const errorText = await response.text();
+          console.error('❌ Error response body:', errorText);
+        } catch (e) {
+          console.error('❌ Could not read error response');
+        }
         throw new Error('Transcription failed');
       }
 
@@ -618,10 +634,31 @@ const ViralClipGenerator = () => {
     `;
     video.controls = false;
     video.muted = false;
-    video.currentTime = moment.startTimeSeconds || 0;
+    // Don't set currentTime here - set it after metadata loads
 
-    // Set video source  
-    const fileUrl = URL.createObjectURL(file);
+    // Set video source from server  
+    const fileUrl = `http://localhost:3001/uploads/${uploadedFileInfo.filename}`;
+    console.log('🎥 Setting video source:', fileUrl);
+    
+    video.onerror = (e) => {
+      console.error('❌ Video loading error:', e);
+      console.error('❌ Video error code:', video.error);
+    };
+    
+    video.onloadstart = () => {
+      console.log('⏳ Video loading started');
+    };
+    
+    video.oncanplay = () => {
+      console.log('✅ Video can start playing');
+    };
+    
+    video.onloadedmetadata = () => {
+      console.log('📊 Video metadata loaded');
+      video.currentTime = moment.startTimeSeconds || 0;
+      console.log('⏰ Set video time to:', moment.startTimeSeconds);
+    };
+    
     video.src = fileUrl;
     
     // Store current caption index
@@ -1069,7 +1106,7 @@ const ViralClipGenerator = () => {
     const cleanup = () => {
       document.removeEventListener("keydown", handleKeyPress);
       video.pause();
-      URL.revokeObjectURL(fileUrl);
+      // No need to revoke URL since we're using server URL
     };
 
     modal.onclick = (e) => {
