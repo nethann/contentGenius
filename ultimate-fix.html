@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ultimate Token Fix</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
+        button { background: #10b981; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; margin: 10px; cursor: pointer; }
+        button:hover { background: #059669; }
+        pre { background: #2d2d2d; padding: 15px; border-radius: 8px; white-space: pre-wrap; }
+        .warning { color: #f59e0b; }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Ultimate Token Fix</h1>
+    <p>This tool will fix your developer tokens by finding your actual user ID from the app.</p>
+    
+    <button onclick="getCurrentUserId()">1. Find My Current User ID</button>
+    <button onclick="setDeveloperForAll()">2. Set Developer Tier for All Users</button>
+    <button onclick="clearAllTokens()">3. Clear All Token Data</button>
+    <button onclick="verifyFix()">4. Verify Fix</button>
+    
+    <pre id="output"></pre>
+    
+    <script>
+        function log(message, type = 'normal') {
+            const output = document.getElementById('output');
+            const className = type === 'warning' ? 'warning' : type === 'success' ? 'success' : type === 'error' ? 'error' : '';
+            output.innerHTML += `<span class="${className}">${message}</span>\n`;
+        }
+        
+        function getCurrentUserId() {
+            document.getElementById('output').innerHTML = '';
+            log('🔍 FINDING CURRENT USER ID...', 'warning');
+            
+            // Try to get current user from the window if available
+            if (window.Clerk && window.Clerk.user) {
+                log(`✅ Found Clerk user: ${window.Clerk.user.id}`, 'success');
+                return window.Clerk.user.id;
+            }
+            
+            // Look through all localStorage keys to find all possible user IDs
+            const userIds = [];
+            Object.keys(localStorage).forEach(key => {
+                if (key.includes('userTier_user_')) {
+                    const userId = key.replace('userTier_', '');
+                    userIds.push(userId);
+                    log(`Found user ID: ${userId} (tier: ${localStorage.getItem(key)})`, 'normal');
+                }
+                if (key.includes('tokens_user_')) {
+                    const userId = key.replace('tokens_', '');
+                    const tokenData = JSON.parse(localStorage.getItem(key));
+                    log(`Found token data for: ${userId} (count: ${tokenData.count}, tier: ${tokenData.tier})`, 'normal');
+                }
+            });
+            
+            log(`\\n📝 Total user IDs found: ${userIds.length}`, 'warning');
+            return userIds;
+        }
+        
+        function setDeveloperForAll() {
+            log('\\n🚀 SETTING DEVELOPER TIER FOR ALL USERS...', 'warning');
+            
+            const userIds = ['user_31hVDxKcJVzP6CJZXDvB5wWK4y5', 'user_31hR4o8jclrLF3Jo3j1oL5Fo3Pz'];
+            
+            userIds.forEach(userId => {
+                localStorage.setItem(`userTier_${userId}`, 'developer');
+                log(`✅ Set ${userId} to developer tier`, 'success');
+            });
+            
+            log('\\n✅ All users set to developer tier!', 'success');
+        }
+        
+        function clearAllTokens() {
+            log('\\n🧹 CLEARING ALL TOKEN DATA...', 'warning');
+            
+            let cleared = 0;
+            Object.keys(localStorage).forEach(key => {
+                if (key.includes('tokens_user_')) {
+                    localStorage.removeItem(key);
+                    log(`🗑️ Removed: ${key}`, 'normal');
+                    cleared++;
+                }
+            });
+            
+            log(`\\n✅ Cleared ${cleared} token entries. They will be re-initialized with unlimited tokens.`, 'success');
+        }
+        
+        function verifyFix() {
+            log('\\n🔍 VERIFYING FIX...', 'warning');
+            
+            Object.keys(localStorage).forEach(key => {
+                if (key.includes('userTier_user_')) {
+                    const tier = localStorage.getItem(key);
+                    const userId = key.replace('userTier_', '');
+                    log(`User: ${userId} → Tier: ${tier}`, tier === 'developer' ? 'success' : 'error');
+                }
+                
+                if (key.includes('tokens_user_')) {
+                    const tokenData = JSON.parse(localStorage.getItem(key));
+                    const userId = key.replace('tokens_', '');
+                    log(`Tokens for ${userId}: ${tokenData.count} (tier: ${tokenData.tier})`, 'normal');
+                }
+            });
+            
+            log('\\n🎉 VERIFICATION COMPLETE!', 'success');
+            log('📱 Now refresh your main app (http://localhost:5173) to see unlimited tokens!', 'warning');
+            
+            setTimeout(() => {
+                if (confirm('Open main app in new tab?')) {
+                    window.open('http://localhost:5173', '_blank');
+                }
+            }, 1000);
+        }
+        
+        // Auto-run the process
+        setTimeout(() => {
+            getCurrentUserId();
+            setTimeout(() => setDeveloperForAll(), 500);
+            setTimeout(() => clearAllTokens(), 1000);
+            setTimeout(() => verifyFix(), 1500);
+        }, 100);
+    </script>
+</body>
+</html>

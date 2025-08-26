@@ -39,6 +39,8 @@ const ViralClipGenerator = () => {
   // Video library state
   const [videoLibrary, setVideoLibrary] = useState([]);
   const [videoToLoad, setVideoToLoad] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalVideo, setModalVideo] = useState(null);
   
   // Load user's video library
   React.useEffect(() => {

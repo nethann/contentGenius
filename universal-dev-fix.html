@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Universal Developer Token Fix</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
+        button { background: #8b5cf6; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 18px; margin: 10px; cursor: pointer; }
+        button:hover { background: #7c3aed; }
+        pre { background: #2d2d2d; padding: 15px; border-radius: 8px; white-space: pre-wrap; }
+        .success { color: #10b981; }
+        .warning { color: #f59e0b; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Universal Developer Token Fix</h1>
+    <p>This will give unlimited tokens to ANY developer account you're currently logged in with.</p>
+    
+    <button onclick="fixCurrentAccount()">🚀 Fix Current Developer Account</button>
+    <button onclick="showAllAccounts()">👀 Show All Accounts</button>
+    
+    <pre id="output"></pre>
+    
+    <script>
+        function log(message, type = 'normal') {
+            const output = document.getElementById('output');
+            const className = type === 'warning' ? 'warning' : type === 'success' ? 'success' : '';
+            output.innerHTML += `<span class="${className}">${message}</span>\n`;
+        }
+        
+        function getCurrentUserId() {
+            // Try multiple methods to get the current user ID
+            
+            // Method 1: Check if Clerk is available
+            if (typeof window !== 'undefined' && window.Clerk && window.Clerk.user) {
+                return window.Clerk.user.id;
+            }
+            
+            // Method 2: Look for the most recent userTier entry
+            let mostRecentUser = null;
+            let latestTime = 0;
+            
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('userTier_user_')) {
+                    // Try to find associated token data to get timestamp
+                    const userId = key.replace('userTier_', '');
+                    const tokenKey = `tokens_${userId}`;
+                    const tokenData = localStorage.getItem(tokenKey);
+                    
+                    if (tokenData) {
+                        try {
+                            const parsed = JSON.parse(tokenData);
+                            const refreshTime = new Date(parsed.lastRefresh).getTime();
+                            if (refreshTime > latestTime) {
+                                latestTime = refreshTime;
+                                mostRecentUser = userId;
+                            }
+                        } catch (e) {
+                            // If no timestamp, consider it as a candidate
+                            if (!mostRecentUser) {
+                                mostRecentUser = userId;
+                            }
+                        }
+                    } else {
+                        // If no token data, consider it as a candidate
+                        if (!mostRecentUser) {
+                            mostRecentUser = userId;
+                        }
+                    }
+                }
+            });
+            
+            return mostRecentUser;
+        }
+        
+        function fixCurrentAccount() {
+            document.getElementById('output').innerHTML = '';
+            log('🔍 Finding current developer account...', 'warning');
+            
+            const currentUserId = getCurrentUserId();
+            
+            if (!currentUserId) {
+                log('❌ Could not find current user ID. Please make sure you are logged in.', 'error');
+                return;
+            }
+            
+            log(`✅ Found current user: ${currentUserId}`, 'success');
+            log('');
+            
+            // Set to developer tier
+            localStorage.setItem(`userTier_${currentUserId}`, 'developer');
+            log('✅ Set tier to developer', 'success');
+            
+            // Remove any existing token data
+            const tokenKey = `tokens_${currentUserId}`;
+            localStorage.removeItem(tokenKey);
+            log('✅ Cleared existing token data', 'success');
+            
+            // Create new unlimited token data
+            const unlimitedTokenData = {
+                count: -1,  // Unlimited
+                lastRefresh: new Date().toISOString(),
+                tier: 'developer'
+            };
+            
+            localStorage.setItem(tokenKey, JSON.stringify(unlimitedTokenData));
+            log('✅ Created unlimited token data (-1 = ∞)', 'success');
+            
+            log('');
+            log('🎉 DEVELOPER ACCOUNT FIXED!', 'success');
+            log('🔄 Refresh your main app to see unlimited tokens (∞)', 'warning');
+            
+            setTimeout(() => {
+                if (confirm('Open main app to verify unlimited tokens?')) {
+                    window.open('http://localhost:5173', '_blank');
+                }
+            }, 1000);
+        }
+        
+        function showAllAccounts() {
+            document.getElementById('output').innerHTML = '';
+            log('👥 ALL DEVELOPER ACCOUNTS:', 'warning');
+            log('');
+            
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('userTier_user_')) {
+                    const userId = key.replace('userTier_', '');
+                    const tier = localStorage.getItem(key);
+                    const tokenData = localStorage.getItem(`tokens_${userId}`);
+                    
+                    log(`User ID: ${userId}`);
+                    log(`  Tier: ${tier}`);
+                    
+                    if (tokenData) {
+                        try {
+                            const tokens = JSON.parse(tokenData);
+                            log(`  Tokens: ${tokens.count === -1 ? '∞ (unlimited)' : tokens.count}`);
+                            log(`  Token Tier: ${tokens.tier}`);
+                        } catch (e) {
+                            log(`  Tokens: Error parsing token data`);
+                        }
+                    } else {
+                        log(`  Tokens: No token data (will be initialized)`);
+                    }
+                    log('');
+                }
+            });
+        }
+        
+        // Auto-show all accounts on load
+        setTimeout(() => {
+            showAllAccounts();
+        }, 100);
+    </script>
+</body>
+</html>

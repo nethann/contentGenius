@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { AdminService } from '../services/adminService';
+import { TokenService } from '../services/tokenService';
 import {
   Shield,
   Users,
@@ -14,7 +15,8 @@ import {
   ArrowLeft,
   Code,
   Database,
-  Activity
+  Activity,
+  Zap
 } from 'lucide-react';
 import '../styles/components/AdminDashboard.css';
 
@@ -174,6 +176,41 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error('Error deleting user:', error);
       alert('Failed to delete user');
+    }
+  };
+
+  const grantUnlimitedTokens = () => {
+    if (!user?.id) {
+      alert('❌ Error: No user ID found');
+      return;
+    }
+
+    try {
+      // Set current user to developer tier
+      localStorage.setItem(`userTier_${user.id}`, 'developer');
+      
+      // Remove any existing token data to force re-initialization
+      localStorage.removeItem(`tokens_${user.id}`);
+      
+      // Create unlimited token entry
+      const unlimitedTokenData = {
+        count: -1,  // -1 = unlimited
+        lastRefresh: new Date().toISOString(),
+        tier: 'developer'
+      };
+      
+      localStorage.setItem(`tokens_${user.id}`, JSON.stringify(unlimitedTokenData));
+      
+      alert('🎉 SUCCESS!\n\n✅ Developer tier activated\n✅ Unlimited tokens granted (∞)\n\n🔄 Refresh the page to see changes');
+      
+      // Force page refresh to update token display
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error granting unlimited tokens:', error);
+      alert('❌ Failed to grant unlimited tokens: ' + error.message);
     }
   };
 
@@ -485,6 +522,29 @@ const AdminDashboard = () => {
                       <h4>Debug Mode</h4>
                       <p>Enhanced logging active</p>
                       <div className="dev-status active">Active</div>
+                    </div>
+                    
+                    <div className="dev-tool-card">
+                      <Zap className="w-8 h-8 mb-3 text-yellow-500" />
+                      <h4>Token Management</h4>
+                      <p>Grant unlimited tokens to your account</p>
+                      <button
+                        onClick={grantUnlimitedTokens}
+                        className="dev-action-btn"
+                        style={{
+                          background: 'linear-gradient(45deg, #f59e0b, #eab308)',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '6px',
+                          marginTop: '8px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          fontSize: '14px'
+                        }}
+                      >
+                        🚀 Get Unlimited Tokens
+                      </button>
                     </div>
                   </div>
                 </div>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Token Debug</title>
+</head>
+<body>
+    <h1>Token Debug Tool</h1>
+    <button onclick="debugTokens()">Debug Current Tokens</button>
+    <button onclick="setDeveloperTier()">Set Developer Tier</button>
+    <pre id="output"></pre>
+    
+    <script>
+        function log(message) {
+            document.getElementById('output').textContent += message + '\n';
+        }
+        
+        function debugTokens() {
+            document.getElementById('output').textContent = '';
+            log('=== DEBUGGING TOKENS ===');
+            
+            // Show all localStorage keys
+            log('\n1. All localStorage keys:');
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                log(`   ${key}: ${localStorage.getItem(key)}`);
+            }
+            
+            // Show user tier keys specifically
+            log('\n2. User tier keys:');
+            Object.keys(localStorage).filter(key => key.includes('userTier')).forEach(key => {
+                log(`   ${key}: ${localStorage.getItem(key)}`);
+            });
+            
+            // Show token keys specifically
+            log('\n3. Token keys:');
+            Object.keys(localStorage).filter(key => key.includes('tokens')).forEach(key => {
+                log(`   ${key}: ${localStorage.getItem(key)}`);
+            });
+            
+            // Try to find user ID from Clerk
+            log('\n4. Looking for Clerk user data...');
+            Object.keys(localStorage).forEach(key => {
+                if (key.includes('clerk') || key.includes('user')) {
+                    const value = localStorage.getItem(key);
+                    if (value && value.includes('user_')) {
+                        log(`   Found potential user data in ${key}`);
+                        try {
+                            const parsed = JSON.parse(value);
+                            log(`   Parsed data: ${JSON.stringify(parsed, null, 2)}`);
+                        } catch (e) {
+                            log(`   Raw value: ${value.substring(0, 200)}...`);
+                        }
+                    }
+                }
+            });
+        }
+        
+        function setDeveloperTier() {
+            const userId = prompt('Enter your user ID (found in debug output above):');
+            if (!userId) return;
+            
+            log(`\n=== SETTING DEVELOPER TIER FOR ${userId} ===`);
+            
+            // Set tier to developer
+            localStorage.setItem(`userTier_${userId}`, 'developer');
+            log(`Set userTier_${userId} = 'developer'`);
+            
+            // Clear existing token data
+            Object.keys(localStorage).filter(key => key.includes('tokens')).forEach(key => {
+                localStorage.removeItem(key);
+                log(`Removed ${key}`);
+            });
+            
+            log('\nDeveloper tier set! Refresh your main app to see changes.');
+        }
+    </script>
+</body>
+</html>

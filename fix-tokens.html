@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix Developer Tokens</title>
+</head>
+<body>
+    <h1>Fix Developer Tokens</h1>
+    <button onclick="fixTokens()" style="background: #10b981; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-size: 16px;">Fix My Tokens Now</button>
+    <pre id="output"></pre>
+    
+    <script>
+        function log(message) {
+            document.getElementById('output').textContent += message + '\n';
+        }
+        
+        function fixTokens() {
+            document.getElementById('output').textContent = '';
+            log('=== FIXING DEVELOPER TOKENS ===\n');
+            
+            const userId = 'user_31hVDxKcJVzP6CJZXDvB5wWK4y5'; // Your main user ID
+            
+            // Set tier to developer
+            localStorage.setItem(`userTier_${userId}`, 'developer');
+            log(`✅ Set userTier_${userId} = 'developer'`);
+            
+            // Remove the old token data so it can be re-initialized with unlimited tokens
+            localStorage.removeItem(`tokens_${userId}`);
+            log(`✅ Cleared old token data for ${userId}`);
+            
+            // Clean up any other user's data to avoid confusion
+            localStorage.removeItem('userTier_user_31hR4o8jclrLF3Jo3j1oL5Fo3Pz');
+            localStorage.removeItem('tokens_user_31hR4o8jclrLF3Jo3j1oL5Fo3Pz');
+            log('✅ Cleaned up duplicate user data');
+            
+            log('\n🎉 DEVELOPER TIER ACTIVATED!');
+            log('🚀 You now have unlimited tokens (∞)');
+            log('📹 Refresh your app to see the changes');
+            
+            setTimeout(() => {
+                alert('✅ Developer tier activated! Refresh your main app now.');
+            }, 100);
+        }
+    </script>
+</body>
+</html>
