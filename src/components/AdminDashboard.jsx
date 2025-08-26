@@ -43,6 +43,7 @@ const AdminDashboard = () => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [activeReportTab, setActiveReportTab] = useState('bugs');
 
   // Check admin access
   const userEmail = user?.emailAddresses?.[0]?.emailAddress;
@@ -422,15 +423,33 @@ const AdminDashboard = () => {
                     </div>
                   </div>
 
-                  {reports.length === 0 ? (
+                  {/* Report Sub-tabs */}
+                  <div className="report-tabs">
+                    <button
+                      onClick={() => setActiveReportTab('bugs')}
+                      className={`report-tab ${activeReportTab === 'bugs' ? 'active' : ''}`}
+                    >
+                      🐛 Bugs ({reports.filter(r => r.type === 'bug').length})
+                    </button>
+                    <button
+                      onClick={() => setActiveReportTab('ideas')}
+                      className={`report-tab ${activeReportTab === 'ideas' ? 'active' : ''}`}
+                    >
+                      💡 Ideas ({reports.filter(r => r.type === 'idea').length})
+                    </button>
+                  </div>
+
+                  {reports.filter(report => report.type === (activeReportTab === 'bugs' ? 'bug' : 'idea')).length === 0 ? (
                     <div className="admin-empty-state">
                       <Shield className="w-16 h-16 mb-4 opacity-50" />
-                      <h4>No Reports Yet</h4>
-                      <p>User reports and suggestions will appear here.</p>
+                      <h4>No {activeReportTab === 'bugs' ? 'Bug Reports' : 'Ideas'} Yet</h4>
+                      <p>User {activeReportTab === 'bugs' ? 'bug reports' : 'feature suggestions'} will appear here.</p>
                     </div>
                   ) : (
                     <div className="admin-reports-list">
-                      {reports.map((report) => (
+                      {reports
+                        .filter(report => report.type === (activeReportTab === 'bugs' ? 'bug' : 'idea'))
+                        .map((report) => (
                         <div key={report.id} className={`admin-report-card ${report.type}`}>
                           <div className="report-header">
                             <div className="report-type">
