@@ -39,6 +39,10 @@ const ViralClipGenerator = () => {
   // Video library state
   const [videoLibrary, setVideoLibrary] = useState([]);
   const [videoToLoad, setVideoToLoad] = useState(null);
+  
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [videoToDelete, setVideoToDelete] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalVideo, setModalVideo] = useState(null);
   
@@ -355,6 +359,32 @@ const ViralClipGenerator = () => {
     console.log('📼 Click handler: Current videoToLoad before set:', !!videoToLoad);
     setVideoToLoad(video);
     console.log('📼 Click handler: setVideoToLoad called');
+  };
+
+  const deleteVideoFromLibrary = (video) => {
+    setVideoToDelete(video);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteVideo = () => {
+    if (videoToDelete) {
+      const success = VideoLibraryService.deleteVideoFromLibrary(user?.id, videoToDelete.id);
+      if (success) {
+        // Refresh the video library to remove the deleted video from display
+        const updatedLibrary = VideoLibraryService.getUserVideoLibrary(user?.id);
+        setVideoLibrary(updatedLibrary);
+        console.log('✅ Video deleted successfully:', videoToDelete.originalName);
+      } else {
+        alert('Failed to delete video. Please try again.');
+      }
+    }
+    setShowDeleteModal(false);
+    setVideoToDelete(null);
+  };
+
+  const cancelDeleteVideo = () => {
+    setShowDeleteModal(false);
+    setVideoToDelete(null);
   };
 
 
@@ -2674,15 +2704,40 @@ const ViralClipGenerator = () => {
                             {VideoLibraryService.formatFileSize(video.fileSize)}
                           </span>
                         </div>
-                        {video.status === 'analyzed' ? (
-                          <div className="library-video-status analyzed">
-                            ✨ Analyzed
-                          </div>
-                        ) : video.status === 'uploaded' ? (
-                          <div className="library-video-status uploaded">
-                            📤 Uploaded Only
-                          </div>
-                        ) : null}
+                        <div className="library-video-status-row">
+                          {video.status === 'analyzed' ? (
+                            <div className="library-video-status analyzed">
+                              ✨ Analyzed
+                            </div>
+                          ) : video.status === 'uploaded' ? (
+                            <div className="library-video-status uploaded">
+                              📤 Uploaded Only
+                            </div>
+                          ) : null}
+                          
+                          <button
+                            className="library-video-delete"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              
+                              // Add jello animation
+                              const button = e.currentTarget;
+                              button.classList.add('jello');
+                              
+                              // Remove animation class after animation completes
+                              setTimeout(() => {
+                                button.classList.remove('jello');
+                              }, 600);
+                              
+                              // Show modal immediately
+                              deleteVideoFromLibrary(video);
+                            }}
+                            title="Delete this video"
+                          >
+                            🗑️
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -2696,6 +2751,42 @@ const ViralClipGenerator = () => {
                 <p>Upload and analyze videos to see them here</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <div className="delete-modal-overlay" onClick={cancelDeleteVideo}>
+            <div className="delete-modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="delete-modal-header">
+                <h3>🗑️ Delete Video</h3>
+              </div>
+              
+              <div className="delete-modal-body">
+                <p>Are you sure you want to delete this video?</p>
+                <div className="delete-modal-video-info">
+                  <strong>{videoToDelete?.originalName}</strong>
+                </div>
+                <p className="delete-modal-warning">
+                  ⚠️ This action cannot be undone.
+                </p>
+              </div>
+              
+              <div className="delete-modal-actions">
+                <button 
+                  className="delete-modal-cancel"
+                  onClick={cancelDeleteVideo}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="delete-modal-confirm"
+                  onClick={confirmDeleteVideo}
+                >
+                  🗑️ Delete
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
