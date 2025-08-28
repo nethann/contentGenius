@@ -2624,30 +2624,70 @@ const ViralClipGenerator = () => {
                               }}>
                                 {/* Format Selector */}
                                 <div style={{ position: 'relative' }}>
+                                  <style>
+                                    {`
+                                      .aspect-select-${moment.id} {
+                                        appearance: none;
+                                        -webkit-appearance: none;
+                                        -moz-appearance: none;
+                                        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+                                        background-position: right 0.75rem center;
+                                        background-repeat: no-repeat;
+                                        background-size: 1.25rem;
+                                        padding-right: 3rem;
+                                      }
+                                      
+                                      .aspect-select-${moment.id}:focus {
+                                        outline: none;
+                                        box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.3);
+                                      }
+                                      
+                                      .aspect-select-${moment.id} option {
+                                        background-color: #1e1f23;
+                                        color: #ffffff;
+                                        padding: 0.75rem 1rem;
+                                        border-radius: 0.5rem;
+                                        margin: 0.25rem;
+                                        font-weight: 500;
+                                      }
+                                      
+                                      .aspect-select-${moment.id} option:hover {
+                                        background-color: #0ea5e9;
+                                      }
+                                      
+                                      .aspect-select-${moment.id} option:checked {
+                                        background-color: #0ea5e9;
+                                        color: #ffffff;
+                                      }
+                                    `}
+                                  </style>
                                   <select
                                     id={`aspect-select-${moment.id}`}
+                                    className={`aspect-select-${moment.id}`}
                                     style={{
                                       fontSize: '12px',
-                                      padding: '8px 8px',
-                                      background: 'rgba(139, 92, 246, 0.1)',
-                                      border: '1px solid rgba(139, 92, 246, 0.3)',
-                                      borderTopLeftRadius: '6px',
-                                      borderBottomLeftRadius: '6px',
+                                      padding: '0.5rem 1rem',
+                                      background: 'var(--accent-blue)',
+                                      border: 'none',
+                                      borderTopLeftRadius: '0.5rem',
+                                      borderBottomLeftRadius: '0.5rem',
                                       borderTopRightRadius: 0,
                                       borderBottomRightRadius: 0,
                                       borderRight: 'none',
-                                      color: '#c4b5fd',
+                                      color: 'var(--text-primary)',
                                       cursor: 'pointer',
+                                      fontWeight: '500',
                                       height: '100%',
-                                      minWidth: '140px'
+                                      minWidth: '140px',
+                                      transition: 'background-color 0.2s ease'
                                     }}
                                     defaultValue="16:9"
                                   >
-                                    <option value="9:16">📱 TikTok (9:16)</option>
-                                    <option value="16:9">📺 YouTube (16:9)</option>
-                                    <option value="1:1">⏹️ Instagram (1:1)</option>
-                                    <option value="4:5">📄 Stories (4:5)</option>
-                                    <option value="21:9">🎬 Cinematic (21:9)</option>
+                                    <option value="9:16">📱 TikTok (9:16) ▼</option>
+                                    <option value="16:9">📺 YouTube (16:9) ▼</option>
+                                    <option value="1:1">⏹️ Instagram (1:1) ▼</option>
+                                    <option value="4:5">📄 Stories (4:5) ▼</option>
+                                    <option value="21:9">🎬 Cinematic (21:9) ▼</option>
                                   </select>
                                 </div>
                                 
