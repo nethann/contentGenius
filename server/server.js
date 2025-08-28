@@ -9,6 +9,7 @@ import ffmpeg from 'fluent-ffmpeg';
 import { v4 as uuidv4 } from 'uuid';
 import Groq from 'groq-sdk';
 import { performCompleteAnalysis, transcribeAudio } from './services/aiAnalysis.js';
+import { DatabaseService } from './services/databaseService.js';
 
 // Load environment variables
 dotenv.config();
@@ -642,8 +643,15 @@ app.post('/api/transcribe-segment', async (req, res) => {
     // Check if video file exists
     if (!await fs.pathExists(videoPath)) {
       console.error('❌ Video file not found:', videoPath);
-      return res.status(404).json({ error: 'Video file not found' });
+      console.log('📁 Available files in uploads:', await fs.readdir(uploadDir).catch(() => ['Error reading directory']));
+      return res.status(404).json({ 
+        error: 'Video file not found - it may have been cleaned up. Please try uploading the video again.' 
+      });
     }
+
+    // Copy video to temp directory to avoid conflicts with cleanup
+    const tempVideoPath = join(tempDir, `processing-${segmentId}-${filename}`);
+    await fs.copy(videoPath, tempVideoPath);
 
     console.log(`🎬 Processing segment ${segmentId}: ${startTime}s - ${endTime}s`);
 
@@ -652,8 +660,8 @@ app.post('/api/transcribe-segment', async (req, res) => {
     const extendedEndTime = endTime + bufferTime;
     
     console.log('🎬 Extracting audio segment...');
-    // Extract audio segment with buffer
-    await extractAudioSegment(videoPath, startTime, extendedEndTime, audioPath);
+    // Extract audio segment with buffer using temp video path
+    await extractAudioSegment(tempVideoPath, startTime, extendedEndTime, audioPath);
     
     console.log('🎬 Audio extraction completed, starting transcription...');
     // Transcribe the extended audio segment
@@ -661,8 +669,9 @@ app.post('/api/transcribe-segment', async (req, res) => {
     
     console.log('🎬 Transcription completed:', transcription.text?.substring(0, 100) + '...');
 
-    // Clean up temporary audio file
+    // Clean up temporary files
     await fs.remove(audioPath);
+    await fs.remove(tempVideoPath);
 
     // Adjust end time based on transcript to complete sentences
     const adjustedEndTime = adjustEndTimeForSentences(transcription.text, endTime, 10);
@@ -738,6 +747,15 @@ app.post('/api/transcribe-segment', async (req, res) => {
 
   } catch (error) {
     console.error('Transcription error:', error);
+    
+    // Clean up temporary files on error
+    try {
+      await fs.remove(audioPath).catch(() => {});
+      await fs.remove(tempVideoPath).catch(() => {});
+    } catch (cleanupError) {
+      console.error('Warning: Could not clean up temp files:', cleanupError);
+    }
+    
     res.status(500).json({ 
       error: 'Transcription failed', 
       details: error.message 
@@ -919,6 +937,169 @@ async function simulateAIAnalysis(framePath, transcript, aspectRatio) {
     }
   };
 }
+
+// Creator Benefits API Endpoints
+
+// Create new creator benefit
+app.post('/api/creator-benefits', async (req, res) => {
+  try {
+    const { email, tokens, proDays, proExpiryDate, tier } = req.body;
+    
+    if (!email || tokens === undefined || proDays === undefined) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    console.log('🎁 Creating creator benefit:', { email, tokens, proDays });
+    
+    const result = await DatabaseService.createCreatorBenefit(email, tokens, proDays);
+    
+    if (result.error) {
+      return res.status(500).json({ error: result.error });
+    }
+    
+    res.json({ success: true, data: result.data });
+  } catch (error) {
+    console.error('❌ Create creator benefit error:', error);
+    res.status(500).json({ error: 'Failed to create creator benefit' });
+  }
+});
+
+// Get all creator benefits
+app.get('/api/creator-benefits', async (req, res) => {
+  try {
+    console.log('📋 Fetching all creator benefits...');
+    
+    const result = await DatabaseService.getAllCreatorBenefits();
+    
+    if (result.error) {
+      return res.status(500).json({ error: result.error });
+    }
+    
+    res.json({ success: true, benefits: result.benefits || [] });
+  } catch (error) {
+    console.error('❌ Get all creator benefits error:', error);
+    res.status(500).json({ error: 'Failed to get creator benefits' });
+  }
+});
+
+// Get creator benefit by email
+app.get('/api/creator-benefits/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    console.log('🔍 Fetching creator benefit for:', email);
+    
+    const result = await DatabaseService.getCreatorBenefitByEmail(email);
+    
+    if (result.error) {
+      return res.status(500).json({ error: result.error });
+    }
+    
+    res.json({ success: true, benefit: result.benefit });
+  } catch (error) {
+    console.error('❌ Get creator benefit error:', error);
+    res.status(500).json({ error: 'Failed to get creator benefit' });
+  }
+});
+
+// Add tokens to existing creator
+app.put('/api/creator-benefits/:email/add-tokens', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const { tokens } = req.body;
+    
+    if (!tokens || isNaN(tokens) || tokens <= 0) {
+      return res.status(400).json({ error: 'Valid token amount is required' });
+    }
+    
+    console.log(`💰 Adding ${tokens} tokens to ${email}`);
+    
+    const result = await DatabaseService.addTokens(email, tokens);
+    
+    if (result.error) {
+      return res.status(500).json({ error: result.error });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Added ${tokens} tokens`, 
+      newTotal: result.newTotal 
+    });
+  } catch (error) {
+    console.error('❌ Add tokens error:', error);
+    res.status(500).json({ error: 'Failed to add tokens' });
+  }
+});
+
+// Extend pro access for existing creator
+app.put('/api/creator-benefits/:email/extend-pro', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const { days } = req.body;
+    
+    if (!days || isNaN(days) || days <= 0) {
+      return res.status(400).json({ error: 'Valid number of days is required' });
+    }
+    
+    console.log(`👑 Extending pro access for ${email} by ${days} days`);
+    
+    const result = await DatabaseService.extendProAccess(email, days);
+    
+    if (result.error) {
+      return res.status(500).json({ error: result.error });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Pro access extended by ${days} days`, 
+      newExpiryDate: result.newExpiryDate 
+    });
+  } catch (error) {
+    console.error('❌ Extend pro access error:', error);
+    res.status(500).json({ error: 'Failed to extend pro access' });
+  }
+});
+
+// Mark benefits as used
+app.put('/api/creator-benefits/:email/used', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const { userId } = req.body;
+    
+    console.log('✅ Marking benefit as used:', { email, userId });
+    
+    const result = await DatabaseService.markAsUsed(email, userId);
+    
+    if (result.error) {
+      return res.status(500).json({ error: result.error });
+    }
+    
+    res.json({ success: true, message: 'Benefits marked as used' });
+  } catch (error) {
+    console.error('❌ Mark as used error:', error);
+    res.status(500).json({ error: 'Failed to mark benefits as used' });
+  }
+});
+
+// Delete creator benefit
+app.delete('/api/creator-benefits/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    console.log('🗑️ Deleting creator benefit:', email);
+    
+    const result = await DatabaseService.deleteCreatorBenefit(email);
+    
+    if (result.error) {
+      return res.status(500).json({ error: result.error });
+    }
+    
+    res.json({ success: true, message: 'Creator benefit deleted' });
+  } catch (error) {
+    console.error('❌ Delete creator benefit error:', error);
+    res.status(500).json({ error: 'Failed to delete creator benefit' });
+  }
+});
 
 // Clean up old files (run periodically)
 app.post('/api/cleanup', async (req, res) => {

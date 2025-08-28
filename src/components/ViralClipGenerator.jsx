@@ -436,6 +436,18 @@ const ViralClipGenerator = () => {
 
     setFile(uploadedFile);
     console.log('🚨 RESETTING STATE IN handleFileUpload - this might be the culprit!');
+    
+    // Only reset if user confirms or if no analysis exists
+    if (extractedMoments.length > 0 && analysisComplete) {
+      const userConfirms = window.confirm(
+        'You have existing analysis results. Uploading a new file will clear them. Continue?'
+      );
+      if (!userConfirms) {
+        setProcessing(false);
+        return;
+      }
+    }
+    
     setExtractedMoments([]);
     setAnalysisComplete(false);
     setProgress(0);
@@ -488,12 +500,18 @@ const ViralClipGenerator = () => {
   const generateVideoClip = async (moment) => {
     console.log('🎬 generateVideoClip called with:', moment);
     console.log('🎬 uploadedFileInfo:', uploadedFileInfo);
+    console.log('🎬 file:', file);
     
+    // Check if we have the necessary file info
     if (!uploadedFileInfo) {
-      console.error('❌ No uploadedFileInfo available');
-      setError("No uploaded file available");
+      console.error('❌ No uploadedFileInfo available - file may have been cleaned up');
+      setError("File not available. Please re-upload your file.");
       return;
     }
+    
+    const activeFileInfo = uploadedFileInfo;
+    
+    console.log('🎬 Using file info:', activeFileInfo);
 
     setGeneratingClips(true);
     setClipProgress({ ...clipProgress, [moment.id]: 0 });
@@ -504,7 +522,7 @@ const ViralClipGenerator = () => {
 
       // Call backend to transcribe this segment
       const requestPayload = {
-        filename: uploadedFileInfo.filename,
+        filename: activeFileInfo.filename,
         startTime: moment.startTimeSeconds,
         endTime: moment.endTimeSeconds,
         segmentId: moment.id
@@ -558,7 +576,7 @@ const ViralClipGenerator = () => {
       setExtractedMoments(updatedMoments);
 
       // Add clip to video library
-      if (user?.id && uploadedFileInfo) {
+      if (user?.id && activeFileInfo) {
         const clipData = transcriptionResult.adjustedStartTime ? {
           startTime: transcriptionResult.adjustedStartTime,
           endTime: transcriptionResult.adjustedEndTime,
@@ -575,7 +593,7 @@ const ViralClipGenerator = () => {
           hasWatermark: getTierLimits().hasWatermark
         };
         
-        VideoLibraryService.addClipToVideo(user.id, uploadedFileInfo.filename, clipData);
+        VideoLibraryService.addClipToVideo(user.id, activeFileInfo.filename, clipData);
       }
 
       setClipProgress((prev) => ({ ...prev, [moment.id]: 100 }));
@@ -588,6 +606,8 @@ const ViralClipGenerator = () => {
       console.log(
         `✅ Successfully transcribed segment ${moment.id}: "${transcriptionResult.transcript.substring(0, 50)}..."`
       );
+      console.log('🔍 Transcription result captions:', transcriptionResult.captions);
+      console.log('🔍 Updated moment subtitles:', updatedMoments.find(m => m.id === moment.id)?.subtitles);
     } catch (error) {
       console.error("Transcription error:", error);
       setError(`Transcription failed: ${error.message}`);
@@ -605,10 +625,13 @@ const ViralClipGenerator = () => {
   };
 
   const showVideoClipModal = (moment) => {
+    // Check if we have the necessary file info
     if (!moment.clipGenerated || !uploadedFileInfo) {
       alert("Generate clip first");
       return;
     }
+    
+    const activeFileInfo = uploadedFileInfo;
 
     // Create modal
     const modal = document.createElement("div");
@@ -654,25 +677,102 @@ const ViralClipGenerator = () => {
       'right': 'right center'
     }[selectedCropPosition] || 'center center';
     
-    video.style.cssText = `
-      width: ${videoWidth}px; 
-      height: ${videoHeight}px; 
-      display: block; 
-      object-fit: cover;
-      object-position: ${objectPosition};
-      border-radius: 8px;
-    `;
+    // Set video source from server  
+    const fileUrl = `http://localhost:3001/uploads/${activeFileInfo.filename}`;
+    const isAudioFile = activeFileInfo.filename.match(/\.(mp3|wav|m4a|aac|ogg)$/i);
+    
+    console.log('🎥 Setting video source:', fileUrl);
+    console.log('🎵 Is audio file:', isAudioFile);
+    
+    // Style video element differently for audio files
+    if (isAudioFile) {
+      video.style.cssText = `
+        width: ${videoWidth}px; 
+        height: ${videoHeight}px; 
+        display: block; 
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 8px;
+        position: relative;
+      `;
+      
+      // Create audio visualization that plays the actual audio
+      const audioPlayer = document.createElement("audio");
+      audioPlayer.src = fileUrl;
+      audioPlayer.style.display = "none";
+      
+      // Add audio visualization overlay with waveform-like animation
+      const audioOverlay = document.createElement("div");
+      audioOverlay.style.cssText = `
+        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        display: flex; align-items: center; justify-content: center; flex-direction: column;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 8px; z-index: 1; overflow: hidden;
+      `;
+      
+      // Add animated waveform bars
+      const waveformContainer = document.createElement("div");
+      waveformContainer.style.cssText = `
+        display: flex; align-items: center; gap: 2px; margin: 20px 0;
+        height: 40px;
+      `;
+      
+      // Create animated bars
+      for (let i = 0; i < 20; i++) {
+        const bar = document.createElement("div");
+        bar.style.cssText = `
+          width: 3px; background: rgba(255,255,255,0.6); border-radius: 2px;
+          height: ${Math.random() * 30 + 5}px; transition: all 0.3s ease;
+          animation: pulse ${0.5 + Math.random() * 1}s infinite alternate;
+        `;
+        waveformContainer.appendChild(bar);
+      }
+      
+      audioOverlay.innerHTML = `
+        <div style="text-align: center; color: white;">
+          <div style="font-size: 48px; margin-bottom: 15px;">🎧</div>
+          <div style="font-size: 18px; font-weight: 600;">Playing Audio</div>
+          <div style="font-size: 14px; opacity: 0.8; margin-top: 5px;">${moment.title || 'Segment ' + moment.id}</div>
+        </div>
+      `;
+      audioOverlay.appendChild(waveformContainer);
+      
+      // Add CSS animation for the bars
+      const style = document.createElement("style");
+      style.textContent = `
+        @keyframes pulse {
+          0% { height: 5px; opacity: 0.5; }
+          100% { height: 35px; opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      videoContainer.appendChild(audioOverlay);
+      videoContainer.appendChild(audioPlayer);
+      
+      // Use audio player instead of video for timing
+      video = audioPlayer;
+    } else {
+      video.style.cssText = `
+        width: ${videoWidth}px; 
+        height: ${videoHeight}px; 
+        display: block; 
+        object-fit: cover;
+        object-position: ${objectPosition};
+        border-radius: 8px;
+      `;
+    }
     video.controls = false;
     video.muted = false;
     // Don't set currentTime here - set it after metadata loads
-
-    // Set video source from server  
-    const fileUrl = `http://localhost:3001/uploads/${uploadedFileInfo.filename}`;
-    console.log('🎥 Setting video source:', fileUrl);
     
     video.onerror = (e) => {
       console.error('❌ Video loading error:', e);
       console.error('❌ Video error code:', video.error);
+      
+      if (isAudioFile) {
+        console.log('🎵 Audio file detected, this is expected behavior');
+        // For audio files, we'll just show the captions overlay
+      }
     };
     
     video.onloadstart = () => {
@@ -1219,6 +1319,16 @@ const ViralClipGenerator = () => {
     console.log('🔥 Selected crop position:', selectedCropPosition);
     console.log('🔥 User tier:', userTier);
     
+    // Check if we have the necessary file info  
+    if (!uploadedFileInfo) {
+      console.error('❌ No uploadedFileInfo available for download');
+      alert('File not available. Please re-upload your file.');
+      return;
+    }
+    
+    const activeFileInfo = uploadedFileInfo;
+    console.log('🔥 Active file info:', activeFileInfo);
+    
     if (!moment.subtitles || moment.subtitles.length === 0) {
       alert('No subtitles available for download');
       return;
@@ -1241,7 +1351,7 @@ const ViralClipGenerator = () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          filename: uploadedFileInfo.filename,
+          filename: activeFileInfo.filename,
           startTime: moment.startTimeSeconds,
           endTime: moment.endTimeSeconds,
           subtitles: moment.subtitles,
@@ -2469,9 +2579,18 @@ const ViralClipGenerator = () => {
                         <div className="segment-actions">
                           <button
                             onClick={() => {
+                              console.log('🔥 BUTTON CLICKED!', {
+                                momentId: moment.id,
+                                clipGenerated: moment.clipGenerated,
+                                clipProgress: clipProgress[moment.id],
+                                buttonDisabled: clipProgress[moment.id] !== undefined
+                              });
+                              
                               if (moment.clipGenerated) {
+                                console.log('🔥 Showing modal for generated clip');
                                 showVideoClipModal(moment);
                               } else {
+                                console.log('🔥 Calling generateVideoClip');
                                 generateVideoClip(moment);
                               }
                             }}
@@ -2487,55 +2606,131 @@ const ViralClipGenerator = () => {
                             )}
                           </button>
                           
-                          {moment.clipGenerated && moment.subtitles && moment.subtitles.length > 0 && (
+                          {moment.clipGenerated && moment.transcript && (
                             <div style={{ 
-                              display: 'flex', 
-                              flexDirection: 'column', 
-                              gap: '8px', 
-                              alignItems: 'stretch',
-                              width: '100%'
+                              display: 'flex',
+                              gap: '8px',
+                              flexWrap: 'wrap',
+                              justifyContent: 'center',
+                              alignItems: 'center'
                             }}>
-                              {/* Mini Aspect Ratio Selector */}
-                              <div style={{
-                                display: 'flex',
-                                gap: '4px',
-                                flexWrap: 'wrap',
-                                justifyContent: 'center'
-                              }}>
-                                {(['9:16', '16:9', '1:1', '4:5', '21:9']).map(ratio => (
-                                  <button
-                                    key={ratio}
-                                    onClick={() => downloadVideoWithSubtitles(moment, ratio)}
-                                    style={{
-                                      padding: '4px 6px',
-                                      fontSize: '10px',
-                                      borderRadius: '4px',
-                                      border: '1px solid #6b7280',
-                                      background: '#4b5563',
-                                      color: '#e5e7eb',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.target.style.background = '#8b5cf6';
-                                      e.target.style.color = 'white';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.target.style.background = '#4b5563';
-                                      e.target.style.color = '#e5e7eb';
-                                    }}
-                                    title={`Download as ${ASPECT_RATIOS[ratio]?.name || ratio}`}
-                                  >
-                                    {ASPECT_RATIOS[ratio]?.icon || '📐'} {ratio}
-                                  </button>
-                                ))}
-                              </div>
-                              <div style={{ 
-                                fontSize: '11px', 
-                                color: '#9ca3af', 
-                                textAlign: 'center' 
-                              }}>
-                                ↑ Click aspect ratio to download
+
+                              {/* Download Dropdown */}
+                              <div style={{ position: 'relative', display: 'inline-block' }}>
+                                <button
+                                  onClick={(e) => {
+                                    const dropdownId = `dropdown-${moment.id}`;
+                                    const dropdown = document.getElementById(dropdownId);
+                                    const isVisible = dropdown.style.display === 'block';
+                                    
+                                    if (!isVisible) {
+                                      // Close other dropdowns first
+                                      document.querySelectorAll('[id^="dropdown-"]').forEach(d => d.style.display = 'none');
+                                      
+                                      // Calculate position based on button location
+                                      const button = e.currentTarget;
+                                      const rect = button.getBoundingClientRect();
+                                      dropdown.style.position = 'fixed';
+                                      dropdown.style.top = `${rect.bottom + 5}px`;
+                                      dropdown.style.left = `${rect.left}px`;
+                                      dropdown.style.display = 'block';
+                                      
+                                      // Add click-outside handler
+                                      const handleClickOutside = (event) => {
+                                        if (!dropdown.contains(event.target) && !button.contains(event.target)) {
+                                          dropdown.style.display = 'none';
+                                          document.removeEventListener('click', handleClickOutside);
+                                        }
+                                      };
+                                      setTimeout(() => document.addEventListener('click', handleClickOutside), 10);
+                                    } else {
+                                      dropdown.style.display = 'none';
+                                    }
+                                  }}
+                                  className="segment-action-secondary dropdown-trigger"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    minWidth: '120px',
+                                    justifyContent: 'center'
+                                  }}
+                                >
+                                  <Download className="w-4 h-4" />
+                                  Download ▼
+                                </button>
+
+                                {/* Dropdown Menu */}
+                                <div
+                                  id={`dropdown-${moment.id}`}
+                                  style={{
+                                    display: 'none',
+                                    position: 'fixed',
+                                    top: '0',
+                                    left: '0',
+                                    background: '#1f2937',
+                                    border: '1px solid #374151',
+                                    borderRadius: '8px',
+                                    padding: '8px',
+                                    minWidth: '200px',
+                                    zIndex: 9999,
+                                    boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+                                  }}
+                                >
+                                  <div style={{ 
+                                    fontSize: '12px', 
+                                    color: '#9ca3af', 
+                                    marginBottom: '8px',
+                                    textAlign: 'center'
+                                  }}>
+                                    Choose download format:
+                                  </div>
+                                  
+                                  {[
+                                    { ratio: '9:16', name: 'TikTok/Instagram Reels', icon: '📱', desc: 'Vertical videos' },
+                                    { ratio: '16:9', name: 'YouTube/Widescreen', icon: '📺', desc: 'Horizontal videos' },
+                                    { ratio: '1:1', name: 'Instagram/Facebook Post', icon: '⏹️', desc: 'Square videos' },
+                                    { ratio: '4:5', name: 'Instagram Stories', icon: '📄', desc: 'Portrait videos' },
+                                    { ratio: '21:9', name: 'Cinematic/Ultrawide', icon: '🎬', desc: 'Widescreen format' }
+                                  ].map(({ ratio, name, icon, desc }) => (
+                                    <button
+                                      key={ratio}
+                                      onClick={() => {
+                                        downloadVideoWithSubtitles(moment, ratio);
+                                        document.getElementById(`dropdown-${moment.id}`).style.display = 'none';
+                                      }}
+                                      style={{
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        marginBottom: '4px',
+                                        background: '#374151',
+                                        border: '1px solid #4b5563',
+                                        borderRadius: '6px',
+                                        color: '#e5e7eb',
+                                        cursor: 'pointer',
+                                        textAlign: 'left',
+                                        fontSize: '12px',
+                                        transition: 'all 0.2s'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.target.style.background = '#8b5cf6';
+                                        e.target.style.borderColor = '#8b5cf6';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.target.style.background = '#374151';
+                                        e.target.style.borderColor = '#4b5563';
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '16px' }}>{icon}</span>
+                                        <div>
+                                          <div style={{ fontWeight: '500' }}>{name}</div>
+                                          <div style={{ fontSize: '10px', opacity: '0.7' }}>{desc} • {ratio}</div>
+                                        </div>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
                             </div>
                           )}
