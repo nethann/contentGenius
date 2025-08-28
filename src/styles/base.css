@@ -22,20 +22,25 @@
   --text-quaternary: #666666; /* Linear's quaternary text */
   --text-disabled: #4a4a4a;
   
-  /* Accent Colors - Linear's palette */
+  /* Accent Colors - Linear's muted palette */
   --accent-primary: #5e6ad2; /* Linear's primary purple */
-  --accent-secondary: #8b5cf6; 
-  --accent-blue: #0ea5e9; /* Linear's blue */
-  --accent-green: #10b981; /* Linear's green */
-  --accent-red: #ef4444; /* Linear's red */
+  --accent-secondary: #6366f1; /* Muted indigo */
+  --accent-blue: #6366f1; /* Muted purple-blue - more visible */
+  --accent-green: #059669; /* Muted teal-green - more visible */
+  --accent-red: #ef4444; /* Keep red for danger */
   --accent-orange: #f97316; /* Linear's orange */
   --accent-yellow: #eab308; /* Linear's yellow */
   
-  /* Status Colors */
-  --success: #10b981;
+  /* Status Colors - More muted but visible */
+  --success: #059669; /* Muted teal-green instead of bright green */
+  --success-hover: #047857; /* Darker teal on hover */
   --warning: #f97316;
   --danger: #ef4444;
-  --info: #0ea5e9;
+  --info: #6366f1; /* Muted purple-blue */
+  
+  /* Hover states for muted colors */
+  --accent-blue-hover: #4f46e5; /* Darker purple-blue on hover */
+  --accent-green-hover: #047857; /* Darker teal */
   
   /* Border Colors */
   --border-primary: #26282c;
