@@ -9,7 +9,7 @@ export class TokenService {
       case 'pro':
         return { 
           name: 'Pro', 
-          maxTokens: 100, 
+          maxTokens: 20, 
           refreshType: 'monthly',
           maxClips: 25, 
           maxVideoLength: 3600 
