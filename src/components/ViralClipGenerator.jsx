@@ -1211,10 +1211,11 @@ const ViralClipGenerator = () => {
     showVideoClipModal(moment);
   };
 
-  const downloadVideoWithSubtitles = async (moment) => {
+  const downloadVideoWithSubtitles = async (moment, customAspectRatio = null) => {
     console.log('🔥 DOWNLOAD FUNCTION CALLED!');
     console.log('🔥 Moment:', moment);
-    console.log('🔥 Selected aspect ratio:', selectedAspectRatio);
+    console.log('🔥 Selected aspect ratio:', customAspectRatio || selectedAspectRatio);
+    console.log('🔥 Custom aspect ratio:', customAspectRatio);
     console.log('🔥 Selected crop position:', selectedCropPosition);
     console.log('🔥 User tier:', userTier);
     
@@ -1249,7 +1250,7 @@ const ViralClipGenerator = () => {
           userTier: userTier, // Add user tier for watermark logic
           hasWatermark: getTierLimits().hasWatermark,
           // Pro feature parameters
-          aspectRatio: selectedAspectRatio,
+          aspectRatio: customAspectRatio || selectedAspectRatio,
           cropPosition: selectedCropPosition
         })
       });
@@ -2222,182 +2223,6 @@ const ViralClipGenerator = () => {
                     </button>
                   </div>
 
-                  {/* Export Controls */}
-                    <div style={{
-                      background: '#1f2937',
-                      border: '1px solid #374151',
-                      borderRadius: '12px',
-                      padding: '20px',
-                      marginBottom: '24px'
-                    }}>
-                      <h4 style={{
-                        color: '#8b5cf6',
-                        fontSize: '16px',
-                        fontWeight: '600',
-                        marginBottom: '16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        <Settings style={{ width: '18px', height: '18px' }} />
-                        🎬 Export Settings
-                      </h4>
-                      
-                      <div style={{ 
-                        display: 'grid', 
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-                        gap: '20px' 
-                      }}>
-                        {/* Aspect Ratios */}
-                        <div>
-                          <label style={{ 
-                            color: '#d1d5db', 
-                            fontSize: '14px', 
-                            fontWeight: '500', 
-                            display: 'block', 
-                            marginBottom: '12px' 
-                          }}>
-                            📐 Select Aspect Ratio
-                          </label>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                            {Object.entries(ASPECT_RATIOS).slice(0, 6).map(([ratio, config]) => (
-                              <button
-                                key={ratio}
-                                onClick={() => setSelectedAspectRatio(ratio)}
-                                style={{
-                                  padding: '10px',
-                                  border: selectedAspectRatio === ratio ? '2px solid #8b5cf6' : '1px solid #4b5563',
-                                  borderRadius: '8px',
-                                  background: selectedAspectRatio === ratio ? '#8b5cf620' : '#374151',
-                                  color: selectedAspectRatio === ratio ? '#c4b5fd' : '#d1d5db',
-                                  cursor: 'pointer',
-                                  textAlign: 'left',
-                                  fontSize: '12px',
-                                  transition: 'all 0.2s'
-                                }}
-                                title={`${config.platforms} - ${config.name}`}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                                  <span style={{ fontSize: '14px' }}>{config.icon}</span>
-                                  <span style={{ fontWeight: '600' }}>{ratio}</span>
-                                </div>
-                                <div style={{ fontSize: '10px', opacity: '0.8' }}>{config.name}</div>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Export Mode */}
-                        <div>
-                          <label style={{ 
-                            color: '#d1d5db', 
-                            fontSize: '14px', 
-                            fontWeight: '500', 
-                            display: 'block', 
-                            marginBottom: '12px' 
-                          }}>
-                            📦 Export Mode
-                          </label>
-                          <div style={{ marginBottom: '12px' }}>
-                            {hasFeature('bulk_export') ? (
-                              <button
-                                onClick={() => setBulkExportMode(!bulkExportMode)}
-                                style={{
-                                  padding: '12px 16px',
-                                  borderRadius: '8px',
-                                  border: 'none',
-                                  background: bulkExportMode ? '#8b5cf6' : '#4b5563',
-                                  color: 'white',
-                                  cursor: 'pointer',
-                                  fontSize: '14px',
-                                  fontWeight: '500',
-                                  transition: 'all 0.2s',
-                                  width: '100%'
-                                }}
-                              >
-                                {bulkExportMode ? '✅ Bulk Export Mode' : '📤 Single Export Mode'}
-                              </button>
-                            ) : (
-                              <div>
-                                <button
-                                  style={{
-                                    padding: '12px 16px',
-                                    borderRadius: '8px',
-                                    border: '1px solid #6b7280',
-                                    background: '#374151',
-                                    color: '#9ca3af',
-                                    cursor: 'not-allowed',
-                                    fontSize: '14px',
-                                    fontWeight: '500',
-                                    width: '100%'
-                                  }}
-                                  disabled
-                                >
-                                  📤 Single Export Mode
-                                </button>
-                                <div style={{
-                                  marginTop: '8px',
-                                  padding: '8px 12px',
-                                  background: 'linear-gradient(135deg, #7c3aed20 0%, #8b5cf620 100%)',
-                                  border: '1px solid #8b5cf6',
-                                  borderRadius: '6px',
-                                  fontSize: '12px',
-                                  color: '#c4b5fd',
-                                  textAlign: 'center'
-                                }}>
-                                  🚀 <strong>Bulk Export</strong> available in Pro version<br/>
-                                  Export multiple aspect ratios simultaneously
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          {bulkExportMode && hasFeature('bulk_export') && (
-                            <>
-                              <div style={{ fontSize: '12px', color: '#c4b5fd', marginBottom: '8px' }}>
-                                Generate clips in multiple formats simultaneously
-                              </div>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                {['9:16', '16:9', '1:1', '4:5'].map(ratio => (
-                                  <button
-                                    key={ratio}
-                                    onClick={() => {
-                                      if (selectedBulkRatios.includes(ratio)) {
-                                        setSelectedBulkRatios(selectedBulkRatios.filter(r => r !== ratio));
-                                      } else {
-                                        setSelectedBulkRatios([...selectedBulkRatios, ratio]);
-                                      }
-                                    }}
-                                    style={{
-                                      padding: '4px 8px',
-                                      borderRadius: '4px',
-                                      border: selectedBulkRatios.includes(ratio) ? '2px solid #8b5cf6' : '1px solid #6b7280',
-                                      background: selectedBulkRatios.includes(ratio) ? '#8b5cf620' : '#374151',
-                                      color: selectedBulkRatios.includes(ratio) ? '#c4b5fd' : '#d1d5db',
-                                      cursor: 'pointer',
-                                      fontSize: '11px'
-                                    }}
-                                  >
-                                    {ASPECT_RATIOS[ratio]?.icon} {ratio}
-                                  </button>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div style={{ 
-                        marginTop: '16px', 
-                        padding: '12px', 
-                        background: '#065f4620', 
-                        borderRadius: '8px',
-                        border: '1px solid #059669',
-                        color: '#10b981',
-                        fontSize: '13px'
-                      }}>
-                        ✨ <strong>Export Controls:</strong> Choose aspect ratios for each clip • Multiple format support • Enhanced cropping
-                      </div>
-                    </div>
                   
                   <div className="segments-grid">
                     {extractedMoments.map((moment) => (
@@ -2663,14 +2488,56 @@ const ViralClipGenerator = () => {
                           </button>
                           
                           {moment.clipGenerated && moment.subtitles && moment.subtitles.length > 0 && (
-                            <button
-                              onClick={() => downloadVideoWithSubtitles(moment)}
-                              className="segment-action-secondary"
-                              title="Download video with subtitles"
-                            >
-                              <Download className="segment-action-icon" />
-                              Download
-                            </button>
+                            <div style={{ 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              gap: '8px', 
+                              alignItems: 'stretch',
+                              width: '100%'
+                            }}>
+                              {/* Mini Aspect Ratio Selector */}
+                              <div style={{
+                                display: 'flex',
+                                gap: '4px',
+                                flexWrap: 'wrap',
+                                justifyContent: 'center'
+                              }}>
+                                {(['9:16', '16:9', '1:1', '4:5', '21:9']).map(ratio => (
+                                  <button
+                                    key={ratio}
+                                    onClick={() => downloadVideoWithSubtitles(moment, ratio)}
+                                    style={{
+                                      padding: '4px 6px',
+                                      fontSize: '10px',
+                                      borderRadius: '4px',
+                                      border: '1px solid #6b7280',
+                                      background: '#4b5563',
+                                      color: '#e5e7eb',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.target.style.background = '#8b5cf6';
+                                      e.target.style.color = 'white';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.target.style.background = '#4b5563';
+                                      e.target.style.color = '#e5e7eb';
+                                    }}
+                                    title={`Download as ${ASPECT_RATIOS[ratio]?.name || ratio}`}
+                                  >
+                                    {ASPECT_RATIOS[ratio]?.icon || '📐'} {ratio}
+                                  </button>
+                                ))}
+                              </div>
+                              <div style={{ 
+                                fontSize: '11px', 
+                                color: '#9ca3af', 
+                                textAlign: 'center' 
+                              }}>
+                                ↑ Click aspect ratio to download
+                              </div>
+                            </div>
                           )}
                         </div>
                       </div>
