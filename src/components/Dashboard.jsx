@@ -4,6 +4,7 @@ import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 import { useAuth } from '../contexts/ClerkAuthContext';
 import { AdminService } from '../services/adminService';
 import { TokenService } from '../services/tokenService';
+import { ClerkDatabaseService } from '../services/clerkDatabaseService';
 import TierChangeModal from './TierChangeModal';
 import { 
   Zap, 
@@ -28,7 +29,7 @@ const Dashboard = () => {
   const [searchParams] = useSearchParams();
   const { user: clerkUser, isLoaded: userLoaded } = useUser();
   const { signOut: clerkSignOut } = useClerkAuth();
-  const { user, userTier, loading, signOut } = useAuth();
+  const { user, userTier, loading, signOut, refreshBenefits, upgradeToPro } = useAuth();
   
   // Simple tier management for local state updates
   const [localUserTier, setUserTierState] = React.useState(userTier || 'guest');
@@ -146,22 +147,50 @@ const Dashboard = () => {
       return;
     }
 
-    if (userTier === 'pro') {
-      alert('You are already a Pro user!');
+    if (userTier === 'pro' || userTier === 'developer') {
+      alert('You already have premium access!');
       setShowTierDropdown(false);
       return;
     }
 
     try {
-      // Simple localStorage upgrade
-      setUserTierState('pro');
-      localStorage.setItem(`userTier_${user.id}`, 'pro');
+      console.log('🔄 Checking for creator benefits...');
       
-      setModalState({
-        isOpen: true,
-        type: 'upgrade',
-        message: '🎉 Welcome to Pro!\n\nYou now have access to:\n• Unlimited video length\n• Unlimited clips per video\n• Detailed viral analytics\n• No watermarks\n• Priority processing'
-      });
+      // First check if user has creator benefits available
+      const userEmail = user?.email?.toLowerCase();
+      if (userEmail) {
+        const benefitsResult = await ClerkDatabaseService.getCreatorBenefits(userEmail);
+        
+        if (benefitsResult.success && benefitsResult.benefits) {
+          // User has creator benefits - refresh them
+          console.log('✅ Found creator benefits, refreshing...');
+          await refreshBenefits();
+          
+          setModalState({
+            isOpen: true,
+            type: 'upgrade',
+            message: '🎉 Welcome to Pro!\n\nYour creator benefits have been activated:\n• Pro tier access\n• Additional tokens\n• No watermarks\n• Priority processing'
+          });
+        } else {
+          // No creator benefits - use the auth context upgrade method
+          console.log('ℹ️ No creator benefits found, using standard upgrade...');
+          const result = await upgradeToPro();
+          
+          if (result.error) {
+            setModalState({
+              isOpen: true,
+              type: 'error',
+              message: result.error
+            });
+          } else {
+            setModalState({
+              isOpen: true,
+              type: 'upgrade',
+              message: '🎉 Welcome to Pro!\n\nYou now have access to:\n• Unlimited video length\n• Unlimited clips per video\n• Detailed viral analytics\n• No watermarks\n• Priority processing'
+            });
+          }
+        }
+      }
     } catch (error) {
       console.error('❌ Upgrade error:', error);
       setModalState({
@@ -178,9 +207,19 @@ const Dashboard = () => {
     try {
       console.log('🔄 Starting downgrade process...');
       
-      // Simple localStorage downgrade
+      // Clear all user data to force re-initialization as guest
+      if (user?.id) {
+        localStorage.removeItem(`userTier_${user.id}`);
+        localStorage.removeItem(`tokens_${user.id}`);
+        localStorage.removeItem(`proExpiry_${user.id}`);
+        localStorage.removeItem(`benefitsApplied_${user.id}`);
+      }
+      
+      // Update local state immediately
       setUserTierState('guest');
-      localStorage.setItem(`userTier_${user.id}`, 'guest');
+      
+      // Refresh benefits to trigger auth context update
+      await refreshBenefits();
       
       setModalState({
         isOpen: true,
