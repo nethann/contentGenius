@@ -19,7 +19,11 @@ import {
   Database,
   Activity,
   Zap,
-  Gift
+  Gift,
+  Bell,
+  Megaphone,
+  Plus,
+  Send
 } from 'lucide-react';
 import '../styles/components/AdminDashboard.css';
 
@@ -45,9 +49,17 @@ const AdminDashboard = () => {
   const [analytics, setAnalytics] = useState(null);
   const [reports, setReports] = useState([]);
   const [creatorBenefits, setCreatorBenefits] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [activeReportTab, setActiveReportTab] = useState('bugs');
+  const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
+  const [announcementForm, setAnnouncementForm] = useState({
+    title: '',
+    description: '',
+    targetAudience: 'all',
+    bulletPoints: ['']
+  });
 
   // Check admin access
   const userEmail = user?.emailAddresses?.[0]?.emailAddress;
@@ -202,6 +214,11 @@ const AdminDashboard = () => {
         setCreatorBenefits(creatorBenefitsResult.benefits || []);
         console.log('✅ Loaded creator benefits:', creatorBenefitsResult.benefits?.length || 0, 'benefits');
       }
+      
+      // Load announcements from localStorage
+      const existingAnnouncements = JSON.parse(localStorage.getItem('admin_announcements') || '[]');
+      setAnnouncements(existingAnnouncements);
+      console.log('✅ Loaded announcements:', existingAnnouncements.length, 'announcements');
     } catch (error) {
       console.error('❌ Error loading admin data:', error);
       alert(`Unexpected error: ${error.message}`);
@@ -342,11 +359,11 @@ const AdminDashboard = () => {
             Overview
           </button>
           <button
-            onClick={() => setActiveTab('users')}
-            className={`admin-nav-btn ${activeTab === 'users' ? 'active' : ''}`}
+            onClick={() => setActiveTab('announcements')}
+            className={`admin-nav-btn ${activeTab === 'announcements' ? 'active' : ''}`}
           >
-            <Users className="w-5 h-5 mr-2" />
-            User Management
+            <Megaphone className="w-5 h-5 mr-2" />
+            Updates & Announcements
           </button>
           <button
             onClick={() => setActiveTab('creators')}
@@ -621,51 +638,333 @@ const AdminDashboard = () => {
                 </div>
               )}
 
-              {/* Users Tab */}
-              {activeTab === 'users' && (
-                <div className="admin-users">
-                  <div className="admin-users-header">
-                    <h3>User Management ({users.length} users)</h3>
+              {/* Updates & Announcements Tab */}
+              {activeTab === 'announcements' && (
+                <div className="admin-announcements">
+                  <div className="admin-announcements-header">
+                    <h3>Updates & Announcements</h3>
+                    <button
+                      onClick={() => setShowAnnouncementForm(true)}
+                      style={{
+                        background: 'linear-gradient(45deg, #6366f1, #8b5cf6)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontWeight: '600',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <Plus className="w-4 h-4" />
+                      New Announcement
+                    </button>
                   </div>
-                  
-                  <div className="admin-users-table">
-                    {users.map(user => (
-                      <div key={user.id} className="admin-user-row">
-                        <div className="user-info">
-                          <div className="user-name">{user.full_name || 'No name'}</div>
-                          <div className="user-email">{user.email}</div>
-                          <div className="user-meta">
-                            <span className={`user-tier tier-${user.user_tier}`}>
-                              {user.user_tier.charAt(0).toUpperCase() + user.user_tier.slice(1)}
-                            </span>
-                            <span className="user-date">
-                              Joined {new Date(user.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <div className="user-actions">
-                          <select
-                            value={user.user_tier}
-                            onChange={(e) => handleUpdateUserTier(user.id, e.target.value)}
-                            className="admin-tier-select"
-                          >
-                            <option value="guest">Guest</option>
-                            <option value="pro">Pro</option>
-                            <option value="developer">Developer</option>
-                          </select>
-                          
-                          {!AdminService.isAdmin(user.email) && (
-                            <button
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="admin-delete-btn"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
+
+                  {/* Announcement Form */}
+                  {showAnnouncementForm && (
+                    <div style={{
+                      background: '#1f2937',
+                      padding: '25px',
+                      borderRadius: '12px',
+                      marginBottom: '25px',
+                      border: '1px solid #374151',
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                    }}>
+                      <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '18px' }}>Create New Announcement</h4>
+                      
+                      {/* Title */}
+                      <div style={{ marginBottom: '15px' }}>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: 'white' }}>
+                          Title
+                        </label>
+                        <input
+                          type="text"
+                          value={announcementForm.title}
+                          onChange={(e) => setAnnouncementForm({...announcementForm, title: e.target.value})}
+                          placeholder="New feature: AI-powered clip suggestions"
+                          style={{
+                            width: '100%',
+                            padding: '10px 12px',
+                            border: '1px solid #4b5563',
+                            borderRadius: '6px',
+                            fontSize: '14px',
+                            background: '#374151',
+                            color: 'white'
+                          }}
+                        />
                       </div>
-                    ))}
+
+                      {/* Description */}
+                      <div style={{ marginBottom: '15px' }}>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: 'white' }}>
+                          Description
+                        </label>
+                        <textarea
+                          value={announcementForm.description}
+                          onChange={(e) => setAnnouncementForm({...announcementForm, description: e.target.value})}
+                          placeholder="We're excited to announce our latest feature that helps you create better viral clips..."
+                          rows={3}
+                          style={{
+                            width: '100%',
+                            padding: '10px 12px',
+                            border: '1px solid #4b5563',
+                            borderRadius: '6px',
+                            fontSize: '14px',
+                            background: '#374151',
+                            color: 'white',
+                            resize: 'vertical'
+                          }}
+                        />
+                      </div>
+
+                      {/* Bullet Points */}
+                      <div style={{ marginBottom: '15px' }}>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: 'white' }}>
+                          Key Points (Bullet Points)
+                        </label>
+                        {announcementForm.bulletPoints.map((point, index) => (
+                          <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                            <input
+                              type="text"
+                              value={point}
+                              onChange={(e) => {
+                                const newPoints = [...announcementForm.bulletPoints];
+                                newPoints[index] = e.target.value;
+                                setAnnouncementForm({...announcementForm, bulletPoints: newPoints});
+                              }}
+                              placeholder={`Key point ${index + 1}`}
+                              style={{
+                                flex: 1,
+                                padding: '8px 12px',
+                                border: '1px solid #4b5563',
+                                borderRadius: '6px',
+                                fontSize: '14px',
+                                background: '#374151',
+                                color: 'white'
+                              }}
+                            />
+                            {announcementForm.bulletPoints.length > 1 && (
+                              <button
+                                onClick={() => {
+                                  const newPoints = announcementForm.bulletPoints.filter((_, i) => i !== index);
+                                  setAnnouncementForm({...announcementForm, bulletPoints: newPoints});
+                                }}
+                                style={{
+                                  background: '#ef4444',
+                                  color: 'white',
+                                  border: 'none',
+                                  padding: '8px 12px',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => {
+                            setAnnouncementForm({
+                              ...announcementForm, 
+                              bulletPoints: [...announcementForm.bulletPoints, '']
+                            });
+                          }}
+                          style={{
+                            background: '#10b981',
+                            color: 'white',
+                            border: 'none',
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          + Add Point
+                        </button>
+                      </div>
+
+                      {/* Target Audience */}
+                      <div style={{ marginBottom: '20px' }}>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: 'white' }}>
+                          Target Audience
+                        </label>
+                        <select
+                          value={announcementForm.targetAudience}
+                          onChange={(e) => setAnnouncementForm({...announcementForm, targetAudience: e.target.value})}
+                          style={{
+                            width: '100%',
+                            padding: '10px 12px',
+                            border: '1px solid #4b5563',
+                            borderRadius: '6px',
+                            fontSize: '14px',
+                            background: '#374151',
+                            color: 'white'
+                          }}
+                        >
+                          <option value="all">All Users</option>
+                          <option value="guest">Guest Users Only</option>
+                          <option value="pro">Pro Users Only</option>
+                          <option value="developer">Developers Only</option>
+                        </select>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button
+                          onClick={async () => {
+                            if (!announcementForm.title || !announcementForm.description) {
+                              alert('Please fill in title and description');
+                              return;
+                            }
+
+                            // Create announcement object
+                            const announcement = {
+                              id: Date.now().toString(),
+                              title: announcementForm.title,
+                              description: announcementForm.description,
+                              bulletPoints: announcementForm.bulletPoints.filter(p => p.trim()),
+                              targetAudience: announcementForm.targetAudience,
+                              createdAt: new Date().toISOString(),
+                              createdBy: user.emailAddresses[0].emailAddress
+                            };
+
+                            // Save to localStorage for now
+                            const existingAnnouncements = JSON.parse(localStorage.getItem('admin_announcements') || '[]');
+                            existingAnnouncements.unshift(announcement);
+                            localStorage.setItem('admin_announcements', JSON.stringify(existingAnnouncements));
+                            
+                            // Update state
+                            setAnnouncements(existingAnnouncements);
+
+                            // Reset form
+                            setAnnouncementForm({
+                              title: '',
+                              description: '',
+                              targetAudience: 'all',
+                              bulletPoints: ['']
+                            });
+                            setShowAnnouncementForm(false);
+
+                            alert('✅ Announcement created successfully! Users will see it when they next log in.');
+                          }}
+                          style={{
+                            background: '#10b981',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 20px',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontWeight: '600',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <Send className="w-4 h-4" />
+                          Send Announcement
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowAnnouncementForm(false);
+                            setAnnouncementForm({
+                              title: '',
+                              description: '',
+                              targetAudience: 'all',
+                              bulletPoints: ['']
+                            });
+                          }}
+                          style={{
+                            background: '#6b7280',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 20px',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontWeight: '600'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Announcements List */}
+                  <div style={{ marginTop: '20px' }}>
+                    <h4 style={{ color: 'white', marginBottom: '15px' }}>Recent Announcements</h4>
+                    {announcements.length === 0 ? (
+                      <div style={{
+                        textAlign: 'center',
+                        padding: '40px',
+                        background: '#1f2937',
+                        borderRadius: '8px',
+                        border: '1px solid #374151',
+                        color: 'white'
+                      }}>
+                        <Megaphone className="w-16 h-16 mb-4 opacity-50" style={{ margin: '0 auto' }} />
+                        <h4>No Announcements Yet</h4>
+                        <p>Create your first announcement to communicate updates to your users.</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: '15px' }}>
+                        {announcements.map((announcement) => (
+                          <div key={announcement.id} style={{
+                            background: '#1f2937',
+                            padding: '20px',
+                            borderRadius: '8px',
+                            border: '1px solid #374151',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                              <h5 style={{ color: 'white', margin: 0, fontSize: '16px' }}>{announcement.title}</h5>
+                              <span style={{
+                                padding: '4px 8px',
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                background: announcement.targetAudience === 'all' ? '#3b82f6' : 
+                                           announcement.targetAudience === 'pro' ? '#8b5cf6' :
+                                           announcement.targetAudience === 'developer' ? '#10b981' : '#6b7280',
+                                color: 'white'
+                              }}>
+                                {announcement.targetAudience === 'all' ? 'All Users' : 
+                                 announcement.targetAudience.charAt(0).toUpperCase() + announcement.targetAudience.slice(1)}
+                              </span>
+                            </div>
+                            
+                            <p style={{ color: '#d1d5db', marginBottom: '10px', fontSize: '14px' }}>
+                              {announcement.description}
+                            </p>
+                            
+                            {announcement.bulletPoints && announcement.bulletPoints.length > 0 && (
+                              <ul style={{ color: '#d1d5db', marginBottom: '10px', paddingLeft: '20px' }}>
+                                {announcement.bulletPoints.map((point, index) => (
+                                  <li key={index} style={{ fontSize: '14px', marginBottom: '4px' }}>{point}</li>
+                                ))}
+                              </ul>
+                            )}
+                            
+                            <div style={{ 
+                              fontSize: '12px', 
+                              color: '#9ca3af', 
+                              display: 'flex', 
+                              justifyContent: 'space-between',
+                              borderTop: '1px solid #374151',
+                              paddingTop: '10px',
+                              marginTop: '15px'
+                            }}>
+                              <span>Created: {new Date(announcement.createdAt).toLocaleDateString()}</span>
+                              <span>By: {announcement.createdBy}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

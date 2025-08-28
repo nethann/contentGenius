@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Developer Tokens</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #5855f0;
+        }
+        .success {
+            background: #10b981;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            display: none;
+        }
+        .info {
+            background: #374151;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Clear Developer Token Data</h1>
+    
+    <div class="info">
+        <p>If your developer account is showing 0 tokens instead of ∞ (unlimited), click the button below to clear cached token data:</p>
+    </div>
+    
+    <button onclick="clearDeveloperTokens()">Clear Developer Token Cache</button>
+    <button onclick="clearAllTokenData()">Clear All Token Data</button>
+    
+    <div class="success" id="success">
+        ✅ Token cache cleared! Refresh your dashboard to see unlimited tokens.
+    </div>
+    
+    <div class="info">
+        <h3>Current localStorage Data:</h3>
+        <pre id="currentData" style="background: #000; padding: 10px; border-radius: 4px; font-size: 12px; overflow-x: auto;"></pre>
+        <button onclick="showCurrentData()">Show Current Data</button>
+    </div>
+
+    <script>
+        function clearDeveloperTokens() {
+            // Find all token-related keys for developer accounts
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('tokens_') || key.startsWith('userTier_') || key.startsWith('benefitsApplied_')) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            // Remove the keys
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
+            // Show success message
+            document.getElementById('success').style.display = 'block';
+            
+            console.log('Cleared keys:', keysToRemove);
+        }
+        
+        function clearAllTokenData() {
+            // Clear all content-scalar related data
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('tokens_') || 
+                    key.startsWith('userTier_') || 
+                    key.startsWith('benefitsApplied_') || 
+                    key.startsWith('proExpiry_') ||
+                    key.startsWith('seen_announcements_')) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            document.getElementById('success').style.display = 'block';
+            console.log('Cleared all token data keys:', keysToRemove);
+        }
+        
+        function showCurrentData() {
+            const data = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('tokens_') || 
+                    key.startsWith('userTier_') || 
+                    key.startsWith('benefitsApplied_')) {
+                    data[key] = localStorage.getItem(key);
+                }
+            }
+            document.getElementById('currentData').textContent = JSON.stringify(data, null, 2);
+        }
+        
+        // Show current data on load
+        showCurrentData();
+    </script>
+</body>
+</html>

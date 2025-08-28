@@ -89,7 +89,60 @@ const Dashboard = () => {
     description: '',
     submitting: false
   });
+  const [announcementModal, setAnnouncementModal] = React.useState({
+    isOpen: false,
+    announcement: null
+  });
   const dropdownRef = useRef(null);
+
+  // Check for new announcements on component mount and user tier changes
+  useEffect(() => {
+    if (user && userTier) {
+      checkForNewAnnouncements();
+    }
+  }, [user, userTier]);
+
+  const checkForNewAnnouncements = () => {
+    try {
+      const announcements = JSON.parse(localStorage.getItem('admin_announcements') || '[]');
+      const seenAnnouncements = JSON.parse(localStorage.getItem(`seen_announcements_${user?.id}`) || '[]');
+      
+      // Find announcements that haven't been seen and match user tier
+      const newAnnouncements = announcements.filter(announcement => {
+        const isForUserTier = announcement.targetAudience === 'all' || 
+                              announcement.targetAudience === userTier;
+        const notSeen = !seenAnnouncements.includes(announcement.id);
+        return isForUserTier && notSeen;
+      });
+
+      // Show the most recent unread announcement
+      if (newAnnouncements.length > 0) {
+        const latestAnnouncement = newAnnouncements.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+        setAnnouncementModal({
+          isOpen: true,
+          announcement: latestAnnouncement
+        });
+      }
+    } catch (error) {
+      console.error('Error checking announcements:', error);
+    }
+  };
+
+  const handleAnnouncementClose = () => {
+    if (announcementModal.announcement && user?.id) {
+      // Mark announcement as seen
+      try {
+        const seenAnnouncements = JSON.parse(localStorage.getItem(`seen_announcements_${user.id}`) || '[]');
+        if (!seenAnnouncements.includes(announcementModal.announcement.id)) {
+          seenAnnouncements.push(announcementModal.announcement.id);
+          localStorage.setItem(`seen_announcements_${user.id}`, JSON.stringify(seenAnnouncements));
+        }
+      } catch (error) {
+        console.error('Error marking announcement as seen:', error);
+      }
+    }
+    setAnnouncementModal({ isOpen: false, announcement: null });
+  };
 
   // Token system using TokenService
   const getTokenInfo = () => TokenService.getTokenInfo(userTier);
@@ -695,6 +748,65 @@ const Dashboard = () => {
                   {reportModal.submitting ? 'Submitting...' : 'Submit Report'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Announcement Modal */}
+      {announcementModal.isOpen && announcementModal.announcement && (
+        <div className="announcement-modal-overlay">
+          <div className="announcement-modal-backdrop" onClick={handleAnnouncementClose}></div>
+          <div className="announcement-modal-content">
+            <button
+              onClick={handleAnnouncementClose}
+              className="announcement-modal-close"
+            >
+              ✕
+            </button>
+            
+            <div className="announcement-modal-header">
+              <div className="announcement-modal-icon">
+                📢
+              </div>
+              <h2 className="announcement-modal-title">
+                {announcementModal.announcement.title}
+              </h2>
+              <div className="announcement-modal-meta">
+                <span className="announcement-modal-audience">
+                  For: {announcementModal.announcement.targetAudience === 'all' 
+                    ? 'All Users' 
+                    : announcementModal.announcement.targetAudience.charAt(0).toUpperCase() + announcementModal.announcement.targetAudience.slice(1)} Users
+                </span>
+              </div>
+            </div>
+
+            <div className="announcement-modal-body">
+              <p className="announcement-modal-description">
+                {announcementModal.announcement.description}
+              </p>
+              
+              {announcementModal.announcement.bulletPoints && announcementModal.announcement.bulletPoints.length > 0 && (
+                <div className="announcement-modal-bullets">
+                  <ul>
+                    {announcementModal.announcement.bulletPoints
+                      .filter(point => point.trim() !== '')
+                      .map((point, index) => (
+                        <li key={index}>{point}</li>
+                      ))
+                    }
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div className="announcement-modal-footer">
+              <button
+                onClick={handleAnnouncementClose}
+                className="announcement-modal-ok-btn"
+              >
+                Got it!
+              </button>
             </div>
           </div>
         </div>
