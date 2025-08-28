@@ -2287,7 +2287,7 @@ const ViralClipGenerator = () => {
                           </div>
                         </div>
 
-                        {/* Bulk Export Toggle */}
+                        {/* Export Mode */}
                         <div>
                           <label style={{ 
                             color: '#d1d5db', 
@@ -2299,25 +2299,59 @@ const ViralClipGenerator = () => {
                             📦 Export Mode
                           </label>
                           <div style={{ marginBottom: '12px' }}>
-                            <button
-                              onClick={() => setBulkExportMode(!bulkExportMode)}
-                              style={{
-                                padding: '12px 16px',
-                                borderRadius: '8px',
-                                border: 'none',
-                                background: bulkExportMode ? '#8b5cf6' : '#4b5563',
-                                color: 'white',
-                                cursor: 'pointer',
-                                fontSize: '14px',
-                                fontWeight: '500',
-                                transition: 'all 0.2s',
-                                width: '100%'
-                              }}
-                            >
-                              {bulkExportMode ? '✅ Bulk Export Mode' : '📤 Single Export Mode'}
-                            </button>
+                            {hasFeature('bulk_export') ? (
+                              <button
+                                onClick={() => setBulkExportMode(!bulkExportMode)}
+                                style={{
+                                  padding: '12px 16px',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  background: bulkExportMode ? '#8b5cf6' : '#4b5563',
+                                  color: 'white',
+                                  cursor: 'pointer',
+                                  fontSize: '14px',
+                                  fontWeight: '500',
+                                  transition: 'all 0.2s',
+                                  width: '100%'
+                                }}
+                              >
+                                {bulkExportMode ? '✅ Bulk Export Mode' : '📤 Single Export Mode'}
+                              </button>
+                            ) : (
+                              <div>
+                                <button
+                                  style={{
+                                    padding: '12px 16px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #6b7280',
+                                    background: '#374151',
+                                    color: '#9ca3af',
+                                    cursor: 'not-allowed',
+                                    fontSize: '14px',
+                                    fontWeight: '500',
+                                    width: '100%'
+                                  }}
+                                  disabled
+                                >
+                                  📤 Single Export Mode
+                                </button>
+                                <div style={{
+                                  marginTop: '8px',
+                                  padding: '8px 12px',
+                                  background: 'linear-gradient(135deg, #7c3aed20 0%, #8b5cf620 100%)',
+                                  border: '1px solid #8b5cf6',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  color: '#c4b5fd',
+                                  textAlign: 'center'
+                                }}>
+                                  🚀 <strong>Bulk Export</strong> available in Pro version<br/>
+                                  Export multiple aspect ratios simultaneously
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          {bulkExportMode && (
+                          {bulkExportMode && hasFeature('bulk_export') && (
                             <>
                               <div style={{ fontSize: '12px', color: '#c4b5fd', marginBottom: '8px' }}>
                                 Generate clips in multiple formats simultaneously
