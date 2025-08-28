@@ -649,7 +649,7 @@ const ViralClipGenerator = () => {
     `;
 
     // Create video element with dynamic aspect ratio
-    const video = document.createElement("video");
+    let video = document.createElement("video");
     const aspectConfig = ASPECT_RATIOS[selectedAspectRatio] || ASPECT_RATIOS['16:9'];
     const maxWidth = Math.min(window.innerWidth * 0.8, 800);
     const maxHeight = Math.min(window.innerHeight * 0.7, 600);
@@ -1312,7 +1312,7 @@ const ViralClipGenerator = () => {
   };
 
   const downloadVideoWithSubtitles = async (moment, customAspectRatio = null) => {
-    console.log('🔥 DOWNLOAD FUNCTION CALLED!');
+    console.log('🔥🔥🔥 DOWNLOAD FUNCTION CALLED! 🔥🔥🔥');
     console.log('🔥 Moment:', moment);
     console.log('🔥 Selected aspect ratio:', customAspectRatio || selectedAspectRatio);
     console.log('🔥 Custom aspect ratio:', customAspectRatio);
@@ -2615,121 +2615,68 @@ const ViralClipGenerator = () => {
                               alignItems: 'center'
                             }}>
 
-                              {/* Download Dropdown */}
-                              <div style={{ position: 'relative', display: 'inline-block' }}>
+                              {/* Hybrid Download Button with Dropdown */}
+                              <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'stretch',
+                                width: '100%',
+                                position: 'relative'
+                              }}>
+                                {/* Format Selector */}
+                                <div style={{ position: 'relative' }}>
+                                  <select
+                                    id={`aspect-select-${moment.id}`}
+                                    style={{
+                                      fontSize: '12px',
+                                      padding: '8px 8px',
+                                      background: 'rgba(139, 92, 246, 0.1)',
+                                      border: '1px solid rgba(139, 92, 246, 0.3)',
+                                      borderTopLeftRadius: '6px',
+                                      borderBottomLeftRadius: '6px',
+                                      borderTopRightRadius: 0,
+                                      borderBottomRightRadius: 0,
+                                      borderRight: 'none',
+                                      color: '#c4b5fd',
+                                      cursor: 'pointer',
+                                      height: '100%',
+                                      minWidth: '140px'
+                                    }}
+                                    defaultValue="16:9"
+                                  >
+                                    <option value="9:16">📱 TikTok (9:16)</option>
+                                    <option value="16:9">📺 YouTube (16:9)</option>
+                                    <option value="1:1">⏹️ Instagram (1:1)</option>
+                                    <option value="4:5">📄 Stories (4:5)</option>
+                                    <option value="21:9">🎬 Cinematic (21:9)</option>
+                                  </select>
+                                </div>
+                                
+                                {/* Main Download Button */}
                                 <button
                                   onClick={(e) => {
-                                    const dropdownId = `dropdown-${moment.id}`;
-                                    const dropdown = document.getElementById(dropdownId);
-                                    const isVisible = dropdown.style.display === 'block';
-                                    
-                                    if (!isVisible) {
-                                      // Close other dropdowns first
-                                      document.querySelectorAll('[id^="dropdown-"]').forEach(d => d.style.display = 'none');
-                                      
-                                      // Position relative to the button container
-                                      dropdown.style.position = 'absolute';
-                                      dropdown.style.top = '100%';
-                                      dropdown.style.right = '0';
-                                      dropdown.style.left = 'auto';
-                                      dropdown.style.display = 'block';
-                                      
-                                      // Add click-outside handler
-                                      const handleClickOutside = (event) => {
-                                        if (!dropdown.contains(event.target) && !button.contains(event.target)) {
-                                          dropdown.style.display = 'none';
-                                          document.removeEventListener('click', handleClickOutside);
-                                        }
-                                      };
-                                      setTimeout(() => document.addEventListener('click', handleClickOutside), 10);
-                                    } else {
-                                      dropdown.style.display = 'none';
-                                    }
+                                    const selectElement = document.getElementById(`aspect-select-${moment.id}`);
+                                    const selectedRatio = selectElement.value;
+                                    console.log('📥 Downloading with aspect ratio:', selectedRatio);
+                                    downloadVideoWithSubtitles(moment, selectedRatio);
                                   }}
-                                  className="segment-action-secondary dropdown-trigger"
+                                  className="segment-action-secondary"
                                   style={{
                                     display: 'flex',
                                     alignItems: 'center',
+                                    justifyContent: 'center',
                                     gap: '6px',
-                                    minWidth: '120px',
-                                    justifyContent: 'center'
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    fontSize: '12px',
+                                    fontWeight: '500',
+                                    borderTopLeftRadius: 0,
+                                    borderBottomLeftRadius: 0,
+                                    borderTopRightRadius: '6px',
+                                    borderBottomRightRadius: '6px'
                                   }}
                                 >
-                                  <Download className="w-4 h-4" />
-                                  Download ▼
+                                  Download Video
                                 </button>
-
-                                {/* Dropdown Menu */}
-                                <div
-                                  id={`dropdown-${moment.id}`}
-                                  style={{
-                                    display: 'none',
-                                    position: 'absolute',
-                                    top: '100%',
-                                    right: '0',
-                                    background: '#1f2937',
-                                    border: '1px solid #374151',
-                                    borderRadius: '8px',
-                                    padding: '8px',
-                                    minWidth: '200px',
-                                    zIndex: 9999,
-                                    boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
-                                  }}
-                                >
-                                  <div style={{ 
-                                    fontSize: '12px', 
-                                    color: '#9ca3af', 
-                                    marginBottom: '8px',
-                                    textAlign: 'center'
-                                  }}>
-                                    Choose download format:
-                                  </div>
-                                  
-                                  {[
-                                    { ratio: '9:16', name: 'TikTok/Instagram Reels', icon: '📱', desc: 'Vertical videos' },
-                                    { ratio: '16:9', name: 'YouTube/Widescreen', icon: '📺', desc: 'Horizontal videos' },
-                                    { ratio: '1:1', name: 'Instagram/Facebook Post', icon: '⏹️', desc: 'Square videos' },
-                                    { ratio: '4:5', name: 'Instagram Stories', icon: '📄', desc: 'Portrait videos' },
-                                    { ratio: '21:9', name: 'Cinematic/Ultrawide', icon: '🎬', desc: 'Widescreen format' }
-                                  ].map(({ ratio, name, icon, desc }) => (
-                                    <button
-                                      key={ratio}
-                                      onClick={() => {
-                                        downloadVideoWithSubtitles(moment, ratio);
-                                        document.getElementById(`dropdown-${moment.id}`).style.display = 'none';
-                                      }}
-                                      style={{
-                                        width: '100%',
-                                        padding: '8px 12px',
-                                        marginBottom: '4px',
-                                        background: '#374151',
-                                        border: '1px solid #4b5563',
-                                        borderRadius: '6px',
-                                        color: '#e5e7eb',
-                                        cursor: 'pointer',
-                                        textAlign: 'left',
-                                        fontSize: '12px',
-                                        transition: 'all 0.2s'
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        e.target.style.background = '#8b5cf6';
-                                        e.target.style.borderColor = '#8b5cf6';
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.target.style.background = '#374151';
-                                        e.target.style.borderColor = '#4b5563';
-                                      }}
-                                    >
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{ fontSize: '16px' }}>{icon}</span>
-                                        <div>
-                                          <div style={{ fontWeight: '500' }}>{name}</div>
-                                          <div style={{ fontSize: '10px', opacity: '0.7' }}>{desc} • {ratio}</div>
-                                        </div>
-                                      </div>
-                                    </button>
-                                  ))}
-                                </div>
                               </div>
                             </div>
                           )}
