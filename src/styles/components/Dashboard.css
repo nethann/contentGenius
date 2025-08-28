@@ -207,7 +207,7 @@
   display: block;
   font-size: 0.75rem;
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.7);
+  color: #000000;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.5rem;
@@ -235,9 +235,13 @@
   background: linear-gradient(135deg, #8b5cf6, #a855f7);
 }
 
+.tier-current-badge.tier-developer {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
 .tier-db-status {
   font-size: 0.75rem;
-  color: rgba(0, 0, 0, 0.5);
+  color: #000000;
   font-family: 'Monaco', 'Consolas', monospace;
 }
 
