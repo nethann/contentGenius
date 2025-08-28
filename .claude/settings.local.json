@@ -24,7 +24,8 @@
       "Bash(start create-sample-data.html)",
       "Bash(start test-video-library.html)",
       "Bash(dir \"C:\\Users\\netha\\Documents\\Programming\\ReactApps\\content-scalar\\server\\uploads\")",
-      "Read(C:\\/**)"
+      "Read(C:\\/**)",
+      "WebFetch(domain:linear.app)"
     ],
     "deny": [],
     "ask": [],

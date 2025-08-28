@@ -213,7 +213,7 @@ const ViralClipGenerator = () => {
           name: 'Guest', 
           maxClips: 3, 
           maxVideoLength: 600,
-          aspectRatios: ['9:16'],
+          aspectRatios: ['9:16', '16:9', '1:1', '4:5', '21:9'],
           cropPositions: ['center'],
           features: ['basic_export'],
           hasDetailedAnalytics: false
@@ -259,7 +259,7 @@ const ViralClipGenerator = () => {
   const TIER_LIMITS = {
     guest: {
       maxClips: 3,
-      aspectRatios: ['9:16'],
+      aspectRatios: ['9:16', '16:9', '1:1', '4:5', '21:9'],
       cropPositions: ['center'],
       features: ['basic_export']
     },
@@ -2222,8 +2222,7 @@ const ViralClipGenerator = () => {
                     </button>
                   </div>
 
-                  {/* Pro Export Controls */}
-                  {(userTier === 'pro' || userTier === 'developer') && (
+                  {/* Export Controls */}
                     <div style={{
                       background: '#1f2937',
                       border: '1px solid #374151',
@@ -2362,10 +2361,9 @@ const ViralClipGenerator = () => {
                         color: '#10b981',
                         fontSize: '13px'
                       }}>
-                        ✨ <strong>Pro Export Controls:</strong> Choose aspect ratios for each clip • Bulk export multiple formats • AI-optimized cropping
+                        ✨ <strong>Export Controls:</strong> Choose aspect ratios for each clip • Multiple format support • Enhanced cropping
                       </div>
                     </div>
-                  )}
                   
                   <div className="segments-grid">
                     {extractedMoments.map((moment) => (
