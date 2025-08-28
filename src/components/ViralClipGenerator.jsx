@@ -88,7 +88,11 @@ const ViralClipGenerator = () => {
       
       // Set extracted moments if they exist
       if (videoToLoad.extractedMoments && videoToLoad.extractedMoments.length > 0) {
-        console.log('🎬 useEffect: Setting', videoToLoad.extractedMoments.length, 'segments');
+        // Apply tier limits for loaded segments
+        const tierLimits = TIER_LIMITS[userTier] || TIER_LIMITS.guest;
+        const limitedMoments = userTier === 'guest' ? videoToLoad.extractedMoments.slice(0, 3) : videoToLoad.extractedMoments;
+        
+        console.log('🎬 useEffect: Setting', videoToLoad.extractedMoments.length, 'total segments,', limitedMoments.length, 'for', userTier, 'tier');
         
         // Set state in sequence to ensure proper updates
         setError(null);
@@ -97,9 +101,9 @@ const ViralClipGenerator = () => {
         
         // Use setTimeout to ensure state updates properly
         setTimeout(() => {
-          setExtractedMoments(videoToLoad.extractedMoments);
+          setExtractedMoments(limitedMoments);
           setAnalysisComplete(true);
-          console.log('🎯 State set - analysisComplete: true, segments:', videoToLoad.extractedMoments.length);
+          console.log('🎯 State set - analysisComplete: true, segments:', limitedMoments.length);
           
           // Check if UI renders after another brief delay
           setTimeout(() => {
@@ -1944,7 +1948,7 @@ const ViralClipGenerator = () => {
         // Process AI analysis results
         console.log('🎯 Processing complete message:', data);
         console.log('🎯 User tier:', userTier);
-        console.log('🎯 Tier limits:', tierLimits);
+        const tierLimits = TIER_LIMITS[userTier] || TIER_LIMITS.guest;
         const result = data.result;
         console.log('🎯 AI result:', result);
         console.log('🎯 Viral analysis:', result.viralAnalysis);
@@ -2059,15 +2063,19 @@ const ViralClipGenerator = () => {
           }
         }
 
+        // Apply tier limits for segments
+        const limitedSegments = userTier === 'guest' ? segments.slice(0, 3) : segments;
+        
         // Update UI with results
-        console.log('🎯 About to update UI with segments:', segments.length, 'segments');
+        console.log('🎯 About to update UI with segments:', segments.length, 'total segments');
+        console.log('🎯 Limited segments for', userTier, 'tier:', limitedSegments.length, 'segments');
         console.log('🎯 Analysis response:', response);
         console.log('🎯 Current user:', user?.id);
         console.log('🎯 Uploaded file info:', uploadedFileInfo);
         
         setProgress(100);
         setCurrentStep("AI analysis complete!");
-        setExtractedMoments(segments);
+        setExtractedMoments(limitedSegments);
         setAnalysisComplete(true);
         setProcessing(false);
 
@@ -2082,10 +2090,10 @@ const ViralClipGenerator = () => {
           });
           
           const savedVideo = VideoLibraryService.saveVideoAnalysis(user.id, fileInfo.filename, {
-            extractedMoments: segments,
+            extractedMoments: limitedSegments,
             analysis: response, // Save the full analysis response
             uploadedFileInfo: fileInfo, // Use fileInfo instead of uploadedFileInfo
-            thumbnail: segments.length > 0 ? segments[0].thumbnail : null // Use first segment's thumbnail
+            thumbnail: limitedSegments.length > 0 ? limitedSegments[0].thumbnail : null // Use first segment's thumbnail
           });
           
           console.log('💾 Video saved result:', savedVideo);
