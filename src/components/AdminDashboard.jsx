@@ -23,7 +23,8 @@ import {
   Bell,
   Megaphone,
   Plus,
-  Send
+  Send,
+  Edit
 } from 'lucide-react';
 import '../styles/components/AdminDashboard.css';
 
@@ -54,6 +55,7 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [activeReportTab, setActiveReportTab] = useState('bugs');
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const [announcementForm, setAnnouncementForm] = useState({
     title: '',
     description: '',
@@ -233,6 +235,95 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
       console.log('✅ Admin data loading completed');
+    }
+  };
+
+  // Announcement management functions
+  const handleEditAnnouncement = (announcement) => {
+    setEditingAnnouncement(announcement);
+    setAnnouncementForm({
+      title: announcement.title,
+      description: announcement.description,
+      targetAudience: announcement.targetAudience,
+      bulletPoints: announcement.bulletPoints.length > 0 ? announcement.bulletPoints : ['']
+    });
+    setShowAnnouncementForm(true);
+  };
+
+  const handleDeleteAnnouncement = (announcementId) => {
+    if (window.confirm('Are you sure you want to delete this announcement? This action cannot be undone.')) {
+      try {
+        const currentAnnouncements = JSON.parse(localStorage.getItem('admin_announcements') || '[]');
+        const filteredAnnouncements = currentAnnouncements.filter(a => a.id !== announcementId);
+        localStorage.setItem('admin_announcements', JSON.stringify(filteredAnnouncements));
+        setAnnouncements(filteredAnnouncements);
+        alert('✅ Announcement deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting announcement:', error);
+        alert('❌ Failed to delete announcement. Please try again.');
+      }
+    }
+  };
+
+  const handleSaveAnnouncement = () => {
+    if (!announcementForm.title || !announcementForm.description) {
+      alert('Please fill in both title and description.');
+      return;
+    }
+
+    try {
+      const currentAnnouncements = JSON.parse(localStorage.getItem('admin_announcements') || '[]');
+      
+      if (editingAnnouncement) {
+        // Update existing announcement
+        const updatedAnnouncements = currentAnnouncements.map(announcement => 
+          announcement.id === editingAnnouncement.id
+            ? {
+                ...announcement,
+                title: announcementForm.title,
+                description: announcementForm.description,
+                targetAudience: announcementForm.targetAudience,
+                bulletPoints: announcementForm.bulletPoints.filter(point => point.trim() !== ''),
+                updatedAt: new Date().toISOString(),
+                updatedBy: user?.emailAddresses?.[0]?.emailAddress || 'Admin'
+              }
+            : announcement
+        );
+        
+        localStorage.setItem('admin_announcements', JSON.stringify(updatedAnnouncements));
+        setAnnouncements(updatedAnnouncements);
+        alert('✅ Announcement updated successfully!');
+      } else {
+        // Create new announcement
+        const newAnnouncement = {
+          id: Date.now(),
+          title: announcementForm.title,
+          description: announcementForm.description,
+          targetAudience: announcementForm.targetAudience,
+          bulletPoints: announcementForm.bulletPoints.filter(point => point.trim() !== ''),
+          createdAt: new Date().toISOString(),
+          createdBy: user?.emailAddresses?.[0]?.emailAddress || 'Admin',
+          timestamp: new Date().toISOString()
+        };
+        
+        const updatedAnnouncements = [newAnnouncement, ...currentAnnouncements];
+        localStorage.setItem('admin_announcements', JSON.stringify(updatedAnnouncements));
+        setAnnouncements(updatedAnnouncements);
+        alert('✅ Announcement created successfully! Users will see it when they next log in.');
+      }
+      
+      // Reset form
+      setShowAnnouncementForm(false);
+      setEditingAnnouncement(null);
+      setAnnouncementForm({
+        title: '',
+        description: '',
+        targetAudience: 'all',
+        bulletPoints: ['']
+      });
+    } catch (error) {
+      console.error('Error saving announcement:', error);
+      alert('❌ Failed to save announcement. Please try again.');
     }
   };
 
@@ -674,7 +765,9 @@ const AdminDashboard = () => {
                       border: '1px solid #374151',
                       boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
                     }}>
-                      <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '18px' }}>Create New Announcement</h4>
+                      <h4 style={{ color: 'white', marginBottom: '20px', fontSize: '18px' }}>
+                        {editingAnnouncement ? 'Edit Announcement' : 'Create New Announcement'}
+                      </h4>
                       
                       {/* Title */}
                       <div style={{ marginBottom: '15px' }}>
@@ -816,42 +909,7 @@ const AdminDashboard = () => {
                       {/* Action Buttons */}
                       <div style={{ display: 'flex', gap: '10px' }}>
                         <button
-                          onClick={async () => {
-                            if (!announcementForm.title || !announcementForm.description) {
-                              alert('Please fill in title and description');
-                              return;
-                            }
-
-                            // Create announcement object
-                            const announcement = {
-                              id: Date.now().toString(),
-                              title: announcementForm.title,
-                              description: announcementForm.description,
-                              bulletPoints: announcementForm.bulletPoints.filter(p => p.trim()),
-                              targetAudience: announcementForm.targetAudience,
-                              createdAt: new Date().toISOString(),
-                              createdBy: user.emailAddresses[0].emailAddress
-                            };
-
-                            // Save to localStorage for now
-                            const existingAnnouncements = JSON.parse(localStorage.getItem('admin_announcements') || '[]');
-                            existingAnnouncements.unshift(announcement);
-                            localStorage.setItem('admin_announcements', JSON.stringify(existingAnnouncements));
-                            
-                            // Update state
-                            setAnnouncements(existingAnnouncements);
-
-                            // Reset form
-                            setAnnouncementForm({
-                              title: '',
-                              description: '',
-                              targetAudience: 'all',
-                              bulletPoints: ['']
-                            });
-                            setShowAnnouncementForm(false);
-
-                            alert('✅ Announcement created successfully! Users will see it when they next log in.');
-                          }}
+                          onClick={handleSaveAnnouncement}
                           style={{
                             background: '#10b981',
                             color: 'white',
@@ -866,11 +924,12 @@ const AdminDashboard = () => {
                           }}
                         >
                           <Send className="w-4 h-4" />
-                          Send Announcement
+                          {editingAnnouncement ? 'Update Announcement' : 'Send Announcement'}
                         </button>
                         <button
                           onClick={() => {
                             setShowAnnouncementForm(false);
+                            setEditingAnnouncement(null);
                             setAnnouncementForm({
                               title: '',
                               description: '',
@@ -954,12 +1013,53 @@ const AdminDashboard = () => {
                               color: '#9ca3af', 
                               display: 'flex', 
                               justifyContent: 'space-between',
+                              alignItems: 'center',
                               borderTop: '1px solid #374151',
                               paddingTop: '10px',
                               marginTop: '15px'
                             }}>
-                              <span>Created: {new Date(announcement.createdAt).toLocaleDateString()}</span>
-                              <span>By: {announcement.createdBy}</span>
+                              <div>
+                                <span>Created: {new Date(announcement.createdAt).toLocaleDateString()}</span>
+                                <span style={{ marginLeft: '15px' }}>By: {announcement.createdBy}</span>
+                              </div>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  onClick={() => handleEditAnnouncement(announcement)}
+                                  style={{
+                                    background: '#3b82f6',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '6px 12px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  <Edit className="w-3 h-3" />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteAnnouncement(announcement.id)}
+                                  style={{
+                                    background: '#dc2626',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '6px 12px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  Delete
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}
