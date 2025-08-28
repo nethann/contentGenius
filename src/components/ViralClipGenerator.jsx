@@ -2627,12 +2627,11 @@ const ViralClipGenerator = () => {
                                       // Close other dropdowns first
                                       document.querySelectorAll('[id^="dropdown-"]').forEach(d => d.style.display = 'none');
                                       
-                                      // Calculate position based on button location
-                                      const button = e.currentTarget;
-                                      const rect = button.getBoundingClientRect();
-                                      dropdown.style.position = 'fixed';
-                                      dropdown.style.top = `${rect.bottom + 5}px`;
-                                      dropdown.style.left = `${rect.left}px`;
+                                      // Position relative to the button container
+                                      dropdown.style.position = 'absolute';
+                                      dropdown.style.top = '100%';
+                                      dropdown.style.right = '0';
+                                      dropdown.style.left = 'auto';
                                       dropdown.style.display = 'block';
                                       
                                       // Add click-outside handler
@@ -2665,9 +2664,9 @@ const ViralClipGenerator = () => {
                                   id={`dropdown-${moment.id}`}
                                   style={{
                                     display: 'none',
-                                    position: 'fixed',
-                                    top: '0',
-                                    left: '0',
+                                    position: 'absolute',
+                                    top: '100%',
+                                    right: '0',
                                     background: '#1f2937',
                                     border: '1px solid #374151',
                                     borderRadius: '8px',
