@@ -352,56 +352,6 @@ const Dashboard = () => {
       comingSoon: false,
       route: '/app/viral-clips'
     },
-    {
-      id: 'trending-analyzer',
-      title: 'Trending Analyzer',
-      description: 'Analyze what content is trending across platforms',
-      icon: TrendingUp,
-      color: 'blue',
-      available: false,
-      comingSoon: true,
-      route: '/app/trending'
-    },
-    {
-      id: 'content-scheduler',
-      title: 'Content Scheduler',
-      description: 'Schedule and automate your content publishing',
-      icon: Clock,
-      color: 'green',
-      available: false,
-      comingSoon: true,
-      route: '/app/scheduler'
-    },
-    {
-      id: 'audience-insights',
-      title: 'Audience Insights',
-      description: 'Deep analytics on your audience engagement',
-      icon: Users,
-      color: 'orange',
-      available: false,
-      comingSoon: true,
-      route: '/app/insights'
-    },
-    {
-      id: 'performance-tracker',
-      title: 'Performance Tracker',
-      description: 'Track your content performance across platforms',
-      icon: BarChart3,
-      color: 'red',
-      available: false,
-      comingSoon: true,
-      route: '/app/performance'
-    },
-    {
-      id: 'ai-enhancer',
-      title: 'AI Content Enhancer',
-      description: 'Enhance your content with AI-powered suggestions',
-      icon: Sparkles,
-      color: 'yellow',
-      available: false,
-      comingSoon: true,
-      route: '/app/enhancer'
-    }
   ];
 
   const handleFeatureClick = (feature) => {
@@ -650,7 +600,7 @@ const Dashboard = () => {
                           </span>
                           {feature.id === 'viral-clips' && (
                             <span className="token-cost-pill">
-                              -1 🪙
+                              🪙 -1 
                             </span>
                           )}
                         </div>
