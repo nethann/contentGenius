@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { useUser, useAuth } from '@clerk/clerk-react';
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
+import { useAuth } from '../contexts/ClerkAuthContext';
 import { AdminService } from '../services/adminService';
 import { TokenService } from '../services/tokenService';
 import TierChangeModal from './TierChangeModal';
@@ -25,11 +26,12 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { user, isLoaded: userLoaded } = useUser();
-  const { signOut } = useAuth();
+  const { user: clerkUser, isLoaded: userLoaded } = useUser();
+  const { signOut: clerkSignOut } = useClerkAuth();
+  const { user, userTier, loading, signOut } = useAuth();
   
-  // Simple tier management
-  const [userTier, setUserTierState] = React.useState('guest');
+  // Simple tier management for local state updates
+  const [localUserTier, setUserTierState] = React.useState(userTier || 'guest');
   
   // Get tier from URL parameter (for new signups) or local storage
   const urlTier = searchParams.get('tier');
@@ -329,7 +331,7 @@ const Dashboard = () => {
   };
 
   // Loading state
-  if (!userLoaded) {
+  if (!userLoaded || loading) {
     return (
       <div className="dashboard-container">
         <div className="dashboard-loading">
@@ -346,7 +348,21 @@ const Dashboard = () => {
       <div className="dashboard-container">
         <div className="dashboard-loading">
           <p>Please sign in to continue</p>
-          <button onClick={() => navigate('/')}>Go to Sign In</button>
+          <button 
+            onClick={() => navigate('/')}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '16px',
+              cursor: 'pointer',
+              marginTop: '16px'
+            }}
+          >
+            Go to Sign In
+          </button>
         </div>
       </div>
     );

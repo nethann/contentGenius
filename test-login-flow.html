@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Login Flow</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #1a1a1a; color: white; padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .container { background: #2a2a2a; padding: 20px; border-radius: 8px; margin: 10px 0; }
+        button { background: #4a90e2; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        .result { background: #333; padding: 15px; border-radius: 4px; margin: 10px 0; white-space: pre-wrap; font-family: monospace; }
+        .success { border-left: 4px solid #10b981; }
+        .error { border-left: 4px solid #ef4444; }
+        input { padding: 8px; margin: 5px; border: 1px solid #555; border-radius: 4px; background: #333; color: white; width: 250px; }
+        .step { background: #374151; padding: 15px; margin: 10px 0; border-radius: 6px; }
+        .step h3 { margin-top: 0; color: #60a5fa; }
+    </style>
+</head>
+<body>
+    <h1>🔄 Test Creator Benefits Login Flow</h1>
+    
+    <div class="container">
+        <h2>Step 1: Check Current State</h2>
+        <button onclick="checkCurrentState()">Check localStorage & API</button>
+        <div id="currentState" class="result"></div>
+    </div>
+
+    <div class="container">
+        <h2>Step 2: Simulate User Login</h2>
+        <input type="email" id="userEmail" placeholder="User email" value="nethann772@gmail.com">
+        <input type="text" id="userId" placeholder="User ID (mock)" value="user_mock_123">
+        <button onclick="simulateLogin()">Simulate Login Flow</button>
+        <div id="loginResults" class="result"></div>
+    </div>
+
+    <div class="container">
+        <h2>Step 3: Test Token Service</h2>
+        <button onclick="testTokenService()">Test Token Service</button>
+        <div id="tokenResults" class="result"></div>
+    </div>
+
+    <div class="container">
+        <h2>Debug Actions</h2>
+        <button onclick="clearLocalStorage()">Clear localStorage</button>
+        <button onclick="showLocalStorage()">Show localStorage</button>
+        <button onclick="resetToDefaults()">Reset to Defaults</button>
+        <div id="debugResults" class="result"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3001/api';
+
+        async function checkCurrentState() {
+            const div = document.getElementById('currentState');
+            div.innerHTML = 'Checking current state...';
+
+            try {
+                // Check localStorage
+                const localStorageData = {};
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    localStorageData[key] = localStorage.getItem(key);
+                }
+
+                // Check API
+                const email = document.getElementById('userEmail').value;
+                const apiResponse = await fetch(`${API_URL}/creator-benefits/${encodeURIComponent(email)}`, {
+                    headers: { 'Cache-Control': 'no-cache' },
+                    credentials: 'same-origin'
+                });
+                const apiData = await apiResponse.json();
+
+                div.innerHTML = `CURRENT STATE:
+
+📦 localStorage (${Object.keys(localStorageData).length} items):
+${JSON.stringify(localStorageData, null, 2)}
+
+🌐 API Response for ${email}:
+${JSON.stringify(apiData, null, 2)}`;
+                div.className = 'result success';
+            } catch (error) {
+                div.innerHTML = `❌ ERROR: ${error.message}`;
+                div.className = 'result error';
+            }
+        }
+
+        async function simulateLogin() {
+            const div = document.getElementById('loginResults');
+            const email = document.getElementById('userEmail').value;
+            const userId = document.getElementById('userId').value;
+
+            div.innerHTML = 'Simulating login flow...';
+
+            try {
+                let log = '🔄 LOGIN SIMULATION:\n\n';
+
+                // Step 1: Check if user is admin
+                const adminEmails = ['nethan.nagendran@gmail.com', 'nethmarket@gmail.com'];
+                const isAdmin = adminEmails.includes(email.toLowerCase());
+                log += `1. Admin check: ${isAdmin ? 'YES' : 'NO'} (${email})\n`;
+
+                // Step 2: Get creator benefits
+                log += '2. Fetching creator benefits...\n';
+                const response = await fetch(`${API_URL}/creator-benefits/${encodeURIComponent(email)}`, {
+                    headers: { 'Cache-Control': 'no-cache' },
+                    credentials: 'same-origin'
+                });
+                const result = await response.json();
+                
+                if (result.success && result.benefit) {
+                    log += `   ✅ Found benefits: ${JSON.stringify(result.benefit, null, 2)}\n`;
+
+                    // Step 3: Check if benefits need to be applied
+                    const hasLocalBenefits = localStorage.getItem(`benefitsApplied_${userId}`);
+                    const hasLocalTier = localStorage.getItem(`userTier_${userId}`);
+                    
+                    log += `3. Benefits check:\n`;
+                    log += `   - hasLocalBenefits: ${!!hasLocalBenefits}\n`;
+                    log += `   - hasLocalTier: ${!!hasLocalTier}\n`;
+
+                    if (!hasLocalBenefits || !hasLocalTier) {
+                        log += '4. Applying benefits to localStorage...\n';
+                        
+                        // Clear existing data
+                        localStorage.removeItem(`userTier_${userId}`);
+                        localStorage.removeItem(`tokens_${userId}`);
+                        localStorage.removeItem(`proExpiry_${userId}`);
+
+                        // Apply benefits
+                        localStorage.setItem(`userTier_${userId}`, result.benefit.tier || 'guest');
+                        
+                        const tokenData = {
+                            count: parseInt(result.benefit.tokens) || 0,
+                            lastRefresh: new Date().toISOString(),
+                            tier: result.benefit.tier || 'guest'
+                        };
+                        localStorage.setItem(`tokens_${userId}`, JSON.stringify(tokenData));
+
+                        if (result.benefit.pro_expiry_date) {
+                            localStorage.setItem(`proExpiry_${userId}`, result.benefit.pro_expiry_date);
+                        }
+
+                        localStorage.setItem(`benefitsApplied_${userId}`, JSON.stringify({
+                            applied: true,
+                            appliedAt: new Date().toISOString(),
+                            benefits: result.benefit
+                        }));
+
+                        log += `   ✅ Benefits applied successfully!\n`;
+                    }
+
+                    // Step 4: Determine final tier
+                    let finalTier = isAdmin ? 'developer' : 'guest';
+                    
+                    if (!isAdmin && result.benefit.tier === 'pro') {
+                        if (result.benefit.pro_expiry_date) {
+                            const expiryDate = new Date(result.benefit.pro_expiry_date);
+                            const isValid = expiryDate > new Date();
+                            log += `5. Pro access validation:\n`;
+                            log += `   - Expiry: ${expiryDate.toISOString()}\n`;
+                            log += `   - Current: ${new Date().toISOString()}\n`;
+                            log += `   - Valid: ${isValid}\n`;
+                            
+                            if (isValid) {
+                                finalTier = 'pro';
+                            }
+                        } else {
+                            finalTier = 'pro';
+                        }
+                    }
+
+                    log += `6. Final tier: ${finalTier}\n`;
+
+                } else {
+                    log += `   ❌ No benefits found\n`;
+                }
+
+                div.innerHTML = log;
+                div.className = 'result success';
+            } catch (error) {
+                div.innerHTML = `❌ SIMULATION ERROR: ${error.message}`;
+                div.className = 'result error';
+            }
+        }
+
+        function testTokenService() {
+            const div = document.getElementById('tokenResults');
+            const userId = document.getElementById('userId').value;
+
+            try {
+                // Simulate TokenService logic
+                let log = '🪙 TOKEN SERVICE TEST:\n\n';
+
+                const userTier = localStorage.getItem(`userTier_${userId}`) || 'guest';
+                log += `Current tier: ${userTier}\n`;
+
+                // Check tokens
+                const tokenKey = `tokens_${userId}`;
+                const tokenData = localStorage.getItem(tokenKey);
+                
+                if (!tokenData) {
+                    log += 'No token data found\n';
+                    
+                    // Check if user has creator benefits
+                    const benefitsKey = `benefitsApplied_${userId}`;
+                    const benefitsData = localStorage.getItem(benefitsKey);
+                    
+                    if (benefitsData) {
+                        log += 'User has creator benefits, should wait for proper application\n';
+                        log += 'Returning 0 tokens until benefits are applied\n';
+                    } else {
+                        // Default token initialization
+                        const tierDefaults = {
+                            'guest': 5,
+                            'pro': 100,
+                            'developer': -1
+                        };
+                        const defaultTokens = tierDefaults[userTier] || 5;
+                        log += `Would initialize with default tokens for ${userTier}: ${defaultTokens}\n`;
+                    }
+                } else {
+                    const tokens = JSON.parse(tokenData);
+                    log += `Found token data: ${JSON.stringify(tokens, null, 2)}\n`;
+                    log += `Current tokens: ${tokens.count}\n`;
+                }
+
+                div.innerHTML = log;
+                div.className = 'result success';
+            } catch (error) {
+                div.innerHTML = `❌ TOKEN SERVICE ERROR: ${error.message}`;
+                div.className = 'result error';
+            }
+        }
+
+        function clearLocalStorage() {
+            localStorage.clear();
+            document.getElementById('debugResults').innerHTML = '🧹 localStorage cleared!';
+            setTimeout(() => document.getElementById('debugResults').innerHTML = '', 2000);
+        }
+
+        function showLocalStorage() {
+            const div = document.getElementById('debugResults');
+            const data = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                data[key] = localStorage.getItem(key);
+            }
+            div.innerHTML = `📦 localStorage:\n${JSON.stringify(data, null, 2)}`;
+        }
+
+        function resetToDefaults() {
+            const userId = document.getElementById('userId').value;
+            
+            // Clear user data
+            localStorage.removeItem(`userTier_${userId}`);
+            localStorage.removeItem(`tokens_${userId}`);
+            localStorage.removeItem(`proExpiry_${userId}`);
+            localStorage.removeItem(`benefitsApplied_${userId}`);
+            
+            document.getElementById('debugResults').innerHTML = '♻️ Reset to defaults! User data cleared.';
+        }
+
+        // Auto-check on load
+        window.onload = () => {
+            setTimeout(checkCurrentState, 500);
+        };
+    </script>
+</body>
+</html>

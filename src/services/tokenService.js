@@ -41,7 +41,32 @@ export class TokenService {
     const tokenData = localStorage.getItem(tokenKey);
     
     if (!tokenData) {
-      // Initialize tokens for new users
+      // Check if user has creator benefits first
+      const benefitsKey = `benefitsApplied_${userId}`;
+      const benefitsData = localStorage.getItem(benefitsKey);
+      
+      if (benefitsData) {
+        // User has creator benefits - check if token data exists in benefits
+        try {
+          const benefitsWrapper = JSON.parse(benefitsData);
+          const benefits = benefitsWrapper.benefits; // Benefits are nested inside
+          if (benefits && benefits.tokens && typeof benefits.tokens === 'number') {
+            // Create token data from benefits
+            const tokenInfo = {
+              count: benefits.tokens,
+              lastRefresh: new Date().toISOString(),
+              tier: userTier
+            };
+            console.log('💰 Initializing tokens from creator benefits:', benefits.tokens);
+            localStorage.setItem(tokenKey, JSON.stringify(tokenInfo));
+            return benefits.tokens;
+          }
+        } catch (error) {
+          console.error('Error parsing benefits data:', error);
+        }
+      }
+      
+      // Initialize tokens for new users without creator benefits
       const tierInfo = this.getTokenInfo(userTier);
       const initialTokens = tierInfo.maxTokens === -1 ? -1 : tierInfo.maxTokens;
       const tokenInfo = {
@@ -49,6 +74,7 @@ export class TokenService {
         lastRefresh: new Date().toISOString(),
         tier: userTier
       };
+      console.log('💰 Initializing default tokens for tier:', userTier, 'tokens:', initialTokens);
       localStorage.setItem(tokenKey, JSON.stringify(tokenInfo));
       return initialTokens;
     }

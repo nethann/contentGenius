@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug localStorage</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #1a1a1a; color: white; padding: 20px; }
+        .container { background: #2a2a2a; padding: 20px; border-radius: 8px; margin: 10px 0; }
+        button { background: #4a90e2; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        .result { background: #333; padding: 15px; border-radius: 4px; margin: 10px 0; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug localStorage</h1>
+    
+    <div class="container">
+        <button onclick="showAllStorage()">Show All localStorage</button>
+        <button onclick="clearUserData()">Clear User Data</button>
+        <button onclick="clearAll()">Clear All</button>
+        <div id="results" class="result"></div>
+    </div>
+
+    <script>
+        function showAllStorage() {
+            const results = document.getElementById('results');
+            let output = 'localStorage contents:\n\n';
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                output += `${key}: ${value}\n\n`;
+            }
+            
+            if (localStorage.length === 0) {
+                output = 'localStorage is empty';
+            }
+            
+            results.textContent = output;
+        }
+
+        function clearUserData() {
+            // Find all user-related keys
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('tokens_') || key.includes('benefitsApplied_') || key.includes('userTier_') || key.includes('proExpiry_'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
+            document.getElementById('results').textContent = `Removed ${keysToRemove.length} user-related keys:\n${keysToRemove.join('\n')}`;
+        }
+
+        function clearAll() {
+            localStorage.clear();
+            document.getElementById('results').textContent = 'All localStorage cleared!';
+        }
+
+        // Auto-show on load
+        window.onload = showAllStorage;
+    </script>
+</body>
+</html>

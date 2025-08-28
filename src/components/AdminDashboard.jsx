@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { AdminService } from '../services/adminService';
 import { TokenService } from '../services/tokenService';
+import { CreatorBenefitsService } from '../services/creatorBenefitsService';
+import CreatorManagement from './CreatorManagement';
 import {
   Shield,
   Users,
@@ -16,7 +18,8 @@ import {
   Code,
   Database,
   Activity,
-  Zap
+  Zap,
+  Gift
 } from 'lucide-react';
 import '../styles/components/AdminDashboard.css';
 
@@ -41,6 +44,7 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [reports, setReports] = useState([]);
+  const [creatorBenefits, setCreatorBenefits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [activeReportTab, setActiveReportTab] = useState('bugs');
@@ -91,9 +95,10 @@ const AdminDashboard = () => {
       const userReports = JSON.parse(localStorage.getItem('user_reports') || '[]');
       setReports(userReports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
       
-      const [usersResult, analyticsResult] = await Promise.all([
+      const [usersResult, analyticsResult, creatorBenefitsResult] = await Promise.all([
         AdminService.getAllUsers(),
-        AdminService.getAppAnalytics()
+        AdminService.getAppAnalytics(),
+        CreatorBenefitsService.getAllCreatorBenefits()
       ]);
 
       console.log('👥 Users result:', usersResult);
@@ -128,6 +133,15 @@ const AdminDashboard = () => {
       } else {
         setAnalytics(analyticsResult.analytics);
         console.log('✅ Loaded analytics:', analyticsResult.analytics);
+      }
+      
+      // Handle creator benefits result
+      if (creatorBenefitsResult.error) {
+        console.error('❌ Creator benefits fetch error:', creatorBenefitsResult.error);
+        setCreatorBenefits([]);
+      } else {
+        setCreatorBenefits(creatorBenefitsResult.benefits || []);
+        console.log('✅ Loaded creator benefits:', creatorBenefitsResult.benefits?.length || 0, 'benefits');
       }
     } catch (error) {
       console.error('❌ Error loading admin data:', error);
@@ -276,6 +290,13 @@ const AdminDashboard = () => {
             User Management
           </button>
           <button
+            onClick={() => setActiveTab('creators')}
+            className={`admin-nav-btn ${activeTab === 'creators' ? 'active' : ''}`}
+          >
+            <Gift className="w-5 h-5 mr-2" />
+            Content Creators ({creatorBenefits.length})
+          </button>
+          <button
             onClick={() => setActiveTab('reports')}
             className={`admin-nav-btn ${activeTab === 'reports' ? 'active' : ''}`}
           >
@@ -405,6 +426,16 @@ const AdminDashboard = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Content Creators Tab */}
+              {activeTab === 'creators' && (
+                <div className="admin-creators-section">
+                  <CreatorManagement 
+                    creatorBenefits={creatorBenefits} 
+                    onRefresh={loadAdminData}
+                  />
                 </div>
               )}
 

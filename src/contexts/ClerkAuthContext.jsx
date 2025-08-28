@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
+import { ClerkDatabaseService } from '../services/clerkDatabaseService';
 
 const ClerkAuthContext = createContext({});
 
@@ -19,15 +20,18 @@ export const ClerkAuthProvider = ({ children }) => {
   const [userTier, setUserTier] = useState('guest');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const initializeUser = async () => {
+  
+  const initializeUser = async () => {
+      console.log('🏁 initializeUser called', { userLoaded, authLoaded, hasUser: !!clerkUser });
+      
       if (!userLoaded || !authLoaded) {
+        console.log('⏳ Still loading Clerk...', { userLoaded, authLoaded });
         return; // Still loading
       }
 
       if (!clerkUser) {
         // No user signed in
+        console.log('👤 No user signed in, setting guest');
         setUser(null);
         setUserTier('guest');
         setLoading(false);
@@ -37,11 +41,90 @@ export const ClerkAuthProvider = ({ children }) => {
       try {
         console.log('🔄 Initializing user from Clerk:', clerkUser.emailAddresses[0]?.emailAddress);
         
-        // Determine tier based on email
+        // Determine base tier based on admin emails
         const adminEmails = ['nethan.nagendran@gmail.com', 'nethmarket@gmail.com'];
-        const userTierFromEmail = adminEmails.includes(clerkUser.emailAddresses[0]?.emailAddress?.toLowerCase()) 
-          ? 'developer' 
-          : 'guest';
+        const isAdmin = adminEmails.includes(clerkUser.emailAddresses[0]?.emailAddress?.toLowerCase());
+        let finalTier = isAdmin ? 'developer' : 'guest';
+        
+        // Check for creator benefits
+        const userEmail = clerkUser.emailAddresses[0]?.emailAddress?.toLowerCase();
+        console.log('🎁 Checking for creator benefits for:', userEmail);
+        
+        const benefitsResult = await ClerkDatabaseService.getCreatorBenefits(userEmail);
+        
+        if (benefitsResult.success && benefitsResult.benefits) {
+          console.log('✅ Found creator benefits:', benefitsResult.benefits);
+          
+          // Check if benefits have been updated on the server
+          const hasLocalBenefits = ClerkDatabaseService.hasUserReceivedBenefits(clerkUser);
+          const hasLocalTier = localStorage.getItem(`userTier_${clerkUser.id}`);
+          
+          let shouldApplyBenefits = false;
+          
+          if (!hasLocalBenefits || !hasLocalTier) {
+            // No local benefits - apply them
+            shouldApplyBenefits = true;
+            console.log('🎯 Applying creator benefits to user (first time)...');
+          } else {
+            // Check if server benefits are different from local benefits
+            const localBenefitsData = localStorage.getItem(`benefitsApplied_${clerkUser.id}`);
+            if (localBenefitsData) {
+              try {
+                const localBenefits = JSON.parse(localBenefitsData).benefits;
+                const serverUpdatedAt = new Date(benefitsResult.benefits.updated_at);
+                const localUpdatedAt = localBenefits.updated_at ? new Date(localBenefits.updated_at) : new Date(0);
+                
+                if (serverUpdatedAt > localUpdatedAt || 
+                    localBenefits.tokens !== benefitsResult.benefits.tokens ||
+                    localBenefits.pro_expiry_date !== benefitsResult.benefits.pro_expiry_date) {
+                  shouldApplyBenefits = true;
+                  console.log('🔄 Benefits updated on server - refreshing local benefits...');
+                  console.log('Server tokens:', benefitsResult.benefits.tokens, 'Local tokens:', localBenefits.tokens);
+                } else {
+                  console.log('ℹ️ Creator benefits are up to date');
+                }
+              } catch (error) {
+                console.error('Error parsing local benefits:', error);
+                shouldApplyBenefits = true;
+              }
+            }
+          }
+          
+          if (shouldApplyBenefits) {
+            // Apply benefits to localStorage
+            await ClerkDatabaseService.applyBenefitsToUser(clerkUser, benefitsResult.benefits);
+            
+            // Only mark benefits as used on the server if they haven't been used before
+            if (!benefitsResult.benefits.is_used) {
+              await ClerkDatabaseService.markBenefitsAsUsed(userEmail, clerkUser.id);
+            }
+            
+            console.log('✅ Creator benefits applied successfully');
+          }
+          
+          // Update tier based on benefits (even for non-admin users)
+          if (!isAdmin && benefitsResult.benefits.tier === 'pro') {
+            // Check if pro access is still valid
+            if (benefitsResult.benefits.pro_expiry_date) {
+              const expiryDate = new Date(benefitsResult.benefits.pro_expiry_date);
+              const isValid = expiryDate > new Date();
+              console.log('⏰ Pro access validation:', { expiryDate: expiryDate.toISOString(), isValid });
+              
+              if (isValid) {
+                finalTier = 'pro';
+                console.log('👑 User has active pro access until:', expiryDate.toLocaleDateString());
+              } else {
+                console.log('⏰ User\'s pro access has expired');
+                finalTier = 'guest';
+              }
+            } else if (benefitsResult.benefits.tier === 'pro') {
+              finalTier = 'pro';
+              console.log('👑 User has pro access (no expiry date specified)');
+            }
+          }
+        } else {
+          console.log('ℹ️ No creator benefits found for user');
+        }
         
         setUser({
           id: clerkUser.id,
@@ -50,13 +133,13 @@ export const ClerkAuthProvider = ({ children }) => {
           lastName: clerkUser.lastName || '',
           fullName: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim(),
           imageUrl: clerkUser.imageUrl || '',
-          userTier: userTierFromEmail,
-          subscriptionStatus: userTierFromEmail === 'guest' ? 'inactive' : 'active'
+          userTier: finalTier,
+          subscriptionStatus: finalTier === 'guest' ? 'inactive' : 'active'
         });
         
-        setUserTier(userTierFromEmail);
+        setUserTier(finalTier);
         
-        console.log('✅ User initialized:', userTierFromEmail);
+        console.log('✅ User initialized with tier:', finalTier);
         
       } catch (error) {
         console.error('❌ Error initializing user:', error);
@@ -85,8 +168,31 @@ export const ClerkAuthProvider = ({ children }) => {
       }
     };
 
+  // Function to manually refresh benefits (can be called from components)
+  const refreshBenefits = async () => {
+    if (clerkUser) {
+      console.log('🔄 Manually refreshing creator benefits...');
+      await initializeUser();
+    }
+  };
+
+  useEffect(() => {
+    console.log('🔄 ClerkAuthContext useEffect triggered', { userLoaded, authLoaded, clerkUser: clerkUser?.emailAddresses?.[0]?.emailAddress });
     initializeUser();
   }, [clerkUser, userLoaded, authLoaded]);
+
+  // Auto-refresh benefits when user returns to the tab
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && clerkUser) {
+        console.log('👀 Tab became visible - checking for benefit updates...');
+        refreshBenefits();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [clerkUser]);
 
   const upgradeToPro = async () => {
     if (!user) {
@@ -216,6 +322,7 @@ export const ClerkAuthProvider = ({ children }) => {
     isAdmin,
     isPro,
     getTierLimits,
+    refreshBenefits,
     // Expose Clerk user for direct access if needed
     clerkUser,
   };

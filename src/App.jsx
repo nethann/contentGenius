@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ClerkAuthProvider } from './contexts/ClerkAuthContext';
 import Homepage from './components/Homepage';
 import Pricing from './components/Pricing';
 import Dashboard from './components/Dashboard';
@@ -10,14 +11,16 @@ import ClerkDashboard from './components/ClerkDashboard';
 import SimpleClerkDashboard from './components/SimpleClerkDashboard';
 import ClerkLogin from './components/ClerkLogin';
 import ClerkSignup from './components/ClerkSignup';
+import { SignIn, SignUp } from '@clerk/clerk-react';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 import './App.css';
 
 function App() {
   return (
-    <Router>
-          <div className="App">
+    <ClerkAuthProvider>
+      <Router>
+            <div className="App">
             <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Homepage />} />
@@ -25,7 +28,9 @@ function App() {
             <Route path="/signup" element={<ClerkSignup />} />
             <Route path="/pricing" element={<Pricing />} />
             
-            {/* New Clerk Auth Routes */}
+            {/* Clerk Auth Routes */}
+            <Route path="/sign-in" element={<SignIn redirectUrl="/app" />} />
+            <Route path="/sign-up" element={<SignUp redirectUrl="/app" />} />
             <Route path="/clerk-login" element={<ClerkLogin />} />
             <Route path="/clerk-signup" element={<ClerkSignup />} />
             
@@ -83,6 +88,7 @@ function App() {
           </Routes>
         </div>
       </Router>
+    </ClerkAuthProvider>
   );
 }
 
