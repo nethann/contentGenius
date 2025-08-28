@@ -101,6 +101,64 @@ const AdminDashboard = () => {
         CreatorBenefitsService.getAllCreatorBenefits()
       ]);
 
+      // Calculate real analytics from creator benefits and current usage
+      let realAnalytics = {
+        totalUsers: 0,
+        activeUsers: 0,
+        tierCounts: { guest: 0, pro: 0, developer: 0 },
+        conversionRate: 0
+      };
+
+      if (creatorBenefitsResult.success && creatorBenefitsResult.benefits) {
+        const benefits = creatorBenefitsResult.benefits;
+        console.log('📊 Calculating analytics from benefits:', benefits);
+        
+        benefits.forEach(benefit => {
+          console.log('Processing benefit:', { 
+            email: benefit.email, 
+            is_used: benefit.is_used, 
+            tier: benefit.tier,
+            expiry: benefit.pro_expiry_date 
+          });
+          
+          if (benefit.is_used) {
+            realAnalytics.totalUsers++;
+            
+            if (benefit.tier === 'pro') {
+              // Check if pro access is still valid
+              const expiryDate = new Date(benefit.pro_expiry_date);
+              const isValid = expiryDate > new Date();
+              console.log('Pro access check:', { expiryDate, isValid });
+              
+              if (isValid) {
+                realAnalytics.tierCounts.pro++;
+                realAnalytics.activeUsers++;
+              } else {
+                realAnalytics.tierCounts.guest++;
+              }
+            } else if (benefit.tier === 'developer') {
+              realAnalytics.tierCounts.developer++;
+              realAnalytics.activeUsers++;
+            } else {
+              realAnalytics.tierCounts.guest++;
+            }
+          }
+        });
+
+        // Add admin users (developers) - count current admin user
+        const adminEmails = ['nethan.nagendran@gmail.com', 'nethmarket@gmail.com'];
+        realAnalytics.tierCounts.developer += 1; // Just count the current admin user
+        realAnalytics.totalUsers += 1;
+        realAnalytics.activeUsers += 1;
+
+        // Calculate conversion rate
+        if (realAnalytics.totalUsers > 0) {
+          realAnalytics.conversionRate = Math.round((realAnalytics.activeUsers / realAnalytics.totalUsers) * 100);
+        }
+        
+        console.log('📊 Final analytics:', realAnalytics);
+      }
+
       console.log('👥 Users result:', usersResult);
       console.log('📈 Analytics result:', analyticsResult);
 
@@ -131,8 +189,9 @@ const AdminDashboard = () => {
           conversionRate: 0
         });
       } else {
-        setAnalytics(analyticsResult.analytics);
-        console.log('✅ Loaded analytics:', analyticsResult.analytics);
+        // Use real analytics from creator benefits instead of localStorage analytics
+        setAnalytics(realAnalytics);
+        console.log('✅ Loaded real analytics from creator benefits:', realAnalytics);
       }
       
       // Handle creator benefits result
@@ -358,23 +417,205 @@ const AdminDashboard = () => {
                     </div>
                   </div>
 
-                  {/* Tier Breakdown */}
-                  <div className="admin-tier-breakdown">
-                    <h3>User Tier Breakdown</h3>
-                    <div className="tier-chart">
-                      {analytics?.tierCounts && Object.entries(analytics.tierCounts).map(([tier, count]) => (
-                        <div key={tier} className="tier-bar">
-                          <div className="tier-label">
-                            {tier.charAt(0).toUpperCase() + tier.slice(1)} ({count})
-                          </div>
-                          <div className="tier-progress">
-                            <div 
-                              className={`tier-progress-fill tier-${tier}`}
-                              style={{ width: `${(count / analytics.totalUsers) * 100}%` }}
-                            />
-                          </div>
+                  {/* Tier Breakdown - Glass Bar Chart */}
+                  <div className="admin-tier-breakdown" style={{ marginTop: '30px' }}>
+                    <h3 style={{ color: 'white', marginBottom: '20px', fontWeight: '600' }}>User Tier Breakdown</h3>
+                    
+                    {/* Glass Container */}
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      backdropFilter: 'blur(10px)',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      padding: '30px 20px 20px 20px',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}>
+                      {/* Subtle gradient overlay */}
+                      <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)',
+                        pointerEvents: 'none'
+                      }}></div>
+                      
+                      {/* Chart Area */}
+                      <div className="tier-bar-chart" style={{
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        justifyContent: 'space-around',
+                        height: '180px',
+                        position: 'relative',
+                        zIndex: 1,
+                        margin: '0 10px'
+                      }}>
+                        {analytics?.tierCounts && Object.entries(analytics.tierCounts).map(([tier, count]) => {
+                          const maxCount = Math.max(...Object.values(analytics.tierCounts));
+                          const height = maxCount > 0 ? Math.max((count / maxCount) * 140, count > 0 ? 25 : 0) : 0;
+                          const colors = {
+                            guest: {
+                              main: '#64748b',
+                              gradient: 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
+                              glow: '0 4px 15px rgba(100, 116, 139, 0.4)'
+                            },
+                            pro: {
+                              main: '#8b5cf6',
+                              gradient: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                              glow: '0 4px 15px rgba(139, 92, 246, 0.5)'
+                            },
+                            developer: {
+                              main: '#10b981',
+                              gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                              glow: '0 4px 15px rgba(16, 185, 129, 0.5)'
+                            }
+                          };
+                          
+                          return (
+                            <div key={tier} style={{ 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              alignItems: 'center',
+                              minWidth: '90px',
+                              position: 'relative'
+                            }}>
+                              {/* Glass Bar */}
+                              <div style={{
+                                background: colors[tier]?.gradient || colors.guest.gradient,
+                                width: '65px',
+                                height: `${height}px`,
+                                borderRadius: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontWeight: 'bold',
+                                fontSize: '16px',
+                                minHeight: count > 0 ? '25px' : '0px',
+                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                                boxShadow: colors[tier]?.glow,
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                backdropFilter: 'blur(5px)',
+                                position: 'relative',
+                                overflow: 'hidden'
+                              }}>
+                                {/* Inner glow */}
+                                <div style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  height: '30%',
+                                  background: 'linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 100%)',
+                                  borderRadius: '8px 8px 0 0'
+                                }}></div>
+                                
+                                <span style={{ position: 'relative', zIndex: 1 }}>{count}</span>
+                              </div>
+                              
+                              {/* Label */}
+                              <div style={{
+                                marginTop: '12px',
+                                color: 'rgba(255, 255, 255, 0.9)',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                textAlign: 'center',
+                                textTransform: 'capitalize',
+                                textShadow: '0 1px 3px rgba(0,0,0,0.5)'
+                              }}>
+                                {tier}
+                              </div>
+                              
+                              {/* Sub-label for pro */}
+                              {tier === 'pro' && (
+                                <div style={{
+                                  fontSize: '11px',
+                                  color: 'rgba(139, 92, 246, 0.8)',
+                                  marginTop: '2px',
+                                  textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+                                }}>
+                                  Active Pro
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      {/* Glass Legend */}
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        gap: '25px', 
+                        marginTop: '20px',
+                        fontSize: '13px',
+                        position: 'relative',
+                        zIndex: 1
+                      }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          color: 'rgba(255, 255, 255, 0.9)',
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          backdropFilter: 'blur(5px)'
+                        }}>
+                          <div style={{ 
+                            width: '12px', 
+                            height: '12px', 
+                            background: 'linear-gradient(135deg, #64748b 0%, #475569 100%)', 
+                            borderRadius: '3px',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                          }}></div>
+                          Guest Users
                         </div>
-                      ))}
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          color: 'rgba(255, 255, 255, 0.9)',
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          backdropFilter: 'blur(5px)'
+                        }}>
+                          <div style={{ 
+                            width: '12px', 
+                            height: '12px', 
+                            background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', 
+                            borderRadius: '3px',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                          }}></div>
+                          Pro Users
+                        </div>
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          color: 'rgba(255, 255, 255, 0.9)',
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          backdropFilter: 'blur(5px)'
+                        }}>
+                          <div style={{ 
+                            width: '12px', 
+                            height: '12px', 
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+                            borderRadius: '3px',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                          }}></div>
+                          Developers
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
