@@ -98,7 +98,6 @@
   font-size: 0.875rem;
   color: var(--text-secondary);
   margin-bottom: 1.5rem;
-  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1);
 }
 
 .pricing-hero-title {
@@ -149,12 +148,10 @@
   padding: 2.5rem;
   transition: all 0.3s ease;
   position: relative;
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.1);
 }
 
 .pricing-card:hover {
   transform: translateY(-8px);
-  box-shadow: 0 20px 60px 0 rgba(0, 0, 0, 0.2);
 }
 
 .pricing-card-pro {
@@ -181,7 +178,6 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  box-shadow: 0 4px 20px 0 rgba(59, 130, 246, 0.4);
 }
 
 .pricing-card-header {
@@ -317,25 +313,21 @@
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   color: var(--text-primary);
-  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1);
 }
 
 .pricing-cta-guest:hover {
   background: var(--glass-bg-strong);
   border-color: var(--glass-border-strong);
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px 0 rgba(0, 0, 0, 0.2);
 }
 
 .pricing-cta-pro {
   background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
   color: var(--text-primary);
-  box-shadow: 0 6px 25px 0 rgba(59, 130, 246, 0.4);
 }
 
 .pricing-cta-pro:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 35px 0 rgba(59, 130, 246, 0.5);
 }
 
 /* FAQ Section */
@@ -353,7 +345,6 @@
   border: 1px solid var(--glass-border);
   border-radius: 2rem;
   padding: 3rem;
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.1);
 }
 
 .pricing-faq-title {
@@ -414,7 +405,6 @@
   border-radius: 2rem;
   padding: 3rem;
   text-align: center;
-  box-shadow: 0 16px 50px 0 rgba(0, 0, 0, 0.2);
 }
 
 .pricing-bottom-title {
@@ -457,12 +447,10 @@
   text-decoration: none;
   border-radius: 1rem;
   transition: all 0.3s ease;
-  box-shadow: 0 6px 25px 0 rgba(59, 130, 246, 0.4);
 }
 
 .pricing-bottom-btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 35px 0 rgba(59, 130, 246, 0.5);
 }
 
 .pricing-bottom-btn-secondary {
@@ -481,14 +469,12 @@
   text-decoration: none;
   border-radius: 1rem;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1);
 }
 
 .pricing-bottom-btn-secondary:hover {
   background: var(--glass-bg-strong);
   border-color: var(--glass-border-strong);
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px 0 rgba(0, 0, 0, 0.2);
 }
 
 @media (max-width: 768px) {

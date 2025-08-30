@@ -112,10 +112,6 @@ const Pricing = () => {
 
         {/* Pro Tier */}
         <div className="pricing-card pricing-card-pro">
-          <div className="pricing-card-badge">
-            <Crown className="w-4 h-4" />
-            Most Popular
-          </div>
           
           <div className="pricing-card-header">
             <div className="pricing-card-icon">
@@ -191,7 +187,7 @@ const Pricing = () => {
         <div className="pricing-bottom-content">
           <h2 className="pricing-bottom-title">Ready to create viral content?</h2>
           <p className="pricing-bottom-subtitle">
-            Join thousands of creators using ClipGenius to grow their audience
+            Start creating engaging content that captures your audience's attention
           </p>
           <div className="pricing-bottom-actions">
             <Link to="/clerk-signup?tier=guest" className="pricing-bottom-btn-primary">
