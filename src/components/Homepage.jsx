@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Zap,
@@ -15,8 +15,48 @@ import {
 } from 'lucide-react';
 
 const Homepage = () => {
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    let animationId;
+    let currentScroll = 0;
+    let targetScroll = 0;
+    const ease = 0.08; // Lower = smoother/slower
+
+    const smoothScroll = () => {
+      targetScroll = window.pageYOffset;
+      currentScroll += (targetScroll - currentScroll) * ease;
+      
+      if (scrollRef.current) {
+        scrollRef.current.style.transform = `translateY(${-currentScroll}px)`;
+      }
+      
+      animationId = requestAnimationFrame(smoothScroll);
+    };
+
+    // Start the smooth scroll animation
+    smoothScroll();
+
+    // Update body height to match content
+    const updateBodyHeight = () => {
+      if (scrollRef.current) {
+        document.body.style.height = scrollRef.current.offsetHeight + 'px';
+      }
+    };
+
+    updateBodyHeight();
+    window.addEventListener('resize', updateBodyHeight);
+
+    return () => {
+      cancelAnimationFrame(animationId);
+      window.removeEventListener('resize', updateBodyHeight);
+      document.body.style.height = '';
+    };
+  }, []);
+
   return (
-    <div className="homepage">
+    <div ref={scrollRef} className="smooth-scroll-content">
+      <div className="homepage">
       {/* Navbar */}
       <nav className="homepage-nav">
         <div className="nav-container">
@@ -182,6 +222,7 @@ const Homepage = () => {
           <p className="footer-copyright">© 2024 ClipGenius. All rights reserved.</p>
         </div>
       </footer>
+      </div>
     </div>
   );
 };
