@@ -355,7 +355,7 @@ PlayResY: 720
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Default,Arial,20,&H00ffffff,&H00ffffff,&H00000000,&H80000000,-1,0,0,0,100,100,0.3,0,1,2,1,2,15,15,15,1
-Style: Highlight,Arial,20,&H00356BFF,&H00356BFF,&H00000000,&H80000000,1,0,0,0,100,100,0.3,0,1,2,1,2,15,15,15,1
+Style: Highlight,Arial,20,&H00ffffff,&H00ffffff,&H00000000,&H80000000,1,0,0,0,100,100,0.3,0,1,2,1,2,15,15,15,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -384,8 +384,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
           for (let i = 0; i < captionWords.length; i++) {
             const word = captionWords[i];
             if (i === wordIndex) {
-              // Current word being spoken - orange with bold
-              captionText += `{\\c&H00356BFF&\\b1}${word.word}{\\c&H00ffffff&\\b0}`;
+              // Current word being spoken - white and slightly bigger
+              captionText += `{\\c&H00ffffff&\\b1\\fs24}${word.word}{\\b0\\fs20}`;
             } else {
               // Other words in caption - white
               captionText += word.word;
@@ -608,17 +608,7 @@ function highlightAttentionWords(text) {
     'DANGEROUS', 'RISKY', 'SAFE', 'SECURE', 'PROTECTED', 'GUARANTEE'
   ];
   
-  // Apply highlighting to attention words using HTML-like tags for better SRT support
-  attentionWords.forEach(word => {
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
-    highlightedText = highlightedText.replace(regex, `<font color="#FF6B35"><b>${word}</b></font>`);
-  });
-  
-  // Highlight numbers and percentages
-  highlightedText = highlightedText.replace(/\b\d+(\.\d+)?\s*%\b/g, '<font color="#FF6B35"><b>$&</b></font>');
-  highlightedText = highlightedText.replace(/\b\d+x\b/gi, '<font color="#FF6B35"><b>$&</b></font>');
-  // Fixed: Only highlight complete money amounts, not standalone $ symbols  
-  highlightedText = highlightedText.replace(/\$\d+(?:,\d{3})*(?:\.\d{2})?\b/g, '<font color="#FF6B35"><b>$&</b></font>');
+  // No highlighting - return plain text (highlighting removed per user request)
   
   return highlightedText;
 }
@@ -690,7 +680,7 @@ app.post('/api/transcribe-segment', async (req, res) => {
           highlightedCaptions.push({
             start: wordGroup[0].start,
             end: wordGroup[wordGroup.length - 1].end,
-            text: highlightAttentionWords(captionText)
+            text: captionText
           });
         }
       }
@@ -712,11 +702,11 @@ app.post('/api/transcribe-segment', async (req, res) => {
           end: captionEnd,
           text: captionText
         });
-        // Also create highlighted version for preview
+        // Also create plain version (no highlighting)
         highlightedCaptions.push({
           start: captionStart,
           end: captionEnd,
-          text: highlightAttentionWords(captionText)
+          text: captionText
         });
       }
     }

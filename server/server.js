@@ -97,6 +97,20 @@ function adjustEndTimeForSentences(transcript, originalEndTime, maxExtension = 1
   return originalEndTime + smallExtension;
 }
 
+// Get video duration using FFmpeg
+async function getVideoDuration(videoPath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(videoPath, (err, metadata) => {
+      if (err) {
+        console.warn('⚠️ Could not get video duration, using fallback:', err.message);
+        resolve(300); // 5 minute fallback
+      } else {
+        resolve(metadata.format.duration);
+      }
+    });
+  });
+}
+
 // Extract audio segment from video using FFmpeg
 async function extractAudioSegment(videoPath, startTime, endTime, outputPath) {
   return new Promise((resolve, reject) => {
@@ -355,7 +369,7 @@ PlayResY: 720
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Default,Arial,20,&H00ffffff,&H00ffffff,&H00000000,&H80000000,-1,0,0,0,100,100,0.3,0,1,2,1,2,15,15,15,1
-Style: Highlight,Arial,20,&H00356BFF,&H00356BFF,&H00000000,&H80000000,1,0,0,0,100,100,0.3,0,1,2,1,2,15,15,15,1
+Style: Highlight,Arial,20,&H00ffffff,&H00ffffff,&H00000000,&H80000000,1,0,0,0,100,100,0.3,0,1,2,1,2,15,15,15,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -384,8 +398,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
           for (let i = 0; i < captionWords.length; i++) {
             const word = captionWords[i];
             if (i === wordIndex) {
-              // Current word being spoken - orange with bold
-              captionText += `{\\c&H00356BFF&\\b1}${word.word}{\\c&H00ffffff&\\b0}`;
+              // Current word being spoken - white and slightly bigger
+              captionText += `{\\c&H00ffffff&\\b1\\fs24}${word.word}{\\b0\\fs20}`;
             } else {
               // Other words in caption - white
               captionText += word.word;
@@ -608,17 +622,7 @@ function highlightAttentionWords(text) {
     'DANGEROUS', 'RISKY', 'SAFE', 'SECURE', 'PROTECTED', 'GUARANTEE'
   ];
   
-  // Apply highlighting to attention words using HTML-like tags for better SRT support
-  attentionWords.forEach(word => {
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
-    highlightedText = highlightedText.replace(regex, `<font color="#FF6B35"><b>${word}</b></font>`);
-  });
-  
-  // Highlight numbers and percentages
-  highlightedText = highlightedText.replace(/\b\d+(\.\d+)?\s*%\b/g, '<font color="#FF6B35"><b>$&</b></font>');
-  highlightedText = highlightedText.replace(/\b\d+x\b/gi, '<font color="#FF6B35"><b>$&</b></font>');
-  // Fixed: Only highlight complete money amounts, not standalone $ symbols  
-  highlightedText = highlightedText.replace(/\$\d+(?:,\d{3})*(?:\.\d{2})?\b/g, '<font color="#FF6B35"><b>$&</b></font>');
+  // No highlighting - return plain text (highlighting removed per user request)
   
   return highlightedText;
 }
@@ -655,9 +659,14 @@ app.post('/api/transcribe-segment', async (req, res) => {
 
     console.log(`🎬 Processing segment ${segmentId}: ${startTime}s - ${endTime}s`);
 
-    // First, extract with extra buffer to capture complete sentences
+    // Get video duration to cap extraction time properly
+    const videoDuration = await getVideoDuration(tempVideoPath);
+    console.log(`🎬 Video duration: ${videoDuration}s`);
+    
+    // First, extract with extra buffer to capture complete sentences, but cap at video end
     const bufferTime = 15; // Extra seconds to capture full sentences
-    const extendedEndTime = endTime + bufferTime;
+    const extendedEndTime = Math.min(endTime + bufferTime, videoDuration);
+    console.log(`🎬 Capped extraction time from ${endTime + bufferTime}s to ${extendedEndTime}s`);
     
     console.log('🎬 Extracting audio segment...');
     // Extract audio segment with buffer using temp video path
@@ -668,6 +677,9 @@ app.post('/api/transcribe-segment', async (req, res) => {
     const transcription = await transcribeAudio(audioPath);
     
     console.log('🎬 Transcription completed:', transcription.text?.substring(0, 100) + '...');
+    console.log('🔍 DEBUG - Full transcription text:', transcription.text);
+    console.log('🔍 DEBUG - Transcription text length:', transcription.text?.length);
+    console.log('🔍 DEBUG - Word count:', transcription.words?.length);
 
     // Clean up temporary files
     await fs.remove(audioPath);
@@ -694,11 +706,11 @@ app.post('/api/transcribe-segment', async (req, res) => {
             end: wordGroup[wordGroup.length - 1].end,
             text: captionText
           });
-          // Also create highlighted version for preview
+          // Also create plain version (no highlighting)
           highlightedCaptions.push({
             start: wordGroup[0].start,
             end: wordGroup[wordGroup.length - 1].end,
-            text: highlightAttentionWords(captionText)
+            text: captionText
           });
         }
       }
@@ -720,17 +732,21 @@ app.post('/api/transcribe-segment', async (req, res) => {
           end: captionEnd,
           text: captionText
         });
-        // Also create highlighted version for preview
+        // Also create plain version (no highlighting)
         highlightedCaptions.push({
           start: captionStart,
           end: captionEnd,
-          text: highlightAttentionWords(captionText)
+          text: captionText
         });
       }
     }
 
     // Generate meaningful title from transcript
     const generatedTitle = generateTitleFromTranscript(transcription.text);
+
+    console.log('🔍 DEBUG - Server response transcript:', transcription.text);
+    console.log('🔍 DEBUG - Server response captions count:', captions.length);
+    console.log('🔍 DEBUG - First caption:', captions[0]?.text);
 
     res.json({
       success: true,
