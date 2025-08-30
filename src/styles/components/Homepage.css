@@ -109,12 +109,10 @@
   border-radius: 0.75rem;
   font-weight: 600;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 20px 0 rgba(59, 130, 246, 0.3);
 }
 
 .nav-signup:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px 0 rgba(59, 130, 246, 0.4);
 }
 
 /* Hero Section */
@@ -189,12 +187,10 @@
   text-decoration: none;
   border-radius: 1rem;
   transition: all 0.3s ease;
-  box-shadow: 0 6px 25px 0 rgba(59, 130, 246, 0.4);
 }
 
 .hero-cta:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 40px 0 rgba(59, 130, 246, 0.5);
 }
 
 .hero-demo {
@@ -436,12 +432,10 @@
   text-decoration: none;
   border-radius: 1rem;
   transition: all 0.3s ease;
-  box-shadow: 0 6px 25px 0 rgba(59, 130, 246, 0.4);
 }
 
 .cta-button:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 40px 0 rgba(59, 130, 246, 0.5);
 }
 
 /* Footer */
