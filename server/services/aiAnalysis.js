@@ -520,9 +520,13 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
     const basePrompt = `You are an expert at identifying viral moments in video content. 
         Analyze the transcript and identify 3-5 segments with the highest viral potential.
         
-        IMPORTANT: Create SHORT, FOCUSED viral moments that are 10-20 seconds long maximum.
-        Use word-based timing estimation. If the transcript is ~9000 characters and video is ~520 seconds, 
-        estimate roughly 17-18 characters per second. Be very precise with timestamps.
+        CRITICAL: Find the EXACT character position of each quote in the full transcript, then calculate timestamps.
+        
+        Step 1: Locate each viral quote's exact position in the transcript (character count from start)
+        Step 2: Calculate timestamp using: characters_to_quote ÷ total_characters × total_video_seconds
+        Step 3: Verify the quote actually appears at that calculated timestamp
+        
+        If transcript is ~9200 characters and video is ~520 seconds, that's ~17.7 characters per second.
         
         Return a JSON object with a "moments" array, each moment having:
         - startTime (seconds) - Be precise and conservative
@@ -581,7 +585,7 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
         Analyze each moment individually for unique characteristics.`
       }, {
         role: 'user',
-        content: `Transcript: "${transcript}"\n\nUser Tier: ${userTier}\n\nVideo Duration: ${videoDuration || 'unknown'} seconds\nTranscript Length: ${transcript.length} characters\n\nIdentify the best viral moments with ${userTier === 'pro' ? 'detailed individual analytics' : 'basic analysis'} for each. Return JSON object with moments array.`
+        content: `Full Transcript (${transcript.length} characters, ${videoDuration || 'unknown'} seconds):\n"${transcript}"\n\nUser Tier: ${userTier}\n\nFor each viral moment, you MUST:\n1. Find the exact character position where the quote starts in the transcript above\n2. Calculate timestamp as: (character_position ÷ ${transcript.length}) × ${videoDuration || 520}\n3. Ensure the calculated timestamp makes sense\n\nReturn JSON with moments array containing ${userTier === 'pro' ? 'detailed analytics' : 'basic analysis'}.`
       }],
       response_format: { type: 'json_object' },
       temperature: 0.8,

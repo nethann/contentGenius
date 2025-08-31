@@ -505,7 +505,8 @@ const ViralClipGenerator = () => {
         filename: activeFileInfo.filename,
         startTime: moment.startTimeSeconds,
         endTime: moment.endTimeSeconds,
-        segmentId: moment.id
+        segmentId: moment.id,
+        expectedTranscript: moment.transcript
       };
       
       console.log('🎬 Sending request to transcribe-segment:', requestPayload);
