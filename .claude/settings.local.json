@@ -25,7 +25,8 @@
       "Bash(start test-video-library.html)",
       "Bash(dir \"C:\\Users\\netha\\Documents\\Programming\\ReactApps\\content-scalar\\server\\uploads\")",
       "Read(C:\\/**)",
-      "WebFetch(domain:linear.app)"
+      "WebFetch(domain:linear.app)",
+      "Bash(cmd /c:*)"
     ],
     "deny": [],
     "ask": [],

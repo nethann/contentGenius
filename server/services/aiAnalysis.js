@@ -43,29 +43,14 @@ function cleanTranscriptionText(text) {
 
   let cleanText = text.trim();
   
-  // Remove common transcription prompts and artifacts
+  // Remove only clear transcription artifacts - be much more conservative
   const promptsToRemove = [
-    /transcribe accurately and completely\.?\s*/gi,
-    /accurately and completely\.?\s*/gi,
-    /transcribe the complete audio without truncation[.\s]*/gi,
-    /transcribe the cmoplete audio without tranuncation[.\s]*/gi,
-    /transcribe the cmoplet audi owiotuut tuncation[.\s]*/gi,
-    /include all spoken words and maintain natural speech patterns[.\s]*/gi,
-    /include all spoiekn words and maintain natural speech apttern[.\s]*/gi,
-    /please transcribe the complete audio[.\s]*/gi,
-    /this is a business\/motivational speech[.\s]*/gi,
-    /this is part \d+ of \d+ of a[.\s]*/gi,
-    /maintain natural speech patterns and include all spoken words[.\s]*/gi,
-    /transcription by castingwords/gi,
-    /trnasciption by castingwords/gi,
-    /thank you for watching[.\s]*/gi,
-    /thank you for ewatching[.\s]*/gi,
-    /thank you\.?\s*$/gi,
-    /^transcribe[.\s]*/gi,
-    /^please transcribe[.\s]*/gi,
-    /business\/motivational content[.\s]*/gi,
-    /audio segment \d+\/\d+[.\s]*/gi,
-    /complete accurate transcription required[.\s]*/gi
+    /^transcribe accurately and completely\.?\s*/gi, // Only at start
+    /^please transcribe the complete audio[.\s]*/gi, // Only at start
+    /transcription by castingwords/gi, // Clear watermark
+    /^transcribe[.\s]*/gi, // Only at start
+    /^please transcribe[.\s]*/gi, // Only at start
+    /complete accurate transcription required[.\s]*/gi // Clear instruction
   ];
   
   // Remove each prompt pattern
@@ -73,8 +58,8 @@ function cleanTranscriptionText(text) {
     cleanText = cleanText.replace(pattern, '');
   }
   
-  // Remove repeated phrases (common in transcription errors)
-  cleanText = cleanText.replace(/(.{10,}?)\s+\1+/g, '$1'); // Remove repeated phrases of 10+ chars
+  // Remove repeated phrases only if they're exact duplicates (be conservative)
+  cleanText = cleanText.replace(/(.{20,}?)\s+\1/g, '$1'); // Remove only exact repeated phrases of 20+ chars
   
   // Clean up extra whitespace and normalize
   cleanText = cleanText
@@ -86,10 +71,9 @@ function cleanTranscriptionText(text) {
   // Remove leading/trailing punctuation artifacts
   cleanText = cleanText.replace(/^[.,;:\s]+/, '').replace(/[.,;:\s]+$/, '');
   
-  // If the result is too short or seems to be just artifacts, return empty
-  if (cleanText.length < 10 || 
-      cleanText.toLowerCase().includes('transcribe') || 
-      cleanText.toLowerCase().includes('castingwords')) {
+  // Only return empty if it's clearly just artifacts - be very conservative
+  if (cleanText.length < 5 || 
+      (cleanText.length < 20 && cleanText.toLowerCase().includes('castingwords'))) {
     console.log('⚠️ Transcription appears to be mostly artifacts, returning empty');
     return '';
   }
@@ -327,32 +311,33 @@ export async function transcribeAudio(audioPath) {
     let retryCount = 0;
     const maxRetries = 2;
     
-    // Try different configurations if transcription fails or truncates
+    // Always prioritize segment and word-level timestamps for precise timing
     const transcriptionConfigs = [
       {
         model: 'whisper-large-v3',
-        response_format: 'text',
         language: 'en',
-        temperature: 0.0
+        response_format: 'verbose_json',
+        timestamp_granularities: ['word', 'segment'],
+        temperature: 0.0,
       },
       {
         model: 'whisper-large-v3',
         language: 'en',
         response_format: 'verbose_json',
-        timestamp_granularities: ['word'],
+        timestamp_granularities: ['segment'],
         temperature: 0.0,
-      },
-      {
-        model: 'whisper-large-v3-turbo',
-        language: 'en', 
-        response_format: 'text',
-        temperature: 0.0
       },
       {
         model: 'whisper-large-v3',
         language: 'en',
         response_format: 'json',
-        temperature: 0.1
+        temperature: 0.0
+      },
+      {
+        model: 'whisper-large-v3',
+        response_format: 'text',
+        language: 'en',
+        temperature: 0.0
       }
     ];
     
@@ -397,37 +382,38 @@ export async function transcribeAudio(audioPath) {
     // Check if text ends abruptly (no punctuation) or seems incomplete
     const lastChar = transcriptionText.slice(-1);
     
-    // More comprehensive truncation detection
-    const endsAbruptly = transcriptionText.length > 10 && (
-      !['.', '!', '?'].includes(lastChar) || // No sentence ending punctuation
-      transcriptionText.endsWith('...') || // Explicit truncation
-      /\b\w+$/.test(transcriptionText.trim()) // Ends with incomplete word
+    // Improved truncation detection - be more conservative
+    const endsAbruptly = transcriptionText.length > 20 && (
+      transcriptionText.endsWith('...') || // Explicit truncation markers only
+      (transcriptionText.length < 100 && !!['.', '!', '?'].includes(lastChar) === false) // Very short without punctuation
     );
     
-    // Also check for very short transcriptions that might be incomplete
-    const seemsIncomplete = transcriptionText.length < 50 && transcriptionText.trim().split(' ').length < 10;
+    // Only flag as incomplete if extremely short and clearly cut off
+    const seemsIncomplete = transcriptionText.length < 30;
     
     if (endsAbruptly || seemsIncomplete) {
-      console.log('⚠️ POTENTIAL TRUNCATION DETECTED');
+      console.log('⚠️ POTENTIAL TRUNCATION DETECTED (being conservative)');
       console.log('⚠️ Text length:', transcriptionText.length);
       console.log('⚠️ Ends abruptly:', endsAbruptly);
       console.log('⚠️ Seems incomplete:', seemsIncomplete);
       console.log('⚠️ Last 50 characters:', JSON.stringify(transcriptionText.slice(-50)));
       
-      // If truncated or incomplete, try splitting and re-transcribing 
-      console.log('🔄 Attempting to re-transcribe with audio splitting...');
-      try {
-        const chunkedResult = await transcribeAudioInChunks(audioPath);
-        
-        // Only use chunked result if it's significantly longer
-        if (chunkedResult.text && chunkedResult.text.length > transcriptionText.length * 1.2) {
-          console.log('✅ Chunked transcription is longer, using that result');
-          return chunkedResult;
-        } else {
-          console.log('⚠️ Chunked transcription not significantly better, using original');
+      // Only try chunked transcription for very short results
+      if (transcriptionText.length < 100) {
+        console.log('🔄 Attempting to re-transcribe with audio splitting...');
+        try {
+          const chunkedResult = await transcribeAudioInChunks(audioPath);
+          
+          // Only use chunked result if it's significantly longer
+          if (chunkedResult.text && chunkedResult.text.length > transcriptionText.length * 1.5) {
+            console.log('✅ Chunked transcription is significantly longer, using that result');
+            return chunkedResult;
+          } else {
+            console.log('⚠️ Chunked transcription not significantly better, using original');
+          }
+        } catch (chunkError) {
+          console.warn('⚠️ Chunk transcription failed, returning original result:', chunkError.message);
         }
-      } catch (chunkError) {
-        console.warn('⚠️ Chunk transcription failed, returning original result:', chunkError.message);
       }
     }
     
@@ -510,32 +496,267 @@ export async function analyzeViralPotential(transcript, userTier = 'guest') {
 }
 
 /**
+ * Find precise timestamps for a text snippet using word-level or segment-level timing
+ */
+function findPreciseTimestamps(targetText, wordsArray, segmentsArray) {
+  console.log('🔍 Finding precise timestamps for:', targetText.substring(0, 100));
+  console.log('🔍 Available words count:', wordsArray?.length || 0);
+  console.log('🔍 Available segments count:', segmentsArray?.length || 0);
+
+  // Try word-level matching first
+  if (wordsArray && wordsArray.length > 0) {
+    const wordMatch = findWordLevelMatch(targetText, wordsArray);
+    if (wordMatch) {
+      return wordMatch;
+    }
+  }
+
+  // Fallback to segment-level matching
+  if (segmentsArray && segmentsArray.length > 0) {
+    const segmentMatch = findSegmentLevelMatch(targetText, segmentsArray);
+    if (segmentMatch) {
+      return segmentMatch;
+    }
+  }
+
+  console.warn('⚠️ No precise timing match found for text');
+  return null;
+}
+
+/**
+ * Find timestamps using word-level data
+ */
+function findWordLevelMatch(targetText, wordsArray) {
+  // Clean and normalize the target text for matching
+  const cleanTarget = targetText.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ');
+  
+  // Create word mapping with timing
+  const words = wordsArray.map(w => ({
+    word: w.word.toLowerCase().replace(/[^\w]/g, ''),
+    start: w.start,
+    end: w.end,
+    original: w.word
+  }));
+  
+  console.log('🔍 First 10 words with timing:', words.slice(0, 10).map(w => ({word: w.word, start: w.start, end: w.end})));
+  
+  // Find the best matching sequence
+  let bestMatch = null;
+  let bestScore = 0;
+  
+  for (let i = 0; i <= words.length - cleanTarget.length; i++) {
+    const sequence = words.slice(i, i + cleanTarget.length);
+    let matches = 0;
+    
+    for (let j = 0; j < cleanTarget.length && j < sequence.length; j++) {
+      if (sequence[j].word.includes(cleanTarget[j]) || cleanTarget[j].includes(sequence[j].word)) {
+        matches++;
+      }
+    }
+    
+    const score = matches / cleanTarget.length;
+    if (score > bestScore && score >= 0.7) { // 70% match threshold
+      bestScore = score;
+      bestMatch = {
+        startTime: sequence[0].start,
+        endTime: sequence[sequence.length - 1].end,
+        matchedWords: sequence.map(s => s.original).join(' '),
+        score: score,
+        method: 'word-level'
+      };
+    }
+  }
+  
+  if (bestMatch) {
+    console.log('✅ Found word-level timing match:', {
+      startTime: bestMatch.startTime,
+      endTime: bestMatch.endTime,
+      score: bestMatch.score,
+      matchedText: bestMatch.matchedWords.substring(0, 100)
+    });
+  }
+  
+  return bestMatch;
+}
+
+/**
+ * Find timestamps using segment-level data
+ */
+function findSegmentLevelMatch(targetText, segmentsArray) {
+  const cleanTarget = targetText.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  
+  console.log('🔍 Searching segments for text match...');
+  
+  let bestMatch = null;
+  let bestScore = 0;
+  
+  for (const segment of segmentsArray) {
+    const segmentText = segment.text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    
+    // Calculate similarity score
+    const similarity = calculateSimilarity(cleanTarget, segmentText);
+    
+    if (similarity > bestScore && similarity >= 0.6) { // 60% match threshold for segments
+      bestScore = similarity;
+      bestMatch = {
+        startTime: segment.start,
+        endTime: segment.end,
+        matchedWords: segment.text,
+        score: similarity,
+        method: 'segment-level'
+      };
+    }
+  }
+  
+  if (bestMatch) {
+    console.log('✅ Found segment-level timing match:', {
+      startTime: bestMatch.startTime,
+      endTime: bestMatch.endTime,
+      score: bestMatch.score,
+      matchedText: bestMatch.matchedWords.substring(0, 100)
+    });
+  }
+  
+  return bestMatch;
+}
+
+/**
+ * Calculate text similarity score
+ */
+function calculateSimilarity(text1, text2) {
+  const words1 = text1.split(' ');
+  const words2 = text2.split(' ');
+  
+  // Check if target text is contained in segment text
+  if (text2.includes(text1)) {
+    return 0.95;
+  }
+  
+  // Count matching words
+  let matches = 0;
+  for (const word1 of words1) {
+    if (words2.some(word2 => word2.includes(word1) || word1.includes(word2))) {
+      matches++;
+    }
+  }
+  
+  return matches / Math.max(words1.length, words2.length);
+}
+
+/**
+ * Find text in transcript using character position and estimate timing
+ */
+function findTextInTranscript(targetText, fullTranscript, videoDuration) {
+  if (!targetText || !fullTranscript || !videoDuration) {
+    return null;
+  }
+  
+  console.log('🔍 Searching for exact text in transcript:', targetText.substring(0, 100));
+  console.log('🔍 Full transcript length:', fullTranscript.length, 'characters');
+  console.log('🔍 Video duration:', videoDuration, 'seconds');
+  
+  // Clean both texts for comparison
+  const cleanTarget = targetText.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  const cleanTranscript = fullTranscript.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  
+  console.log('🔍 Clean target text:', cleanTarget.substring(0, 100));
+  console.log('🔍 Clean transcript sample:', cleanTranscript.substring(0, 200));
+  
+  // Try exact match first
+  let position = cleanTranscript.indexOf(cleanTarget);
+  let confidence = 1.0;
+  
+  if (position === -1) {
+    // Try partial match by finding the best substring
+    console.log('🔍 Exact match not found, trying partial match...');
+    const targetWords = cleanTarget.split(' ');
+    let bestMatch = { position: -1, matchedWords: 0, confidence: 0 };
+    
+    // Try different lengths of the target text
+    for (let wordCount = Math.max(5, Math.floor(targetWords.length * 0.7)); wordCount <= targetWords.length; wordCount++) {
+      for (let startWord = 0; startWord <= targetWords.length - wordCount; startWord++) {
+        const partialTarget = targetWords.slice(startWord, startWord + wordCount).join(' ');
+        const partialPosition = cleanTranscript.indexOf(partialTarget);
+        
+        if (partialPosition >= 0) {
+          const partialConfidence = wordCount / targetWords.length;
+          if (partialConfidence > bestMatch.confidence) {
+            bestMatch = {
+              position: partialPosition,
+              matchedWords: wordCount,
+              confidence: partialConfidence
+            };
+          }
+        }
+      }
+    }
+    
+    if (bestMatch.position >= 0 && bestMatch.confidence >= 0.6) {
+      position = bestMatch.position;
+      confidence = bestMatch.confidence;
+      console.log(`🔍 Found partial match with ${(confidence * 100).toFixed(1)}% confidence`);
+    }
+  } else {
+    console.log('🔍 Found exact text match in transcript');
+  }
+  
+  if (position >= 0) {
+    // Calculate timing based on character position
+    const relativePosition = position / cleanTranscript.length;
+    const estimatedStartTime = Math.max(0, relativePosition * videoDuration);
+    
+    // Estimate segment duration based on text length
+    // Rough estimate: 150 words per minute = 2.5 words per second
+    const targetWordCount = cleanTarget.split(' ').length;
+    const estimatedDuration = Math.max(10, Math.min(30, targetWordCount * 0.4)); // 0.4 seconds per word
+    const estimatedEndTime = Math.min(videoDuration, estimatedStartTime + estimatedDuration);
+    
+    console.log(`📍 Text position: ${position}/${cleanTranscript.length} (${(relativePosition * 100).toFixed(1)}%)`);
+    console.log(`⏰ Estimated timing: ${estimatedStartTime.toFixed(1)}s - ${estimatedEndTime.toFixed(1)}s`);
+    
+    return {
+      startTime: estimatedStartTime,
+      endTime: estimatedEndTime,
+      confidence: confidence,
+      method: 'text-position'
+    };
+  }
+  
+  console.warn('⚠️ Text not found in transcript');
+  return null;
+}
+
+/**
  * Identify best moments in transcript for viral clips with individual analytics
  */
 export async function identifyViralMoments(transcript, transcriptionData, userTier = 'guest', videoDuration = null) {
   try {
     console.log('🎯 Identifying viral moments...');
     console.log('🔍 DEBUG - User tier for viral moments:', userTier);
+    console.log('🔍 Word-level timing data available:', !!transcriptionData.words?.length);
+    console.log('🔍 Words count:', transcriptionData.words?.length || 0);
     
     const basePrompt = `You are an expert at identifying viral moments in video content. 
         Analyze the transcript and identify 3-5 segments with the highest viral potential.
         
-        CRITICAL: Find the EXACT character position of each quote in the full transcript, then calculate timestamps.
-        
-        Step 1: Locate each viral quote's exact position in the transcript (character count from start)
-        Step 2: Calculate timestamp using: characters_to_quote ÷ total_characters × total_video_seconds
-        Step 3: Verify the quote actually appears at that calculated timestamp
-        
-        If transcript is ~9200 characters and video is ~520 seconds, that's ~17.7 characters per second.
+        CRITICAL INSTRUCTIONS:
+        - Focus on finding the EXACT TEXT QUOTES from the transcript that would make great viral clips
+        - Each transcript quote should be 10-30 words long for optimal clip length
+        - Find complete sentences or compelling phrases that stand alone
+        - DO NOT provide timestamps - we will calculate those precisely later
         
         Return a JSON object with a "moments" array, each moment having:
-        - startTime (seconds) - Be precise and conservative
-        - endTime (seconds) - Keep segments 10-20 seconds long (no more than 20 seconds!)
         - title (descriptive name)
         - viralScore (0-100)
         - category (engaging/educational/funny/emotional)
         - reasoning (why this moment is viral)
-        - transcript (exact text for this segment - ONE complete sentence or thought only)`;
+        - transcript (EXACT text from the original transcript - must match word for word)
+        
+        IMPORTANT: The 'transcript' field must contain the EXACT words from the provided transcript text, with precise punctuation and capitalization. This will be used for precise timing alignment.`;
     
     const proAnalytics = userTier === 'pro' ? `
         
@@ -585,7 +806,7 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
         Analyze each moment individually for unique characteristics.`
       }, {
         role: 'user',
-        content: `Full Transcript (${transcript.length} characters, ${videoDuration || 'unknown'} seconds):\n"${transcript}"\n\nUser Tier: ${userTier}\n\nFor each viral moment, you MUST:\n1. Find the exact character position where the quote starts in the transcript above\n2. Calculate timestamp as: (character_position ÷ ${transcript.length}) × ${videoDuration || 520}\n3. Ensure the calculated timestamp makes sense\n\nReturn JSON with moments array containing ${userTier === 'pro' ? 'detailed analytics' : 'basic analysis'}.`
+        content: `Full Transcript (${transcript.length} characters):\n\n"${transcript}"\n\nUser Tier: ${userTier}\n\nINSTRUCTIONS:\n1. Find the most engaging, quotable, or compelling EXACT TEXT from this transcript\n2. Each moment's transcript field must contain the EXACT words from above (copy-paste precision)\n3. Focus on complete sentences or powerful phrases that would make great standalone clips\n4. Look for hooks, emotional moments, key insights, or surprising statements\n\nReturn JSON with moments array containing ${userTier === 'pro' ? 'detailed analytics' : 'basic analysis'}.`
       }],
       response_format: { type: 'json_object' },
       temperature: 0.8,
@@ -606,17 +827,92 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
       console.log('🎯 Parsed viral moments result keys:', Object.keys(result || {}));
       console.log('🔍 DEBUG - Parsed viral moments for', userTier, ':', JSON.stringify(result, null, 2));
       
+      let moments = [];
       // Handle different possible response formats
       if (result && result.moments && Array.isArray(result.moments)) {
-        return result.moments;
+        moments = result.moments;
       } else if (Array.isArray(result)) {
-        return result;
+        moments = result;
       } else if (result && result.viralMoments && Array.isArray(result.viralMoments)) {
-        return result.viralMoments;
+        moments = result.viralMoments;
       } else {
         console.log('⚠️ No valid moments array found in GPT response, returning empty array');
         return [];
       }
+      
+      console.log('🔍 Processing', moments.length, 'moments for precise timing');
+      
+      // MULTI-LAYERED timing search with priority order for better accuracy
+      const preciselyTimedMoments = moments.map((moment, index) => {
+        console.log(`🔍 Processing moment ${index + 1}: "${moment.transcript?.substring(0, 50)}..."`);
+        
+        let finalStartTime, finalEndTime, timingMethod, confidence;
+        
+        if (moment.transcript) {
+          // Priority 1: Try word-level timing (most accurate)
+          console.log(`🔍 Trying word-level timing first...`);
+          const wordMatch = findPreciseTimestamps(
+            moment.transcript, 
+            transcriptionData.words, 
+            transcriptionData.segments
+          );
+          
+          if (wordMatch && wordMatch.score > 0.7) {
+            finalStartTime = wordMatch.startTime;
+            finalEndTime = wordMatch.endTime;
+            timingMethod = wordMatch.method;
+            confidence = wordMatch.score;
+            console.log(`✅ Using high-confidence ${wordMatch.method} timing for moment ${index + 1}: ${finalStartTime}s - ${finalEndTime}s`);
+          } else {
+            // Priority 2: Try improved text-based search
+            console.log(`🔍 Word-level timing insufficient, trying improved text search...`);
+            const textMatch = findTextInTranscript(moment.transcript, transcript, videoDuration);
+            
+            if (textMatch && textMatch.confidence > 0.6) {
+              finalStartTime = textMatch.startTime;
+              finalEndTime = textMatch.endTime;
+              timingMethod = textMatch.method;
+              confidence = textMatch.confidence;
+              console.log(`✅ Using improved text-position timing for moment ${index + 1}: ${finalStartTime}s - ${finalEndTime}s`);
+            } else if (wordMatch) {
+              // Priority 3: Use word-level timing even with lower confidence
+              finalStartTime = wordMatch.startTime;
+              finalEndTime = wordMatch.endTime;
+              timingMethod = wordMatch.method + '-lowconf';
+              confidence = wordMatch.score;
+              console.log(`⚠️ Using low-confidence ${wordMatch.method} timing for moment ${index + 1}: ${finalStartTime}s - ${finalEndTime}s`);
+            } else {
+              // Priority 4: Fallback timing
+              finalStartTime = (index / moments.length) * (videoDuration || 300);
+              finalEndTime = Math.min((videoDuration || 300), finalStartTime + 15);
+              timingMethod = 'fallback';
+              confidence = 0.2;
+              console.warn(`⚠️ Using fallback timing for moment ${index + 1}: ${finalStartTime}s - ${finalEndTime}s`);
+            }
+          }
+        } else {
+          // No transcript text available
+          finalStartTime = (index / moments.length) * (videoDuration || 300);
+          finalEndTime = Math.min((videoDuration || 300), finalStartTime + 15);
+          timingMethod = 'no-transcript-fallback';
+          confidence = 0.1;
+          console.warn(`⚠️ No transcript text available for moment ${index + 1}, using fallback timing`);
+        }
+        
+        return {
+          ...moment,
+          startTime: finalStartTime,
+          endTime: finalEndTime,
+          startTimeSeconds: finalStartTime,
+          endTimeSeconds: finalEndTime,
+          timingMethod: timingMethod,
+          timingConfidence: confidence,
+          preciseTimingUsed: confidence > 0.6
+        };
+      });
+      
+      console.log('✅ Processed all moments with timing data');
+      return preciselyTimedMoments;
     } catch (parseError) {
       console.error('❌ JSON parse error:', parseError.message);
       console.log('⚠️ Invalid JSON from GPT, returning empty array');

@@ -21,6 +21,43 @@ const VideoSegmentsPage = () => {
   const [selectedSegment, setSelectedSegment] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  // Convert time string (e.g., "2:30") to seconds
+  const timeStringToSeconds = (timeString) => {
+    if (typeof timeString === 'number') {
+      return timeString; // Already in seconds
+    }
+    if (typeof timeString !== 'string') {
+      return 0;
+    }
+    
+    // Handle formats like "2:30", "1:23:45", or just "125" (seconds)
+    const parts = timeString.split(':').map(part => parseInt(part, 10));
+    
+    if (parts.length === 1) {
+      return parts[0] || 0; // Just seconds
+    } else if (parts.length === 2) {
+      return (parts[0] * 60) + (parts[1] || 0); // MM:SS
+    } else if (parts.length === 3) {
+      return (parts[0] * 3600) + (parts[1] * 60) + (parts[2] || 0); // HH:MM:SS
+    }
+    
+    return 0;
+  };
+
+  // Format seconds to time string
+  const secondsToTimeString = (seconds) => {
+    if (typeof seconds !== 'number') return '0:00';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  };
+
   // Redirect if no video data
   if (!videoData) {
     React.useEffect(() => {
@@ -407,7 +444,9 @@ const VideoSegmentsPage = () => {
                       {moment.category}
                     </div>
                     <div style={pageStyles.segmentTime}>
-                      <span>{moment.startTime} - {moment.endTime}</span>
+                      <span>
+                        {typeof moment.startTime === 'number' ? secondsToTimeString(moment.startTime) : moment.startTime} - {typeof moment.endTime === 'number' ? secondsToTimeString(moment.endTime) : moment.endTime}
+                      </span>
                       <span style={pageStyles.viralScore}>
                         {moment.viralScore}%
                       </span>
@@ -469,7 +508,7 @@ const VideoSegmentsPage = () => {
             {/* Player Header */}
             <div style={pageStyles.videoPlayerHeader}>
               <h3 style={pageStyles.videoPlayerTitle}>
-                {selectedSegment.title} ({selectedSegment.startTime} - {selectedSegment.endTime})
+                {selectedSegment.title} ({typeof selectedSegment.startTime === 'number' ? secondsToTimeString(selectedSegment.startTime) : selectedSegment.startTime} - {typeof selectedSegment.endTime === 'number' ? secondsToTimeString(selectedSegment.endTime) : selectedSegment.endTime})
               </h3>
               <button 
                 style={pageStyles.closeButton}
@@ -498,9 +537,26 @@ const VideoSegmentsPage = () => {
                 onLoadedMetadata={(e) => {
                   console.log('Video loaded:', e.target.src);
                   console.log('Video duration:', e.target.duration);
-                  // Set video to start at segment start time
-                  const startTimeSeconds = selectedSegment.startTimeSeconds || 0;
+                  
+                  // Get start time in seconds, trying multiple possible properties
+                  let startTimeSeconds = selectedSegment.startTimeSeconds;
+                  
+                  if (startTimeSeconds === undefined || startTimeSeconds === null) {
+                    // Try to convert from string format
+                    startTimeSeconds = timeStringToSeconds(selectedSegment.startTime);
+                  }
+                  
+                  // Ensure it's a valid number within video bounds
+                  if (typeof startTimeSeconds !== 'number' || startTimeSeconds < 0) {
+                    startTimeSeconds = 0;
+                  }
+                  if (startTimeSeconds >= e.target.duration) {
+                    startTimeSeconds = Math.max(0, e.target.duration - 10); // Start 10s before end
+                  }
+                  
                   console.log('Setting start time to:', startTimeSeconds);
+                  console.log('Selected segment data:', selectedSegment);
+                  
                   e.target.currentTime = startTimeSeconds;
                 }}
                 onError={(e) => {
@@ -510,6 +566,21 @@ const VideoSegmentsPage = () => {
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => setIsPlaying(false)}
+                onTimeUpdate={(e) => {
+                  // Auto-pause when reaching segment end time
+                  if (selectedSegment) {
+                    let endTimeSeconds = selectedSegment.endTimeSeconds;
+                    
+                    if (endTimeSeconds === undefined || endTimeSeconds === null) {
+                      endTimeSeconds = timeStringToSeconds(selectedSegment.endTime);
+                    }
+                    
+                    if (typeof endTimeSeconds === 'number' && e.target.currentTime >= endTimeSeconds) {
+                      e.target.pause();
+                      setIsPlaying(false);
+                    }
+                  }
+                }}
               />
               
               {/* Video Controls */}
@@ -529,11 +600,16 @@ const VideoSegmentsPage = () => {
                   {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                 </button>
                 <div style={pageStyles.timeDisplay}>
-                  {selectedSegment.startTime} - {selectedSegment.endTime}
+                  {typeof selectedSegment.startTime === 'number' ? secondsToTimeString(selectedSegment.startTime) : selectedSegment.startTime} - {typeof selectedSegment.endTime === 'number' ? secondsToTimeString(selectedSegment.endTime) : selectedSegment.endTime}
                 </div>
                 <div style={{ color: '#10b981', fontSize: '14px', fontWeight: '600' }}>
                   {selectedSegment.viralScore}% viral score
                 </div>
+                {selectedSegment.timingMethod && (
+                  <div style={{ color: '#94a3b8', fontSize: '11px', fontStyle: 'italic' }}>
+                    Timing: {selectedSegment.timingMethod} ({((selectedSegment.timingConfidence || 0) * 100).toFixed(0)}% confidence)
+                  </div>
+                )}
               </div>
             </div>
 
