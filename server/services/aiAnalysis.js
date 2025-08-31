@@ -34,6 +34,77 @@ const groq = new Groq({
 });
 
 /**
+ * Clean up transcription text by removing prompts and artifacts
+ */
+function cleanTranscriptionText(text) {
+  if (!text || typeof text !== 'string') {
+    return '';
+  }
+
+  let cleanText = text.trim();
+  
+  // Remove common transcription prompts and artifacts
+  const promptsToRemove = [
+    /transcribe accurately and completely\.?\s*/gi,
+    /accurately and completely\.?\s*/gi,
+    /transcribe the complete audio without truncation[.\s]*/gi,
+    /transcribe the cmoplete audio without tranuncation[.\s]*/gi,
+    /transcribe the cmoplet audi owiotuut tuncation[.\s]*/gi,
+    /include all spoken words and maintain natural speech patterns[.\s]*/gi,
+    /include all spoiekn words and maintain natural speech apttern[.\s]*/gi,
+    /please transcribe the complete audio[.\s]*/gi,
+    /this is a business\/motivational speech[.\s]*/gi,
+    /this is part \d+ of \d+ of a[.\s]*/gi,
+    /maintain natural speech patterns and include all spoken words[.\s]*/gi,
+    /transcription by castingwords/gi,
+    /trnasciption by castingwords/gi,
+    /thank you for watching[.\s]*/gi,
+    /thank you for ewatching[.\s]*/gi,
+    /thank you\.?\s*$/gi,
+    /^transcribe[.\s]*/gi,
+    /^please transcribe[.\s]*/gi,
+    /business\/motivational content[.\s]*/gi,
+    /audio segment \d+\/\d+[.\s]*/gi,
+    /complete accurate transcription required[.\s]*/gi
+  ];
+  
+  // Remove each prompt pattern
+  for (const pattern of promptsToRemove) {
+    cleanText = cleanText.replace(pattern, '');
+  }
+  
+  // Remove repeated phrases (common in transcription errors)
+  cleanText = cleanText.replace(/(.{10,}?)\s+\1+/g, '$1'); // Remove repeated phrases of 10+ chars
+  
+  // Clean up extra whitespace and normalize
+  cleanText = cleanText
+    .replace(/\s+/g, ' ')  // Multiple spaces to single space
+    .replace(/\.\s*\./g, '.') // Remove double periods
+    .replace(/,\s*,/g, ',') // Remove double commas
+    .trim();
+  
+  // Remove leading/trailing punctuation artifacts
+  cleanText = cleanText.replace(/^[.,;:\s]+/, '').replace(/[.,;:\s]+$/, '');
+  
+  // If the result is too short or seems to be just artifacts, return empty
+  if (cleanText.length < 10 || 
+      cleanText.toLowerCase().includes('transcribe') || 
+      cleanText.toLowerCase().includes('castingwords')) {
+    console.log('⚠️ Transcription appears to be mostly artifacts, returning empty');
+    return '';
+  }
+  
+  console.log('🧹 Cleaned transcription:', {
+    original: text.substring(0, 100) + '...',
+    cleaned: cleanText.substring(0, 100) + '...',
+    originalLength: text.length,
+    cleanedLength: cleanText.length
+  });
+  
+  return cleanText;
+}
+
+/**
  * Extract audio from video file for transcription
  */
 export async function extractAudioFromVideo(videoPath) {
@@ -45,9 +116,9 @@ export async function extractAudioFromVideo(videoPath) {
     
     // Add timeout to prevent hanging
     const timeout = setTimeout(() => {
-      console.error('⏰ Audio extraction timeout after 60 seconds');
+      console.error('⏰ Audio extraction timeout after 180 seconds');
       reject(new Error('Audio extraction timeout - ffmpeg took too long'));
-    }, 60000); // 60 second timeout
+    }, 180000); // 180 second timeout (3 minutes)
 
     const ffmpegCommand = ffmpeg(videoPath)
       .toFormat('wav')
@@ -66,10 +137,24 @@ export async function extractAudioFromVideo(videoPath) {
       .on('end', () => {
         clearTimeout(timeout);
         console.log('✅ Audio extraction completed successfully');
-        // Verify the audio file was created
-        fs.pathExists(audioPath).then(exists => {
+        // Verify the audio file was created and check its properties
+        fs.pathExists(audioPath).then(async exists => {
           if (exists) {
-            resolve(audioPath);
+            try {
+              const stats = await fs.stat(audioPath);
+              console.log('🎵 Extracted audio file size:', Math.round(stats.size / 1024), 'KB');
+              
+              // Get audio duration for verification
+              ffmpeg.ffprobe(audioPath, (err, metadata) => {
+                if (!err && metadata.format) {
+                  console.log('🎵 Extracted audio duration:', metadata.format.duration, 'seconds');
+                }
+                resolve(audioPath);
+              });
+            } catch (statError) {
+              console.warn('⚠️ Could not get audio file stats:', statError.message);
+              resolve(audioPath);
+            }
           } else {
             reject(new Error('Audio file was not created'));
           }
@@ -117,30 +202,242 @@ export async function extractAudioFromVideo(videoPath) {
 }
 
 /**
+ * Split large audio into chunks and transcribe each chunk separately
+ */
+async function transcribeAudioInChunks(audioPath) {
+  try {
+    console.log('🔄 Splitting audio into chunks for better transcription...');
+    
+    // Get audio duration first
+    const duration = await new Promise((resolve, reject) => {
+      ffmpeg.ffprobe(audioPath, (err, metadata) => {
+        if (err) reject(err);
+        else resolve(metadata.format.duration);
+      });
+    });
+    
+    console.log('🎵 Audio duration:', duration, 'seconds');
+    
+    // Split into 30-second chunks for better transcription quality
+    const chunkDuration = 30;
+    const numChunks = Math.ceil(duration / chunkDuration);
+    const chunks = [];
+    
+    console.log('🔄 Creating', numChunks, 'chunks of', chunkDuration, 'seconds each');
+    
+    // Create temporary chunks
+    for (let i = 0; i < numChunks; i++) {
+      const startTime = i * chunkDuration;
+      // Create unique chunk file path in temp directory
+      const audioBasename = path.basename(audioPath, path.extname(audioPath));
+      const audioDir = path.dirname(audioPath);
+      const uniqueChunkPath = path.join(audioDir, `${audioBasename}_chunk_${i}_${Date.now()}.wav`);
+      
+      await new Promise((resolve, reject) => {
+        ffmpeg(audioPath)
+          .seekInput(startTime)
+          .duration(chunkDuration)
+          .audioCodec('pcm_s16le')
+          .audioFrequency(16000)
+          .audioChannels(1)
+          .output(uniqueChunkPath)
+          .on('end', resolve)
+          .on('error', reject)
+          .run();
+      });
+      
+      chunks.push({ path: uniqueChunkPath, startTime, duration: Math.min(chunkDuration, duration - startTime) });
+    }
+    
+    // Transcribe each chunk
+    let fullText = '';
+    let allWords = [];
+    let timeOffset = 0;
+    
+    for (const chunk of chunks) {
+      console.log('🔄 Transcribing chunk at', chunk.startTime, 'seconds...');
+      
+      const chunkBuffer = await fs.readFile(chunk.path);
+      const chunkFile = new File([chunkBuffer], path.basename(chunk.path), {
+        type: 'audio/wav'
+      });
+      
+      const chunkTranscription = await groq.audio.transcriptions.create({
+        file: chunkFile,
+        model: 'whisper-large-v3',
+        language: 'en',
+        response_format: 'text',
+        temperature: 0.0,
+      });
+      
+      if (chunkTranscription && (typeof chunkTranscription === 'string' ? chunkTranscription : chunkTranscription.text)) {
+        const chunkText = typeof chunkTranscription === 'string' ? chunkTranscription : chunkTranscription.text;
+        fullText += chunkText;
+        
+        // Note: text format doesn't provide word timestamps, so we skip word timing for chunks
+        // This is a tradeoff for getting more complete transcriptions
+      }
+      
+      timeOffset += chunk.duration;
+      
+      // Clean up chunk file
+      try {
+        await fs.unlink(chunk.path);
+      } catch (unlinkError) {
+        console.warn('⚠️ Could not delete chunk file:', unlinkError.message);
+      }
+    }
+    
+    console.log('✅ Chunk transcription completed. Total text length:', fullText.length);
+    
+    // Clean the combined transcription text
+    const cleanedFullText = cleanTranscriptionText(fullText.trim());
+    
+    return {
+      text: cleanedFullText,
+      words: allWords,
+      segments: []
+    };
+    
+  } catch (error) {
+    console.error('❌ Chunk transcription error:', error);
+    throw error;
+  }
+}
+
+/**
  * Transcribe audio using Groq Whisper (fast and free)
  */
 export async function transcribeAudio(audioPath) {
   try {
     console.log('🎯 Starting transcription with Groq Whisper...');
+    console.log('🎵 Audio file path:', audioPath);
+    
+    // Check audio file size
+    const stats = await fs.stat(audioPath);
+    console.log('🎵 Audio file size:', Math.round(stats.size / 1024), 'KB');
     
     const audioBuffer = await fs.readFile(audioPath);
     const audioFile = new File([audioBuffer], path.basename(audioPath), {
       type: 'audio/wav'
     });
 
-    const transcription = await groq.audio.transcriptions.create({
-      file: audioFile,
-      model: 'whisper-large-v3',
-      language: 'en',
-      response_format: 'verbose_json',
-      timestamp_granularities: ['word']
-    });
+    console.log('🔄 Sending to Groq Whisper API...');
+    let transcription;
+    let retryCount = 0;
+    const maxRetries = 2;
+    
+    // Try different configurations if transcription fails or truncates
+    const transcriptionConfigs = [
+      {
+        model: 'whisper-large-v3',
+        response_format: 'text',
+        language: 'en',
+        temperature: 0.0
+      },
+      {
+        model: 'whisper-large-v3',
+        language: 'en',
+        response_format: 'verbose_json',
+        timestamp_granularities: ['word'],
+        temperature: 0.0,
+      },
+      {
+        model: 'whisper-large-v3-turbo',
+        language: 'en', 
+        response_format: 'text',
+        temperature: 0.0
+      },
+      {
+        model: 'whisper-large-v3',
+        language: 'en',
+        response_format: 'json',
+        temperature: 0.1
+      }
+    ];
+    
+    for (const config of transcriptionConfigs) {
+      try {
+        console.log(`🔄 Attempt ${retryCount + 1}/${transcriptionConfigs.length} with config:`, Object.keys(config).join(', '));
+        transcription = await groq.audio.transcriptions.create({
+          file: audioFile,
+          ...config
+        });
+        break; // Success, exit loop
+      } catch (error) {
+        retryCount++;
+        console.warn(`⚠️ Transcription attempt ${retryCount} failed:`, error.message);
+        if (retryCount >= transcriptionConfigs.length) {
+          throw error; // Re-throw the last error
+        }
+      }
+    }
 
     console.log('✅ Transcription completed');
+    
+    // Handle different response formats
+    let transcriptionText, transcriptionWords, transcriptionSegments;
+    if (typeof transcription === 'string') {
+      // Text format response
+      transcriptionText = transcription;
+      transcriptionWords = [];
+      transcriptionSegments = [];
+    } else {
+      // JSON format response
+      transcriptionText = transcription.text || '';
+      transcriptionWords = transcription.words || [];
+      transcriptionSegments = transcription.segments || [];
+    }
+    
+    console.log('🔍 RAW GROQ RESPONSE - Text length:', transcriptionText?.length || 0);
+    console.log('🔍 RAW GROQ RESPONSE - Full text:', JSON.stringify(transcriptionText));
+    console.log('🔍 RAW GROQ RESPONSE - Words count:', transcriptionWords?.length || 0);
+    console.log('🔍 RAW GROQ RESPONSE - Segments count:', transcriptionSegments?.length || 0);
+    
+    // Check if text ends abruptly (no punctuation) or seems incomplete
+    const lastChar = transcriptionText.slice(-1);
+    
+    // More comprehensive truncation detection
+    const endsAbruptly = transcriptionText.length > 10 && (
+      !['.', '!', '?'].includes(lastChar) || // No sentence ending punctuation
+      transcriptionText.endsWith('...') || // Explicit truncation
+      /\b\w+$/.test(transcriptionText.trim()) // Ends with incomplete word
+    );
+    
+    // Also check for very short transcriptions that might be incomplete
+    const seemsIncomplete = transcriptionText.length < 50 && transcriptionText.trim().split(' ').length < 10;
+    
+    if (endsAbruptly || seemsIncomplete) {
+      console.log('⚠️ POTENTIAL TRUNCATION DETECTED');
+      console.log('⚠️ Text length:', transcriptionText.length);
+      console.log('⚠️ Ends abruptly:', endsAbruptly);
+      console.log('⚠️ Seems incomplete:', seemsIncomplete);
+      console.log('⚠️ Last 50 characters:', JSON.stringify(transcriptionText.slice(-50)));
+      
+      // If truncated or incomplete, try splitting and re-transcribing 
+      console.log('🔄 Attempting to re-transcribe with audio splitting...');
+      try {
+        const chunkedResult = await transcribeAudioInChunks(audioPath);
+        
+        // Only use chunked result if it's significantly longer
+        if (chunkedResult.text && chunkedResult.text.length > transcriptionText.length * 1.2) {
+          console.log('✅ Chunked transcription is longer, using that result');
+          return chunkedResult;
+        } else {
+          console.log('⚠️ Chunked transcription not significantly better, using original');
+        }
+      } catch (chunkError) {
+        console.warn('⚠️ Chunk transcription failed, returning original result:', chunkError.message);
+      }
+    }
+    
+    // Clean the transcription text
+    const cleanedText = cleanTranscriptionText(transcriptionText);
+    
     return {
-      text: transcription.text,
-      words: transcription.words || [],
-      segments: transcription.segments || []
+      text: cleanedText,
+      words: transcriptionWords,
+      segments: transcriptionSegments
     };
   } catch (error) {
     console.error('❌ Transcription error:', error);
@@ -215,7 +512,7 @@ export async function analyzeViralPotential(transcript, userTier = 'guest') {
 /**
  * Identify best moments in transcript for viral clips with individual analytics
  */
-export async function identifyViralMoments(transcript, transcriptionData, userTier = 'guest') {
+export async function identifyViralMoments(transcript, transcriptionData, userTier = 'guest', videoDuration = null) {
   try {
     console.log('🎯 Identifying viral moments...');
     console.log('🔍 DEBUG - User tier for viral moments:', userTier);
@@ -223,14 +520,18 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
     const basePrompt = `You are an expert at identifying viral moments in video content. 
         Analyze the transcript and identify 3-5 segments with the highest viral potential.
         
+        IMPORTANT: Create SHORT, FOCUSED viral moments that are 10-20 seconds long maximum.
+        Use word-based timing estimation. If the transcript is ~9000 characters and video is ~520 seconds, 
+        estimate roughly 17-18 characters per second. Be very precise with timestamps.
+        
         Return a JSON object with a "moments" array, each moment having:
-        - startTime (seconds)
-        - endTime (seconds) 
+        - startTime (seconds) - Be precise and conservative
+        - endTime (seconds) - Keep segments 10-20 seconds long (no more than 20 seconds!)
         - title (descriptive name)
         - viralScore (0-100)
         - category (engaging/educational/funny/emotional)
         - reasoning (why this moment is viral)
-        - transcript (exact text for this segment)`;
+        - transcript (exact text for this segment - ONE complete sentence or thought only)`;
     
     const proAnalytics = userTier === 'pro' ? `
         
@@ -280,7 +581,7 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
         Analyze each moment individually for unique characteristics.`
       }, {
         role: 'user',
-        content: `Transcript: "${transcript}"\n\nUser Tier: ${userTier}\n\nIdentify the best viral moments with ${userTier === 'pro' ? 'detailed individual analytics' : 'basic analysis'} for each. Return JSON object with moments array.`
+        content: `Transcript: "${transcript}"\n\nUser Tier: ${userTier}\n\nVideo Duration: ${videoDuration || 'unknown'} seconds\nTranscript Length: ${transcript.length} characters\n\nIdentify the best viral moments with ${userTier === 'pro' ? 'detailed individual analytics' : 'basic analysis'} for each. Return JSON object with moments array.`
       }],
       response_format: { type: 'json_object' },
       temperature: 0.8,
@@ -383,7 +684,21 @@ export async function performCompleteAnalysis(videoPath, userTier = 'guest', pro
     progressCallback?.(90, 'Identifying best viral moments...');
     let viralMoments = [];
     try {
-      viralMoments = await identifyViralMoments(transcriptionData.text, transcriptionData, userTier);
+      // Get video duration for better timestamp estimation
+      let videoDuration = null;
+      try {
+        const ffmpeg = (await import('fluent-ffmpeg')).default;
+        videoDuration = await new Promise((resolve) => {
+          ffmpeg.ffprobe(videoPath, (err, metadata) => {
+            if (err) resolve(null);
+            else resolve(metadata.format.duration);
+          });
+        });
+      } catch (durationError) {
+        console.warn('⚠️ Could not get video duration for viral moments:', durationError.message);
+      }
+      
+      viralMoments = await identifyViralMoments(transcriptionData.text, transcriptionData, userTier, videoDuration);
       progressCallback?.(95, 'Viral moments identified');
     } catch (momentError) {
       console.error('⚠️ Viral moments identification failed, continuing with fallback:', momentError.message);

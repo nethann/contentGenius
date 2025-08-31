@@ -62,39 +62,56 @@ const upload = multer({
   }
 });
 
-// Intelligently adjust end time to complete sentences
-function adjustEndTimeForSentences(transcript, originalEndTime, maxExtension = 10) {
+// Intelligently determine optimal segment duration based on transcribed content
+function adjustEndTimeForSentences(transcript, originalDuration, transcribedDuration, maxExtension = 10) {
   if (!transcript || transcript.length < 10) {
-    return originalEndTime;
+    return originalDuration;
   }
   
   // Look for sentence endings near the original end time
   const sentenceEnders = ['.', '!', '?', '...'];
-  const words = transcript.split(' ');
-  const avgWordsPerSecond = words.length / originalEndTime;
+  const words = transcript.trim().split(/\s+/);
   
-  // Find the approximate word index at original end time
-  const endWordIndex = Math.floor(originalEndTime * avgWordsPerSecond);
+  // Calculate words per second based on actual transcribed content
+  const avgWordsPerSecond = words.length / transcribedDuration;
   
-  // Look for sentence endings within the next few words
+  // Find the approximate word index at original segment duration
+  const endWordIndex = Math.floor(originalDuration * avgWordsPerSecond);
+  
+  // Ensure we don't go beyond the actual transcribed words
+  if (endWordIndex >= words.length) {
+    // If we already have all the words, use most of the transcribed duration
+    const optimalDuration = Math.min(transcribedDuration * 0.95, originalDuration + maxExtension);
+    console.log(`📝 Using ${optimalDuration.toFixed(1)}s duration (${(optimalDuration - originalDuration).toFixed(1)}s extension for complete transcript)`);
+    return optimalDuration;
+  }
+  
+  // Look for sentence endings starting from the original end point
   const searchRange = Math.min(Math.floor(avgWordsPerSecond * maxExtension), words.length - endWordIndex);
   
-  for (let i = 0; i < searchRange; i++) {
+  for (let i = 0; i <= searchRange; i++) {
     const wordIndex = endWordIndex + i;
     if (wordIndex >= words.length) break;
     
     const word = words[wordIndex];
+    
+    // Check if this word ends a sentence
     if (sentenceEnders.some(ender => word.endsWith(ender))) {
-      // Found a sentence ending, calculate new time
-      const newEndTime = originalEndTime + (i / avgWordsPerSecond);
-      console.log(`📝 Extended segment by ${(newEndTime - originalEndTime).toFixed(1)}s to complete sentence`);
-      return newEndTime;
+      const additionalTime = i / avgWordsPerSecond;
+      const adjustedDuration = originalDuration + additionalTime;
+      console.log(`📝 Found sentence ending at word "${word}", extending duration by ${additionalTime.toFixed(1)}s`);
+      return Math.min(adjustedDuration, originalDuration + maxExtension);
     }
   }
   
-  // If no sentence ending found, extend by a smaller amount to avoid cutting mid-word
-  const smallExtension = Math.min(3, maxExtension);
-  return originalEndTime + smallExtension;
+  // If no sentence ending found, extend very conservatively to avoid adding unwanted content
+  // Use only 10% of available transcribed content and max 2 seconds
+  const availableExtension = Math.max(0, transcribedDuration - originalDuration);
+  const recommendedExtension = Math.min(availableExtension * 0.1, Math.min(2, maxExtension)); // Max 2s extension
+  const finalDuration = originalDuration + recommendedExtension;
+  
+  console.log(`📝 No sentence ending found, extending duration by ${recommendedExtension.toFixed(1)}s (${(recommendedExtension / originalDuration * 100).toFixed(1)}% extension)`);
+  return finalDuration;
 }
 
 // Get video duration using FFmpeg
@@ -114,15 +131,23 @@ async function getVideoDuration(videoPath) {
 // Extract audio segment from video using FFmpeg
 async function extractAudioSegment(videoPath, startTime, endTime, outputPath) {
   return new Promise((resolve, reject) => {
+    const duration = endTime - startTime;
+    console.log(`🎬 Extracting audio segment: ${startTime}s to ${endTime}s (duration: ${duration}s)`);
+    
     ffmpeg(videoPath)
       .seekInput(startTime)
-      .duration(endTime - startTime)
+      .duration(duration)
       .audioCodec('libmp3lame')
       .audioBitrate('128k')
       .audioChannels(1)
       .audioFrequency(16000)
+      .audioFilters(['aresample=16000', 'volume=1.5', 'highpass=f=80', 'lowpass=f=8000']) // Better audio processing
       .format('mp3')
+      .noVideo()
       .output(outputPath)
+      .on('start', (commandLine) => {
+        console.log(`🎬 FFmpeg audio extraction command: ${commandLine}`);
+      })
       .on('end', () => {
         console.log(`✅ Audio segment extracted: ${outputPath}`);
         resolve(outputPath);
@@ -135,6 +160,84 @@ async function extractAudioSegment(videoPath, startTime, endTime, outputPath) {
   });
 }
 
+// Find the actual timestamp for expected content by searching in multiple locations
+async function findContentTimestamp(videoPath, expectedTranscript, approximateStart, approximateEnd) {
+  if (!expectedTranscript || expectedTranscript.length < 10) {
+    // No expected content, use original timestamps
+    return { startTime: approximateStart, endTime: approximateEnd };
+  }
+  
+  console.log('🔍 Searching for content match:', expectedTranscript.substring(0, 50) + '...');
+  
+  // Create search windows around the approximate time
+  const searchRadius = Math.max(30, (approximateEnd - approximateStart) * 2); // Search within 30s or 2x segment length
+  const searchStartTime = Math.max(0, approximateStart - searchRadius);
+  const searchEndTime = approximateEnd + searchRadius;
+  const searchDuration = searchEndTime - searchStartTime;
+  
+  console.log(`🔍 Searching in window: ${searchStartTime}s to ${searchEndTime}s (${searchDuration}s)`);
+  
+  try {
+    // Extract a larger segment for searching
+    const searchAudioPath = join(tempDir, `search-${uuidv4()}.mp3`);
+    await extractAudioSegment(videoPath, searchStartTime, searchEndTime, searchAudioPath);
+    
+    // Transcribe the search window
+    const searchTranscription = await transcribeAudio(searchAudioPath);
+    
+    // Clean up search audio file
+    await fs.remove(searchAudioPath);
+    
+    console.log('🔍 Search window transcription length:', searchTranscription.text?.length || 0);
+    
+    // Find where the expected content appears in the search transcription
+    const searchText = searchTranscription.text?.toLowerCase() || '';
+    const expectedText = expectedTranscript.toLowerCase();
+    
+    // Try to find a significant portion of the expected text (at least 50% match)
+    const expectedWords = expectedText.split(/\s+/).filter(word => word.length > 2);
+    let bestMatch = { score: 0, position: 0 };
+    
+    for (let i = 0; i < searchText.length - 20; i++) {
+      const snippet = searchText.substring(i, i + expectedText.length + 50);
+      let matchScore = 0;
+      
+      for (const word of expectedWords) {
+        if (snippet.includes(word)) {
+          matchScore++;
+        }
+      }
+      
+      if (matchScore > bestMatch.score) {
+        bestMatch = { score: matchScore, position: i };
+      }
+    }
+    
+    if (bestMatch.score >= expectedWords.length * 0.5) {
+      // Found a good match - estimate the timestamp
+      const matchRatio = bestMatch.position / searchText.length;
+      const estimatedStart = searchStartTime + (searchDuration * matchRatio);
+      const segmentDuration = approximateEnd - approximateStart;
+      const estimatedEnd = estimatedStart + segmentDuration;
+      
+      console.log(`✅ Found content match! Estimated time: ${estimatedStart.toFixed(1)}s - ${estimatedEnd.toFixed(1)}s`);
+      console.log(`🎯 Match score: ${bestMatch.score}/${expectedWords.length} words`);
+      
+      return { 
+        startTime: Math.max(0, estimatedStart), 
+        endTime: estimatedEnd,
+        confidence: bestMatch.score / expectedWords.length 
+      };
+    } else {
+      console.log(`⚠️ Content not found in search window. Best match: ${bestMatch.score}/${expectedWords.length} words`);
+      return { startTime: approximateStart, endTime: approximateEnd, confidence: 0 };
+    }
+    
+  } catch (searchError) {
+    console.error('❌ Content search failed:', searchError.message);
+    return { startTime: approximateStart, endTime: approximateEnd, confidence: 0 };
+  }
+}
 
 // Routes
 
@@ -315,6 +418,15 @@ function buildCropFilter(aspectRatio, cropPosition) {
 // Generate video with embedded subtitles and word-by-word highlighting
 async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles, words, outputPath, hasWatermark = false, proOptions = {}) {
   return new Promise(async (resolve, reject) => {
+    console.log('🎬 GENERATE VIDEO WITH SUBTITLES:', {
+      startTime,
+      endTime,
+      duration: endTime - startTime,
+      subtitlesCount: subtitles?.length || 0,
+      wordsCount: words?.length || 0,
+      outputPath
+    });
+
     // Ensure output directory exists
     const outputDir = dirname(outputPath);
     fs.ensureDirSync(outputDir);
@@ -326,10 +438,13 @@ async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitl
     if (!subtitles || subtitles.length === 0) {
       console.log('⚠️ No subtitles provided, creating video without subtitles');
       
+      const calculatedDuration = endTime - startTime;
+      console.log(`🎬 FFmpeg parameters: seekInput(${startTime}) duration(${calculatedDuration})`);
+      
       // Build ffmpeg command with optional watermark
       let ffmpegCommand = ffmpeg(videoPath)
         .seekInput(startTime)
-        .duration(endTime - startTime)
+        .duration(calculatedDuration)
         .videoCodec('libx264')
         .audioCodec('aac');
       
@@ -486,9 +601,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
       console.log(`💧 Adding watermark for Guest tier user`);
     }
 
+    const calculatedDuration = endTime - startTime;
+    console.log(`🎬 WITH SUBTITLES FFmpeg parameters: seekInput(${startTime}) duration(${calculatedDuration})`);
+
     ffmpeg(videoPath)
       .seekInput(startTime)
-      .duration(endTime - startTime)
+      .duration(calculatedDuration)
       .videoCodec('libx264')
       .audioCodec('aac')
       .outputOptions([
@@ -627,11 +745,11 @@ function highlightAttentionWords(text) {
   return highlightedText;
 }
 
-// Transcribe video segment
+// Transcribe video segment with content matching
 app.post('/api/transcribe-segment', async (req, res) => {
   try {
     console.log('🎬 Transcribe-segment request received:', req.body);
-    const { filename, startTime, endTime, segmentId } = req.body;
+    const { filename, startTime, endTime, segmentId, expectedTranscript } = req.body;
 
     if (!filename || startTime === undefined || endTime === undefined) {
       console.error('❌ Missing required parameters:', { filename, startTime, endTime, segmentId });
@@ -640,6 +758,8 @@ app.post('/api/transcribe-segment', async (req, res) => {
 
     const videoPath = join(uploadDir, filename);
     const audioPath = join(tempDir, `segment-${segmentId}-${uuidv4()}.mp3`);
+    
+    console.log('🎯 Expected transcript:', expectedTranscript);
 
     console.log('🎬 Video path:', videoPath);
     console.log('🎬 Audio path:', audioPath);
@@ -663,20 +783,76 @@ app.post('/api/transcribe-segment', async (req, res) => {
     const videoDuration = await getVideoDuration(tempVideoPath);
     console.log(`🎬 Video duration: ${videoDuration}s`);
     
-    // First, extract with extra buffer to capture complete sentences, but cap at video end
-    const bufferTime = 15; // Extra seconds to capture full sentences
-    const extendedEndTime = Math.min(endTime + bufferTime, videoDuration);
-    console.log(`🎬 Capped extraction time from ${endTime + bufferTime}s to ${extendedEndTime}s`);
+    // Try to find the actual content location if expected transcript is provided
+    let actualStartTime = startTime;
+    let actualEndTime = endTime;
+    let confidence = 0;
+    
+    if (expectedTranscript) {
+      console.log('🎯 Attempting content matching to find accurate timestamps...');
+      const contentMatch = await findContentTimestamp(tempVideoPath, expectedTranscript, startTime, endTime);
+      actualStartTime = contentMatch.startTime;
+      actualEndTime = contentMatch.endTime;
+      confidence = contentMatch.confidence || 0;
+      
+      if (confidence > 0.5) {
+        console.log(`✅ Using content-matched timestamps: ${actualStartTime.toFixed(1)}s - ${actualEndTime.toFixed(1)}s`);
+      } else {
+        console.log(`⚠️ Content matching failed (${(confidence * 100).toFixed(1)}% confidence), using original timestamps`);
+        actualStartTime = startTime;
+        actualEndTime = endTime;
+      }
+    }
+    
+    // Use minimal buffer to stay focused on the original segment
+    const originalDuration = actualEndTime - actualStartTime;
+    const bufferTime = Math.min(3, originalDuration * 0.2); // Max 3s buffer or 20% of segment duration, whichever is smaller
+    const extendedEndTime = Math.min(actualEndTime + bufferTime, videoDuration);
+    console.log(`🎬 Extended extraction time from ${actualEndTime}s to ${extendedEndTime}s (${extendedEndTime - actualEndTime}s buffer)`);
     
     console.log('🎬 Extracting audio segment...');
     // Extract audio segment with buffer using temp video path
-    await extractAudioSegment(tempVideoPath, startTime, extendedEndTime, audioPath);
+    await extractAudioSegment(tempVideoPath, actualStartTime, extendedEndTime, audioPath);
     
     console.log('🎬 Audio extraction completed, starting transcription...');
-    // Transcribe the extended audio segment
-    const transcription = await transcribeAudio(audioPath);
     
-    console.log('🎬 Transcription completed:', transcription.text?.substring(0, 100) + '...');
+    // Verify audio file was created properly
+    const audioStats = await fs.stat(audioPath);
+    console.log(`🎵 Audio file size: ${Math.round(audioStats.size / 1024)}KB`);
+    
+    // Transcribe the extended audio segment with retry logic
+    let transcription;
+    let transcriptionAttempts = 0;
+    const maxTranscriptionAttempts = 3;
+    
+    while (transcriptionAttempts < maxTranscriptionAttempts) {
+      try {
+        transcriptionAttempts++;
+        console.log(`🎯 Transcription attempt ${transcriptionAttempts}/${maxTranscriptionAttempts}`);
+        
+        transcription = await transcribeAudio(audioPath);
+        
+        // Validate transcription result
+        if (!transcription || !transcription.text || transcription.text.trim().length < 5) {
+          throw new Error('Empty or invalid transcription result');
+        }
+        
+        console.log('🎬 Transcription completed successfully');
+        break; // Success, exit retry loop
+        
+      } catch (transcriptionError) {
+        console.error(`❌ Transcription attempt ${transcriptionAttempts} failed:`, transcriptionError.message);
+        
+        if (transcriptionAttempts >= maxTranscriptionAttempts) {
+          throw new Error(`Transcription failed after ${maxTranscriptionAttempts} attempts: ${transcriptionError.message}`);
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
+    console.log('🎬 Final transcription result:', transcription.text?.substring(0, 100) + '...');
     console.log('🔍 DEBUG - Full transcription text:', transcription.text);
     console.log('🔍 DEBUG - Transcription text length:', transcription.text?.length);
     console.log('🔍 DEBUG - Word count:', transcription.words?.length);
@@ -686,10 +862,13 @@ app.post('/api/transcribe-segment', async (req, res) => {
     await fs.remove(tempVideoPath);
 
     // Adjust end time based on transcript to complete sentences
-    const adjustedEndTime = adjustEndTimeForSentences(transcription.text, endTime, 10);
-    const actualDuration = adjustedEndTime - startTime;
+    // We extracted audio with buffer, now determine optimal segment end time
+    const originalSegmentDuration = actualEndTime - actualStartTime;
+    const transcribedDuration = extendedEndTime - actualStartTime; // Duration of the actually transcribed audio
+    const adjustedEndTime = adjustEndTimeForSentences(transcription.text, originalSegmentDuration, transcribedDuration, 10);
+    const actualDuration = adjustedEndTime;
     
-    console.log(`⏱️ Adjusted segment duration from ${endTime - startTime}s to ${actualDuration.toFixed(1)}s`);
+    console.log(`⏱️ Adjusted segment duration from ${originalSegmentDuration}s to ${actualDuration.toFixed(1)}s`);
 
     // Generate word-level timestamps for captions
     const captions = [];
@@ -747,13 +926,21 @@ app.post('/api/transcribe-segment', async (req, res) => {
     console.log('🔍 DEBUG - Server response transcript:', transcription.text);
     console.log('🔍 DEBUG - Server response captions count:', captions.length);
     console.log('🔍 DEBUG - First caption:', captions[0]?.text);
+    console.log('🔍 DEBUG - Adjusted end time calculation:', {
+      originalEndTime: endTime,
+      adjustedDuration: adjustedEndTime,
+      finalAdjustedEndTime: startTime + adjustedEndTime,
+      extensionSeconds: adjustedEndTime - (endTime - startTime)
+    });
 
     res.json({
       success: true,
       segmentId,
       transcript: transcription.text,
       title: generatedTitle,
-      adjustedEndTime,
+      adjustedStartTime: actualStartTime, // Include start time for reference
+      adjustedEndTime: actualStartTime + adjustedEndTime, // Convert duration back to end timestamp
+      contentMatchConfidence: confidence, // Include confidence score
       actualDuration: actualDuration.toFixed(1),
       captions,
       highlightedCaptions,
@@ -783,6 +970,16 @@ app.post('/api/transcribe-segment', async (req, res) => {
 app.post('/api/download-video', async (req, res) => {
   try {
     const { filename, startTime, endTime, subtitles, words, segmentId, userTier, hasWatermark, aspectRatio, cropPosition } = req.body;
+
+    console.log('🎬 DOWNLOAD VIDEO REQUEST:', {
+      filename,
+      startTime,
+      endTime,
+      segmentId,
+      duration: endTime - startTime,
+      hasSubtitles: !!subtitles?.length,
+      hasWords: !!words?.length
+    });
 
     if (!filename || startTime === undefined || endTime === undefined) {
       return res.status(400).json({ error: 'Missing required parameters' });

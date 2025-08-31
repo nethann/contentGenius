@@ -311,36 +311,12 @@ const ViralClipGenerator = () => {
     }
   };
 
-  // Client-side function to highlight attention-grabbing words (mirrors server-side logic)
+  // Client-side function to style text (no highlighting, just white text)
   const highlightAttentionWordsClient = (text) => {
-    let highlightedText = text.replace(/[\r\n]+/g, ' ').trim();
+    let styledText = text.replace(/[\r\n]+/g, ' ').trim();
     
-    const attentionWords = [
-      'FASTER', 'NEVER', 'ALWAYS', 'MUST', 'CRITICAL', 'URGENT', 'IMPORTANT', 'WARNING',
-      'BREAKTHROUGH', 'REVOLUTIONARY', 'AMAZING', 'INCREDIBLE', 'SHOCKING', 'UNBELIEVABLE',
-      'SECRET', 'EXPOSED', 'REVEALED', 'HIDDEN', 'TRUTH', 'LIES', 'SCAM', 'FRAUD',
-      'BILLION', 'MILLION', 'THOUSANDS', 'HUNDREDS', 'PERCENT', 'MONEY', 'PROFIT',
-      'FREE', 'NOW', 'TODAY', 'IMMEDIATELY', 'INSTANT', 'QUICK', 'FAST', 'RAPID',
-      'GUARANTEED', 'PROVEN', 'SCIENTIFIC', 'EXPERT', 'PROFESSIONAL', 'AUTHORITY',
-      'MISTAKE', 'ERROR', 'WRONG', 'FAIL', 'FAILURE', 'DISASTER', 'CATASTROPHE',
-      'SUCCESS', 'WIN', 'VICTORY', 'CHAMPION', 'WINNER', 'BEST', 'TOP', 'ULTIMATE',
-      'EXCLUSIVE', 'LIMITED', 'RARE', 'UNIQUE', 'SPECIAL', 'PREMIUM', 'VIP',
-      'DANGEROUS', 'RISKY', 'SAFE', 'SECURE', 'PROTECTED', 'GUARANTEE'
-    ];
-    
-    // Apply darker orange highlighting to attention words
-    attentionWords.forEach(word => {
-      const regex = new RegExp(`\\b${word}\\b`, 'gi');
-      highlightedText = highlightedText.replace(regex, `<span style="color: #FF6B35; font-weight: bold; text-shadow: 0 0 4px #FF6B35;">${word}</span>`);
-    });
-    
-    // Highlight numbers and percentages
-    highlightedText = highlightedText.replace(/\b\d+(\.\d+)?\s*%\b/g, '<span style="color: #FF6B35; font-weight: bold; text-shadow: 0 0 4px #FF6B35;">$&</span>');
-    highlightedText = highlightedText.replace(/\b\d+x\b/gi, '<span style="color: #FF6B35; font-weight: bold; text-shadow: 0 0 4px #FF6B35;">$&</span>');
-    // Fixed: Only highlight complete money amounts, not standalone $ symbols
-    highlightedText = highlightedText.replace(/\$\d+(?:,\d{3})*(?:\.\d{2})?\b/g, '<span style="color: #FF6B35; font-weight: bold; text-shadow: 0 0 4px #FF6B35;">$&</span>');
-    
-    return highlightedText;
+    // Return plain white text without any highlighting
+    return styledText;
   };
   const [extractedMoments, setExtractedMoments] = useState([]);
   const [progress, setProgress] = useState(0);
@@ -610,6 +586,10 @@ const ViralClipGenerator = () => {
       console.log(
         `✅ Successfully transcribed segment ${moment.id}: "${transcriptionResult.transcript.substring(0, 50)}..."`
       );
+      console.log('🔍 DEBUG - Frontend received full transcript:', transcriptionResult.transcript);
+      console.log('🔍 DEBUG - Frontend transcript length:', transcriptionResult.transcript?.length);
+      console.log('🔍 DEBUG - Updated moment transcript after assignment:', updatedMoments.find(m => m.id === moment.id)?.transcript);
+      console.log('🔍 DEBUG - Updated moment transcript length:', updatedMoments.find(m => m.id === moment.id)?.transcript?.length);
       console.log('🔍 Transcription result captions:', transcriptionResult.captions);
       console.log('🔍 Updated moment subtitles:', updatedMoments.find(m => m.id === moment.id)?.subtitles);
     } catch (error) {
@@ -893,40 +873,43 @@ const ViralClipGenerator = () => {
         currentTime >= caption.start && currentTime <= caption.end
       );
       
-      if (currentCaption) {
-        // Create animated word-by-word highlighting
-        const words = currentCaption.text.split(' ');
-        const captionDuration = currentCaption.end - currentCaption.start;
-        const timePerWord = captionDuration / words.length;
-        const captionProgress = (currentTime - currentCaption.start) / captionDuration;
-        const currentWordIndex = Math.floor(captionProgress * words.length);
-        
-        const animatedHTML = words.map((word, index) => {
-          if (index < currentWordIndex) {
-            // Already spoken - show in white
-            return `<span style="color: white; opacity: 1;">${word}</span>`;
-          } else if (index === currentWordIndex) {
-            // Currently being spoken - highlight in orange
-            return `<span style="color: #FF6B35; opacity: 1; text-shadow: 0 0 6px #FF6B35; font-weight: bold;">${word}</span>`;
-          } else {
-            // Not yet spoken - show in white
-            return `<span style="color: white; opacity: 1;">${word}</span>`;
-          }
-        }).join(' ');
-        
-        captionsOverlay.innerHTML = `
-          <div style="color: white; font-size: 20px; font-weight: 600; font-family: Arial, sans-serif; transition: all 0.1s ease;">
-            ${animatedHTML}
-          </div>
-        `;
-      } else if (moment.transcript) {
-        // Apply highlighting to full transcript as well for when no specific caption is active
-        const highlightedTranscript = highlightAttentionWordsClient(moment.transcript);
-        captionsOverlay.innerHTML = `
-          <div style="color: white; font-size: 18px; opacity: 0.9; font-family: Arial, sans-serif;">
-            ${highlightedTranscript}
-          </div>
-        `;
+      // Always show the full transcript with highlighting
+      if (moment.transcript) {
+        // If we have word-level timing data, use that for precise highlighting
+        if (moment.words && moment.words.length > 0) {
+          const words = moment.words;
+          const currentWordIndex = words.findIndex(word => 
+            currentTime >= word.start && currentTime <= word.end
+          );
+          
+          const animatedHTML = words.map((wordObj, index) => {
+            const word = wordObj.word || wordObj.text || '';
+            if (index < currentWordIndex) {
+              // Already spoken - show in white
+              return `<span style="color: white; opacity: 1;">${word}</span>`;
+            } else if (index === currentWordIndex) {
+              // Currently being spoken - show highlighted
+              return `<span style="color: #ffd700; opacity: 1; font-weight: bold;">${word}</span>`;
+            } else {
+              // Not yet spoken - show dimmed
+              return `<span style="color: white; opacity: 0.6;">${word}</span>`;
+            }
+          }).join(' ');
+          
+          captionsOverlay.innerHTML = `
+            <div style="color: white; font-size: 18px; font-weight: 500; font-family: Arial, sans-serif; transition: all 0.1s ease;">
+              ${animatedHTML}
+            </div>
+          `;
+        } else {
+          // Fallback: show full transcript with attention word highlighting
+          const highlightedTranscript = highlightAttentionWordsClient(moment.transcript);
+          captionsOverlay.innerHTML = `
+            <div style="color: white; font-size: 18px; opacity: 0.9; font-family: Arial, sans-serif;">
+              ${highlightedTranscript}
+            </div>
+          `;
+        }
       }
     };
     
@@ -2578,7 +2561,10 @@ const ViralClipGenerator = () => {
                             
                             <div className="segment-transcript-preview">
                               <p className="segment-transcript-label">
-                                <strong>Transcript:</strong> "{moment.transcript}"
+                                <strong>🔍 FULL TRANSCRIPT (DEBUG):</strong> "{moment.transcript}"
+                              </p>
+                              <p style={{fontSize: '12px', color: '#ff6b35', fontWeight: 'bold', marginTop: '5px'}}>
+                                📊 Length: {moment.transcript?.length || 0} chars | DEBUG MODE ACTIVE
                               </p>
                             </div>
                           </div>
@@ -2882,4 +2868,4 @@ const ViralClipGenerator = () => {
   );
 };
 
-export default ViralClipGenerator;
+export default ViralClipGenerator;// Force React reload
