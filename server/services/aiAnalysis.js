@@ -606,8 +606,11 @@ function findWordLevelMatch(targetText, wordsArray) {
           const averageWordsPerSecond = Math.max(2.0, sequence.length / Math.max(0.1, matchedDuration)); // At least 2 words/sec
           const estimatedTargetDuration = targetWordCount / averageWordsPerSecond;
           
-          // Use raw word-level timing - let server handle precise duration
-          const extendedEndTime = baseEndTime;
+          // Extend end time to cover complete transcript if match is incomplete
+          const matchCoverage = sequence.length / targetWordCount;
+          const extendedEndTime = matchCoverage < 0.8 ? 
+            Math.min(startTime + estimatedTargetDuration, startTime + matchedDuration * 1.5) : 
+            baseEndTime;
           
           bestMatch = {
             startTime: startTime,
