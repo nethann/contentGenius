@@ -524,58 +524,98 @@ function findPreciseTimestamps(targetText, wordsArray, segmentsArray) {
 }
 
 /**
- * Find timestamps using word-level data
+ * Find timestamps using word-level data - IMPROVED FOR PRECISION
  */
 function findWordLevelMatch(targetText, wordsArray) {
-  // Clean and normalize the target text for matching
+  // Clean and normalize the target text for matching - preserve more structure
   const cleanTarget = targetText.toLowerCase()
-    .replace(/[^\w\s]/g, ' ')
+    .replace(/[^\w\s'"\-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .split(' ');
+    .split(' ')
+    .filter(w => w.length > 0);
   
-  // Create word mapping with timing
+  // Create word mapping with timing and better normalization
   const words = wordsArray.map(w => ({
-    word: w.word.toLowerCase().replace(/[^\w]/g, ''),
+    word: w.word.toLowerCase().replace(/[^\w'"\-]/g, ''),
     start: w.start,
     end: w.end,
-    original: w.word
+    original: w.word,
+    originalLower: w.word.toLowerCase()
   }));
   
   console.log('🔍 First 10 words with timing:', words.slice(0, 10).map(w => ({word: w.word, start: w.start, end: w.end})));
+  console.log('🔍 Target words to find:', cleanTarget.slice(0, 10));
   
-  // Find the best matching sequence
+  // Find the best matching sequence with improved algorithm
   let bestMatch = null;
   let bestScore = 0;
   
-  for (let i = 0; i <= words.length - cleanTarget.length; i++) {
-    const sequence = words.slice(i, i + cleanTarget.length);
-    let matches = 0;
-    
-    for (let j = 0; j < cleanTarget.length && j < sequence.length; j++) {
-      if (sequence[j].word.includes(cleanTarget[j]) || cleanTarget[j].includes(sequence[j].word)) {
-        matches++;
+  // Try different window sizes for better flexibility
+  const minWindowSize = Math.max(3, Math.floor(cleanTarget.length * 0.6));
+  
+  for (let windowSize = minWindowSize; windowSize <= cleanTarget.length + 2; windowSize++) {
+    for (let targetStart = 0; targetStart <= cleanTarget.length - Math.min(windowSize, cleanTarget.length); targetStart++) {
+      const targetWindow = cleanTarget.slice(targetStart, targetStart + Math.min(windowSize, cleanTarget.length));
+      
+      for (let i = 0; i <= words.length - targetWindow.length; i++) {
+        const sequence = words.slice(i, i + targetWindow.length);
+        let matches = 0;
+        let exactMatches = 0;
+        
+        for (let j = 0; j < targetWindow.length && j < sequence.length; j++) {
+          const targetWord = targetWindow[j];
+          const seqWord = sequence[j].word;
+          const originalWord = sequence[j].originalLower;
+          
+          // Exact match (highest priority)
+          if (seqWord === targetWord || originalWord === targetWord) {
+            matches += 2; // Double weight for exact matches
+            exactMatches++;
+          }
+          // Partial match (contains or is contained)
+          else if (seqWord.includes(targetWord) || targetWord.includes(seqWord) ||
+                   originalWord.includes(targetWord) || targetWord.includes(originalWord)) {
+            matches += 1;
+          }
+          // Fuzzy match for common variations
+          else if (targetWord.length > 3 && seqWord.length > 3) {
+            const similarity = calculateWordSimilarity(targetWord, seqWord);
+            if (similarity > 0.8) {
+              matches += 0.8;
+            }
+          }
+        }
+        
+        const score = matches / (targetWindow.length * 2); // Normalize by max possible score
+        const exactRatio = exactMatches / targetWindow.length;
+        
+        // Prefer matches with more exact word matches
+        const adjustedScore = score * (0.7 + 0.3 * exactRatio);
+        
+        if (adjustedScore > bestScore && adjustedScore >= 0.3) { // Lower threshold for more matches
+          bestScore = adjustedScore;
+          bestMatch = {
+            startTime: sequence[0].start,
+            endTime: sequence[sequence.length - 1].end,
+            matchedWords: sequence.map(s => s.original).join(' '),
+            score: adjustedScore,
+            exactMatches: exactMatches,
+            method: 'word-level-improved',
+            wordCount: sequence.length,
+            targetLength: targetWindow.length
+          };
+        }
       }
-    }
-    
-    const score = matches / cleanTarget.length;
-    if (score > bestScore && score >= 0.7) { // 70% match threshold
-      bestScore = score;
-      bestMatch = {
-        startTime: sequence[0].start,
-        endTime: sequence[sequence.length - 1].end,
-        matchedWords: sequence.map(s => s.original).join(' '),
-        score: score,
-        method: 'word-level'
-      };
     }
   }
   
   if (bestMatch) {
-    console.log('✅ Found word-level timing match:', {
+    console.log('✅ Found improved word-level timing match:', {
       startTime: bestMatch.startTime,
       endTime: bestMatch.endTime,
       score: bestMatch.score,
+      exactMatches: bestMatch.exactMatches,
       matchedText: bestMatch.matchedWords.substring(0, 100)
     });
   }
@@ -625,26 +665,67 @@ function findSegmentLevelMatch(targetText, segmentsArray) {
 }
 
 /**
- * Calculate text similarity score
+ * Calculate text similarity score - IMPROVED
  */
 function calculateSimilarity(text1, text2) {
-  const words1 = text1.split(' ');
-  const words2 = text2.split(' ');
+  const words1 = text1.split(' ').filter(w => w.length > 0);
+  const words2 = text2.split(' ').filter(w => w.length > 0);
   
   // Check if target text is contained in segment text
   if (text2.includes(text1)) {
     return 0.95;
   }
   
-  // Count matching words
+  // Count matching words with better scoring
   let matches = 0;
+  let exactMatches = 0;
+  
   for (const word1 of words1) {
-    if (words2.some(word2 => word2.includes(word1) || word1.includes(word2))) {
+    let bestWordMatch = 0;
+    
+    for (const word2 of words2) {
+      if (word1 === word2) {
+        bestWordMatch = 2; // Exact match
+        exactMatches++;
+        break;
+      } else if (word2.includes(word1) || word1.includes(word2)) {
+        bestWordMatch = Math.max(bestWordMatch, 1); // Partial match
+      } else if (word1.length > 3 && word2.length > 3) {
+        const similarity = calculateWordSimilarity(word1, word2);
+        if (similarity > 0.8) {
+          bestWordMatch = Math.max(bestWordMatch, similarity);
+        }
+      }
+    }
+    
+    matches += bestWordMatch;
+  }
+  
+  // Normalize and boost exact matches
+  const score = matches / (words1.length * 2);
+  const exactRatio = exactMatches / words1.length;
+  
+  return score * (0.7 + 0.3 * exactRatio);
+}
+
+/**
+ * Calculate word similarity using simple character-based approach
+ */
+function calculateWordSimilarity(word1, word2) {
+  if (word1 === word2) return 1.0;
+  if (Math.abs(word1.length - word2.length) > 3) return 0;
+  
+  const longer = word1.length > word2.length ? word1 : word2;
+  const shorter = word1.length > word2.length ? word2 : word1;
+  
+  let matches = 0;
+  for (let i = 0; i < shorter.length; i++) {
+    if (longer.includes(shorter[i])) {
       matches++;
     }
   }
   
-  return matches / Math.max(words1.length, words2.length);
+  return matches / longer.length;
 }
 
 /**
@@ -709,11 +790,11 @@ function findTextInTranscript(targetText, fullTranscript, videoDuration) {
     const relativePosition = position / cleanTranscript.length;
     const estimatedStartTime = Math.max(0, relativePosition * videoDuration);
     
-    // Estimate segment duration based on text length
-    // Rough estimate: 150 words per minute = 2.5 words per second
-    const targetWordCount = cleanTarget.split(' ').length;
-    const estimatedDuration = Math.max(10, Math.min(30, targetWordCount * 0.4)); // 0.4 seconds per word
-    const estimatedEndTime = Math.min(videoDuration, estimatedStartTime + estimatedDuration);
+    // Calculate more precise segment duration based on text length and speaking rate
+    const targetWordCount = cleanTarget.split(' ').filter(w => w.length > 0).length;
+    // Use more realistic speaking rate: 120-150 words per minute (0.4-0.5 seconds per word)
+    const estimatedSpeechDuration = Math.max(3, targetWordCount * 0.45); // 0.45 seconds per word
+    const estimatedEndTime = Math.min(videoDuration, estimatedStartTime + estimatedSpeechDuration);
     
     console.log(`📍 Text position: ${position}/${cleanTranscript.length} (${(relativePosition * 100).toFixed(1)}%)`);
     console.log(`⏰ Estimated timing: ${estimatedStartTime.toFixed(1)}s - ${estimatedEndTime.toFixed(1)}s`);
@@ -849,46 +930,67 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
         let finalStartTime, finalEndTime, timingMethod, confidence;
         
         if (moment.transcript) {
-          // Priority 1: Try word-level timing (most accurate)
-          console.log(`🔍 Trying word-level timing first...`);
+          console.log(`🔍 🔍 DEBUGGING MOMENT ${index + 1} 🔍 🔍`);
+          console.log(`📝 Target transcript: "${moment.transcript}"`);
+          console.log(`📺 Video duration: ${videoDuration}s`);
+          console.log(`📊 Words available: ${transcriptionData.words?.length || 0}`);
+          console.log(`📊 Segments available: ${transcriptionData.segments?.length || 0}`);
+          
+          // Try ALL methods and compare results
           const wordMatch = findPreciseTimestamps(
             moment.transcript, 
             transcriptionData.words, 
             transcriptionData.segments
           );
           
-          if (wordMatch && wordMatch.score > 0.7) {
-            finalStartTime = wordMatch.startTime;
-            finalEndTime = wordMatch.endTime;
-            timingMethod = wordMatch.method;
-            confidence = wordMatch.score;
-            console.log(`✅ Using high-confidence ${wordMatch.method} timing for moment ${index + 1}: ${finalStartTime}s - ${finalEndTime}s`);
+          const textMatch = findTextInTranscript(moment.transcript, transcript, videoDuration);
+          
+          console.log(`🔍 COMPARISON RESULTS:`);
+          if (wordMatch) {
+            console.log(`  🔤 Word-level: ${wordMatch.startTime.toFixed(2)}s-${wordMatch.endTime.toFixed(2)}s (confidence: ${(wordMatch.score * 100).toFixed(1)}%, method: ${wordMatch.method})`);
           } else {
-            // Priority 2: Try improved text-based search
-            console.log(`🔍 Word-level timing insufficient, trying improved text search...`);
-            const textMatch = findTextInTranscript(moment.transcript, transcript, videoDuration);
-            
-            if (textMatch && textMatch.confidence > 0.6) {
-              finalStartTime = textMatch.startTime;
-              finalEndTime = textMatch.endTime;
-              timingMethod = textMatch.method;
-              confidence = textMatch.confidence;
-              console.log(`✅ Using improved text-position timing for moment ${index + 1}: ${finalStartTime}s - ${finalEndTime}s`);
-            } else if (wordMatch) {
-              // Priority 3: Use word-level timing even with lower confidence
-              finalStartTime = wordMatch.startTime;
-              finalEndTime = wordMatch.endTime;
-              timingMethod = wordMatch.method + '-lowconf';
-              confidence = wordMatch.score;
-              console.log(`⚠️ Using low-confidence ${wordMatch.method} timing for moment ${index + 1}: ${finalStartTime}s - ${finalEndTime}s`);
-            } else {
-              // Priority 4: Fallback timing
-              finalStartTime = (index / moments.length) * (videoDuration || 300);
-              finalEndTime = Math.min((videoDuration || 300), finalStartTime + 15);
-              timingMethod = 'fallback';
-              confidence = 0.2;
-              console.warn(`⚠️ Using fallback timing for moment ${index + 1}: ${finalStartTime}s - ${finalEndTime}s`);
-            }
+            console.log(`  🔤 Word-level: NO MATCH`);
+          }
+          
+          if (textMatch) {
+            console.log(`  📝 Text-based: ${textMatch.startTime.toFixed(2)}s-${textMatch.endTime.toFixed(2)}s (confidence: ${(textMatch.confidence * 100).toFixed(1)}%, method: ${textMatch.method})`);
+          } else {
+            console.log(`  📝 Text-based: NO MATCH`);
+          }
+          
+          // Intelligent selection based on confidence and method quality
+          let selectedMatch = null;
+          
+          // Prefer word-level if confidence is very high (>80%)
+          if (wordMatch && wordMatch.score > 0.8) {
+            selectedMatch = { ...wordMatch, priority: 'high-confidence-word' };
+          }
+          // Prefer text-based if confidence is high (>70%) and word-level is low
+          else if (textMatch && textMatch.confidence > 0.7 && (!wordMatch || wordMatch.score < 0.6)) {
+            selectedMatch = { ...textMatch, score: textMatch.confidence, priority: 'high-confidence-text' };
+          }
+          // Use word-level even with medium confidence if available
+          else if (wordMatch && wordMatch.score > 0.4) {
+            selectedMatch = { ...wordMatch, priority: 'medium-confidence-word' };
+          }
+          // Use text-based as fallback
+          else if (textMatch && textMatch.confidence > 0.3) {
+            selectedMatch = { ...textMatch, score: textMatch.confidence, priority: 'fallback-text' };
+          }
+          
+          if (selectedMatch) {
+            finalStartTime = selectedMatch.startTime;
+            finalEndTime = selectedMatch.endTime;
+            timingMethod = `${selectedMatch.method}(${selectedMatch.priority})`;
+            confidence = selectedMatch.score;
+            console.log(`✅ SELECTED: ${timingMethod} - ${finalStartTime.toFixed(2)}s to ${finalEndTime.toFixed(2)}s (${(confidence * 100).toFixed(1)}% confidence)`);
+          } else {
+            // Last resort fallback
+            finalStartTime = (index / moments.length) * (videoDuration || 300);
+            finalEndTime = Math.min((videoDuration || 300), finalStartTime + 15);
+            timingMethod = 'fallback-distributed';
+            confidence = 0.1;
+            console.warn(`⚠️ FALLBACK: Using distributed timing ${finalStartTime.toFixed(2)}s to ${finalEndTime.toFixed(2)}s`);
           }
         } else {
           // No transcript text available

@@ -538,7 +538,7 @@ const VideoSegmentsPage = () => {
                   console.log('Video loaded:', e.target.src);
                   console.log('Video duration:', e.target.duration);
                   
-                  // Get start time in seconds, trying multiple possible properties
+                  // Get start time in seconds with better precision handling
                   let startTimeSeconds = selectedSegment.startTimeSeconds;
                   
                   if (startTimeSeconds === undefined || startTimeSeconds === null) {
@@ -551,13 +551,27 @@ const VideoSegmentsPage = () => {
                     startTimeSeconds = 0;
                   }
                   if (startTimeSeconds >= e.target.duration) {
-                    startTimeSeconds = Math.max(0, e.target.duration - 10); // Start 10s before end
+                    startTimeSeconds = Math.max(0, e.target.duration - 10);
                   }
                   
-                  console.log('Setting start time to:', startTimeSeconds);
-                  console.log('Selected segment data:', selectedSegment);
+                  // Don't add buffer initially - test exact timing first
+                  const exactStartTime = startTimeSeconds;
                   
-                  e.target.currentTime = startTimeSeconds;
+                  console.log('🎬 ========== VIDEO PLAYER DEBUG ==========');
+                  console.log('🎬 Setting start time to:', exactStartTime);
+                  console.log('🎬 Selected segment:', {
+                    transcript: selectedSegment.transcript?.substring(0, 100),
+                    startTime: selectedSegment.startTime,
+                    endTime: selectedSegment.endTime,
+                    startTimeSeconds: selectedSegment.startTimeSeconds,
+                    endTimeSeconds: selectedSegment.endTimeSeconds,
+                    timingMethod: selectedSegment.timingMethod,
+                    timingConfidence: selectedSegment.timingConfidence
+                  });
+                  console.log('🎬 Video duration:', e.target.duration);
+                  console.log('🎬 Video src:', e.target.src);
+                  
+                  e.target.currentTime = exactStartTime;
                 }}
                 onError={(e) => {
                   console.error('Video error:', e);
@@ -567,17 +581,27 @@ const VideoSegmentsPage = () => {
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => setIsPlaying(false)}
                 onTimeUpdate={(e) => {
-                  // Auto-pause when reaching segment end time
-                  if (selectedSegment) {
+                  // Auto-pause when reaching segment end time - test exact timing
+                  if (selectedSegment && isPlaying) {
                     let endTimeSeconds = selectedSegment.endTimeSeconds;
                     
                     if (endTimeSeconds === undefined || endTimeSeconds === null) {
                       endTimeSeconds = timeStringToSeconds(selectedSegment.endTime);
                     }
                     
-                    if (typeof endTimeSeconds === 'number' && e.target.currentTime >= endTimeSeconds) {
+                    // Use exact end time for now to debug
+                    const exactEndTime = endTimeSeconds;
+                    
+                    if (typeof endTimeSeconds === 'number' && e.target.currentTime >= exactEndTime) {
+                      console.log('🎬 AUTO-PAUSING at current:', e.target.currentTime.toFixed(2), 's, target end:', exactEndTime.toFixed(2), 's');
+                      console.log('🎬 Difference:', (e.target.currentTime - exactEndTime).toFixed(2), 's');
                       e.target.pause();
                       setIsPlaying(false);
+                    }
+                    
+                    // Log every few seconds for debugging
+                    if (Math.floor(e.target.currentTime * 10) % 10 === 0) {
+                      console.log('🎬 Playing at:', e.target.currentTime.toFixed(2), 's, will stop at:', exactEndTime.toFixed(2), 's');
                     }
                   }
                 }}
