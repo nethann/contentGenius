@@ -26,7 +26,8 @@
       "Bash(dir \"C:\\Users\\netha\\Documents\\Programming\\ReactApps\\content-scalar\\server\\uploads\")",
       "Read(C:\\/**)",
       "WebFetch(domain:linear.app)",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": [],

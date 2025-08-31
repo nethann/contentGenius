@@ -606,21 +606,8 @@ function findWordLevelMatch(targetText, wordsArray) {
           const averageWordsPerSecond = Math.max(2.0, sequence.length / Math.max(0.1, matchedDuration)); // At least 2 words/sec
           const estimatedTargetDuration = targetWordCount / averageWordsPerSecond;
           
-          // For very short matches, use a more generous extension with aggressive padding
-          let finalDuration;
-          if (matchedDuration < 3) {
-            // Very short match - use generous extension + aggressive padding
-            finalDuration = Math.max(estimatedTargetDuration * 2.0, targetWordCount * 0.8, 8); // At least 8 seconds + aggressive padding
-          } else if (matchedDuration < 6) {
-            // Short match - moderate extension + padding
-            finalDuration = Math.max(matchedDuration * 1.5, estimatedTargetDuration * 1.5, 8);
-          } else {
-            // Reasonable match - add safety padding
-            finalDuration = Math.max(matchedDuration * 1.2, estimatedTargetDuration * 1.2);
-          }
-          
-          // Always add a minimum safety buffer of 2 seconds to prevent cut-offs
-          const extendedEndTime = startTime + finalDuration + 2;
+          // Use raw word-level timing - let server handle precise duration
+          const extendedEndTime = baseEndTime;
           
           bestMatch = {
             startTime: startTime,
@@ -1001,21 +988,21 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
           
           console.log(`🕒 Duration analysis: Word-level: ${wordDuration.toFixed(1)}s, Text-based: ${textDuration.toFixed(1)}s`);
           
-          // Prefer word-level if confidence is very high (>80%) AND duration is reasonable (>5s)
-          if (wordMatch && wordMatch.score > 0.8 && wordDuration >= 5) {
+          // ALWAYS prioritize word-level timing if confidence is high (>80%) - regardless of duration
+          if (wordMatch && wordMatch.score > 0.8) {
             selectedMatch = { ...wordMatch, priority: 'high-confidence-word' };
           }
-          // Strongly prefer text-based if confidence is good (>60%) and better duration
-          else if (textMatch && textMatch.confidence > 0.6 && (!wordMatch || wordMatch.score < 0.7 || wordDuration < textDuration * 0.7)) {
-            selectedMatch = { ...textMatch, score: textMatch.confidence, priority: 'text-duration-preference' };
+          // Use word-level for good confidence (>70%) - precision over duration
+          else if (wordMatch && wordMatch.score > 0.7) {
+            selectedMatch = { ...wordMatch, priority: 'precise-word-level' };
           }
-          // Use word-level with medium confidence if duration is reasonable
-          else if (wordMatch && wordMatch.score > 0.5 && wordDuration >= 4) {
+          // Only fall back to text-based if word-level confidence is poor
+          else if (textMatch && textMatch.confidence > 0.6 && (!wordMatch || wordMatch.score < 0.5)) {
+            selectedMatch = { ...textMatch, score: textMatch.confidence, priority: 'text-fallback' };
+          }
+          // Use word-level with medium confidence - precision always wins
+          else if (wordMatch && wordMatch.score > 0.5) {
             selectedMatch = { ...wordMatch, priority: 'medium-confidence-word' };
-          }
-          // Prefer text-based for very short word-level durations
-          else if (textMatch && wordMatch && wordDuration < 5 && textMatch.confidence > 0.4) {
-            selectedMatch = { ...textMatch, score: textMatch.confidence, priority: 'short-duration-text-preference' };
           }
           // Use word-level as fallback (with extended duration)
           else if (wordMatch && wordMatch.score > 0.3) {

@@ -953,6 +953,31 @@
   height: 1rem;
 }
 
+.auto-processing-status {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(45deg, var(--accent-purple), var(--accent-blue));
+  color: var(--text-primary);
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+  from {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .content-scalar-container {

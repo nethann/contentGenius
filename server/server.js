@@ -846,12 +846,12 @@ app.post('/api/transcribe-segment', async (req, res) => {
       }
     }
 
-    // Add aggressive buffer for complete phrases - prevent cut-offs
-    const segmentDuration = adjustedEndTime - adjustedStartTime;
-    const aggressiveBuffer = Math.max(3, Math.min(6, segmentDuration * 0.5)); // Min 3s, max 6s buffer
-    const finalEndTime = adjustedEndTime + aggressiveBuffer;
+    // Calculate exact duration based ONLY on expected transcript word count
+    const expectedTranscriptWords = expectedTranscript.split(' ').filter(word => word.length > 0).length;
+    const exactDuration = expectedTranscriptWords / 2.5; // 2.5 words per second
+    const finalEndTime = adjustedStartTime + exactDuration;
     
-    console.log('🔧 🔧 BUFFER ADDED:', `Original duration: ${segmentDuration.toFixed(1)}s, Buffer: ${aggressiveBuffer.toFixed(1)}s, Final duration: ${(finalEndTime - adjustedStartTime).toFixed(1)}s`);
+    console.log('🔧 PRECISE CUT:', `Words: ${expectedTranscriptWords}, Duration: ${exactDuration.toFixed(1)}s, Final: ${adjustedStartTime.toFixed(1)}s - ${finalEndTime.toFixed(1)}s`);
     
     console.log('🎯 Using transcript with corrected timestamps');
     console.log('🔍 DEBUG - Final timestamps:', `${adjustedStartTime.toFixed(1)}s - ${finalEndTime.toFixed(1)}s`);

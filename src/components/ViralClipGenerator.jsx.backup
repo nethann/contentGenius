@@ -2134,6 +2134,54 @@ const ViralClipGenerator = () => {
       setCurrentStep("Analyzing your content...");
       setProgress(10);
 
+      // TEMPORARY: Skip complex analysis and use hardcoded test moments
+      console.log('🧪 USING TEST MOMENTS - Skipping analysis for debugging');
+      const testMoments = [
+        {
+          id: "test_1",
+          title: "The Game of Business",
+          transcript: "The game of business is a really interesting game. Because in order to get in this game and really be successful, you have to be a gladiator.",
+          startTime: 296.93,
+          endTime: 313.43,
+          startTimeSeconds: 296.93,
+          endTimeSeconds: 313.43,
+          viralScore: 90,
+          category: "engaging",
+          subtitles: [],
+          thumbnail: "https://picsum.photos/400/300?random=1"
+        },
+        {
+          id: "test_2", 
+          title: "Ultimate Spiritual Game",
+          transcript: "That's why business is the ultimate spiritual game. The way you get wealthy is you do more for others than anybody else in the marketplace.",
+          startTime: 345.63,
+          endTime: 361.63,
+          startTimeSeconds: 345.63,
+          endTimeSeconds: 361.63,
+          viralScore: 85,
+          category: "emotional",
+          subtitles: [],
+          thumbnail: "https://picsum.photos/400/300?random=2"
+        }
+      ];
+
+      console.log('🧪 Using test moments:', testMoments);
+      setProgress(50);
+      setCurrentStep("Generating video shorts...");
+
+      // Skip analysis and go directly to video generation
+      const limitedSegments = testMoments;
+
+      if (!limitedSegments.length) {
+        throw new Error('No test moments available');
+      }
+
+      console.log(`✅ Found ${limitedSegments.length} test moments`);
+      setCurrentStep(`Generating ${limitedSegments.length} video shorts...`);
+      setProgress(50);
+      
+      // COMMENTED OUT ANALYSIS SECTION
+      /*
       // Step 1: Run AI analysis to get viral moments using SSE stream
       console.log('📊 Step 1: Running AI analysis...');
       const analysisResponse = await fetch(`${API_URL}/analyze-video`, {
@@ -2162,17 +2210,18 @@ const ViralClipGenerator = () => {
         const { done, value } = await reader.read();
         if (done) break;
 
-        buffer += new TextDecoder().decode(value);
+        const chunk = new TextDecoder().decode(value);
+        buffer += chunk;
+
         const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (line.trim().startsWith('data: ')) {
+          if (line.startsWith('data: ') && line !== 'data: ') {
             try {
-              const jsonStr = line.slice(6); // Remove 'data: ' prefix
-              const data = JSON.parse(jsonStr);
-              
+              const data = JSON.parse(line.slice(6));
               if (data.type === 'progress') {
+                setCurrentStep(data.step || "Processing...");
                 setProgress(Math.min(data.progress || 30, 45)); // Cap at 45% for this step
               } else if (data.type === 'complete') {
                 result = data;
@@ -2187,19 +2236,17 @@ const ViralClipGenerator = () => {
         if (result) break;
       }
 
-      if (!result || !result.result || !result.result.viralMoments) {
-        console.error('❌ Invalid analysis result structure:', result);
+      if (!result) {
         throw new Error('No analysis result received');
       }
 
-      const analysisResult = result.result;
-      console.log('📊 Analysis complete:', analysisResult);
+      console.log('🔍 DEBUG - Full analysis result:', result);
+      console.log('🔍 DEBUG - Result keys:', Object.keys(result));
 
-      // Extract video summary if available
-      const videoSummary = analysisResult.summary || analysisResult.videoSummary || null;
-      if (videoSummary) {
-        console.log('📝 Video summary received:', videoSummary);
-      }
+      // Extract the analysis data (matching original structure)
+      const analysisResult = result.result || result;
+      console.log('🔍 DEBUG - Analysis result:', analysisResult);
+      console.log('🔍 DEBUG - Viral moments:', analysisResult.viralMoments);
 
       const segments = analysisResult.viralMoments || [];
       
@@ -2230,6 +2277,9 @@ const ViralClipGenerator = () => {
 
       console.log(`✅ Found ${limitedSegments.length} viral moments`);
       setCurrentStep(`Generating ${limitedSegments.length} video shorts...`);
+      setProgress(50);
+      */
+      // END COMMENTED ANALYSIS SECTION
 
       // Step 2: Generate final video clips with subtitles for all moments
       console.log('🎬 Step 2: Generating final video clips...');
@@ -2246,27 +2296,21 @@ const ViralClipGenerator = () => {
         setProgress(50 + (i / limitedSegments.length) * 40);
 
         try {
-          // Use the precise transcript data already available from analysis
-          // No need to make additional API calls since analysis already provides accurate timing
-          console.log(`✅ Processing clip ${i + 1} with precise analysis data: "${moment.title}"`);
+          // For complete processing, just mark clips as ready without downloading
+          // The actual video generation will happen when user clicks download
+          console.log(`🎬 Marking clip ${i + 1} as processed and ready`);
           
           processedMoments.push({
             ...moment,
-            videoUrl: `/api/download-video`, // Real download happens on demand
+            videoUrl: `/api/download-video`, // Placeholder - real download happens on demand
             subtitles: moment.subtitles || [],
-            transcript: moment.transcript, // This is already the precise segment transcript from analysis
+            transcript: moment.transcript,
             processing: false,
             processed: true,
             clipGenerated: true,
-            transcribed: true, // Using precise analysis data
-            // Timing metadata from analysis
-            startTimeSeconds: moment.startTimeSeconds,
-            endTimeSeconds: moment.endTimeSeconds,
-            duration: moment.duration || `${Math.round(moment.endTimeSeconds - moment.startTimeSeconds)}s`,
-            timingMethod: 'word-level-analysis',
-            timingConfidence: 100 // High confidence since it comes from analysis
+            transcribed: true
           });
-          console.log(`✅ Short ${i + 1} processed using precise analysis data`);
+          console.log(`✅ Short ${i + 1} marked as ready`);
         } catch (error) {
           console.error(`❌ Error processing short ${i + 1}:`, error);
           console.error(`❌ Error details:`, {
@@ -2296,8 +2340,7 @@ const ViralClipGenerator = () => {
         VideoLibraryService.saveVideoAnalysis(user.id, fileInfo.filename, {
           extractedMoments: processedMoments,
           uploadedFileInfo: fileInfo,
-          thumbnail: processedMoments[0]?.thumbnail || null,
-          videoSummary: videoSummary
+          thumbnail: processedMoments[0]?.thumbnail || null
         });
       }
 

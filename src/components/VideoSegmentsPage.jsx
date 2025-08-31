@@ -557,15 +557,8 @@ const VideoSegmentsPage = () => {
                     startTimeSeconds = Math.max(0, e.target.duration - 10);
                   }
                   
-                  // IMMEDIATE FIX: Extend end time if segment is too short
-                  const originalDuration = endTimeSeconds - startTimeSeconds;
-                  if (originalDuration < 8) {
-                    console.log('🔧 FIXING SHORT SEGMENT: Original duration', originalDuration.toFixed(1), 's, extending to minimum 8s');
-                    endTimeSeconds = Math.min(e.target.duration, startTimeSeconds + 8);
-                    // Update the segment object for the auto-pause logic
-                    selectedSegment.endTimeSeconds = endTimeSeconds;
-                    selectedSegment.endTime = endTimeSeconds;
-                  }
+                  // Use precise server-calculated timestamps - no client-side extensions
+                  console.log('🎯 USING PRECISE TIMESTAMPS: Start:', startTimeSeconds.toFixed(2), 's, End:', endTimeSeconds.toFixed(2), 's, Duration:', (endTimeSeconds - startTimeSeconds).toFixed(2), 's');
                   
                   const exactStartTime = startTimeSeconds;
                   
@@ -601,21 +594,16 @@ const VideoSegmentsPage = () => {
                       endTimeSeconds = timeStringToSeconds(selectedSegment.endTime);
                     }
                     
-                    // Use end time with buffer based on segment confidence
-                    const timingConfidence = selectedSegment.timingConfidence || 0.5;
-                    const bufferSeconds = timingConfidence > 0.8 ? 0.5 : 1.5; // Less buffer for high confidence
-                    const bufferedEndTime = Math.max(0, endTimeSeconds - bufferSeconds);
-                    
-                    if (typeof endTimeSeconds === 'number' && e.target.currentTime >= bufferedEndTime) {
-                      console.log('🎬 AUTO-PAUSING at current:', e.target.currentTime.toFixed(2), 's, target end:', endTimeSeconds.toFixed(2), 's (buffered:', bufferedEndTime.toFixed(2), 's)');
-                      console.log('🎬 Difference from original end:', (e.target.currentTime - endTimeSeconds).toFixed(2), 's');
+                    // Use precise end time from server - no client-side buffering
+                    if (typeof endTimeSeconds === 'number' && e.target.currentTime >= endTimeSeconds) {
+                      console.log('🎯 PRECISE AUTO-PAUSE at:', e.target.currentTime.toFixed(2), 's, exact end:', endTimeSeconds.toFixed(2), 's');
                       e.target.pause();
                       setIsPlaying(false);
                     }
                     
                     // Log every few seconds for debugging
                     if (Math.floor(e.target.currentTime * 10) % 10 === 0) {
-                      console.log('🎬 Playing at:', e.target.currentTime.toFixed(2), 's, will stop at:', bufferedEndTime.toFixed(2), 's');
+                      console.log('🎬 Playing at:', e.target.currentTime.toFixed(2), 's, will stop at:', endTimeSeconds.toFixed(2), 's');
                     }
                   }
                 }}
