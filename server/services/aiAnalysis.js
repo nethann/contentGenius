@@ -595,15 +595,44 @@ function findWordLevelMatch(targetText, wordsArray) {
         
         if (adjustedScore > bestScore && adjustedScore >= 0.3) { // Lower threshold for more matches
           bestScore = adjustedScore;
+          
+          // Calculate better end time - extend beyond matched words for complete phrases
+          const baseEndTime = sequence[sequence.length - 1].end;
+          const startTime = sequence[0].start;
+          const matchedDuration = baseEndTime - startTime;
+          
+          // Calculate target duration more aggressively for short matches
+          const targetWordCount = cleanTarget.length;
+          const averageWordsPerSecond = Math.max(2.0, sequence.length / Math.max(0.1, matchedDuration)); // At least 2 words/sec
+          const estimatedTargetDuration = targetWordCount / averageWordsPerSecond;
+          
+          // For very short matches, use a more generous extension with aggressive padding
+          let finalDuration;
+          if (matchedDuration < 3) {
+            // Very short match - use generous extension + aggressive padding
+            finalDuration = Math.max(estimatedTargetDuration * 2.0, targetWordCount * 0.8, 8); // At least 8 seconds + aggressive padding
+          } else if (matchedDuration < 6) {
+            // Short match - moderate extension + padding
+            finalDuration = Math.max(matchedDuration * 1.5, estimatedTargetDuration * 1.5, 8);
+          } else {
+            // Reasonable match - add safety padding
+            finalDuration = Math.max(matchedDuration * 1.2, estimatedTargetDuration * 1.2);
+          }
+          
+          // Always add a minimum safety buffer of 2 seconds to prevent cut-offs
+          const extendedEndTime = startTime + finalDuration + 2;
+          
           bestMatch = {
-            startTime: sequence[0].start,
-            endTime: sequence[sequence.length - 1].end,
+            startTime: startTime,
+            endTime: extendedEndTime,
+            originalEndTime: baseEndTime,
             matchedWords: sequence.map(s => s.original).join(' '),
             score: adjustedScore,
             exactMatches: exactMatches,
             method: 'word-level-improved',
             wordCount: sequence.length,
-            targetLength: targetWindow.length
+            targetLength: targetWindow.length,
+            durationExtended: extendedEndTime > baseEndTime
           };
         }
       }
@@ -614,6 +643,9 @@ function findWordLevelMatch(targetText, wordsArray) {
     console.log('✅ Found improved word-level timing match:', {
       startTime: bestMatch.startTime,
       endTime: bestMatch.endTime,
+      originalEndTime: bestMatch.originalEndTime,
+      duration: (bestMatch.endTime - bestMatch.startTime).toFixed(2) + 's',
+      durationExtended: bestMatch.durationExtended,
       score: bestMatch.score,
       exactMatches: bestMatch.exactMatches,
       matchedText: bestMatch.matchedWords.substring(0, 100)
@@ -790,11 +822,13 @@ function findTextInTranscript(targetText, fullTranscript, videoDuration) {
     const relativePosition = position / cleanTranscript.length;
     const estimatedStartTime = Math.max(0, relativePosition * videoDuration);
     
-    // Calculate more precise segment duration based on text length and speaking rate
+    // Calculate more precise segment duration based on text length and speaking rate with padding
     const targetWordCount = cleanTarget.split(' ').filter(w => w.length > 0).length;
     // Use more realistic speaking rate: 120-150 words per minute (0.4-0.5 seconds per word)
-    const estimatedSpeechDuration = Math.max(3, targetWordCount * 0.45); // 0.45 seconds per word
-    const estimatedEndTime = Math.min(videoDuration, estimatedStartTime + estimatedSpeechDuration);
+    const estimatedSpeechDuration = Math.max(5, targetWordCount * 0.5); // 0.5 seconds per word (slightly slower)
+    // Add aggressive safety padding of 3 seconds to prevent cut-offs
+    const paddedDuration = estimatedSpeechDuration + 3;
+    const estimatedEndTime = Math.min(videoDuration, estimatedStartTime + paddedDuration);
     
     console.log(`📍 Text position: ${position}/${cleanTranscript.length} (${(relativePosition * 100).toFixed(1)}%)`);
     console.log(`⏰ Estimated timing: ${estimatedStartTime.toFixed(1)}s - ${estimatedEndTime.toFixed(1)}s`);
@@ -958,23 +992,37 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
             console.log(`  📝 Text-based: NO MATCH`);
           }
           
-          // Intelligent selection based on confidence and method quality
+          // Intelligent selection based on confidence, method quality, and duration reasonableness
           let selectedMatch = null;
           
-          // Prefer word-level if confidence is very high (>80%)
-          if (wordMatch && wordMatch.score > 0.8) {
+          // Calculate duration reasonableness scores
+          const wordDuration = wordMatch ? (wordMatch.endTime - wordMatch.startTime) : 0;
+          const textDuration = textMatch ? (textMatch.endTime - textMatch.startTime) : 0;
+          
+          console.log(`🕒 Duration analysis: Word-level: ${wordDuration.toFixed(1)}s, Text-based: ${textDuration.toFixed(1)}s`);
+          
+          // Prefer word-level if confidence is very high (>80%) AND duration is reasonable (>5s)
+          if (wordMatch && wordMatch.score > 0.8 && wordDuration >= 5) {
             selectedMatch = { ...wordMatch, priority: 'high-confidence-word' };
           }
-          // Prefer text-based if confidence is high (>70%) and word-level is low
-          else if (textMatch && textMatch.confidence > 0.7 && (!wordMatch || wordMatch.score < 0.6)) {
-            selectedMatch = { ...textMatch, score: textMatch.confidence, priority: 'high-confidence-text' };
+          // Strongly prefer text-based if confidence is good (>60%) and better duration
+          else if (textMatch && textMatch.confidence > 0.6 && (!wordMatch || wordMatch.score < 0.7 || wordDuration < textDuration * 0.7)) {
+            selectedMatch = { ...textMatch, score: textMatch.confidence, priority: 'text-duration-preference' };
           }
-          // Use word-level even with medium confidence if available
-          else if (wordMatch && wordMatch.score > 0.4) {
+          // Use word-level with medium confidence if duration is reasonable
+          else if (wordMatch && wordMatch.score > 0.5 && wordDuration >= 4) {
             selectedMatch = { ...wordMatch, priority: 'medium-confidence-word' };
           }
-          // Use text-based as fallback
-          else if (textMatch && textMatch.confidence > 0.3) {
+          // Prefer text-based for very short word-level durations
+          else if (textMatch && wordMatch && wordDuration < 5 && textMatch.confidence > 0.4) {
+            selectedMatch = { ...textMatch, score: textMatch.confidence, priority: 'short-duration-text-preference' };
+          }
+          // Use word-level as fallback (with extended duration)
+          else if (wordMatch && wordMatch.score > 0.3) {
+            selectedMatch = { ...wordMatch, priority: 'extended-word-fallback' };
+          }
+          // Use text-based as last resort
+          else if (textMatch && textMatch.confidence > 0.2) {
             selectedMatch = { ...textMatch, score: textMatch.confidence, priority: 'fallback-text' };
           }
           
@@ -984,6 +1032,7 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
             timingMethod = `${selectedMatch.method}(${selectedMatch.priority})`;
             confidence = selectedMatch.score;
             console.log(`✅ SELECTED: ${timingMethod} - ${finalStartTime.toFixed(2)}s to ${finalEndTime.toFixed(2)}s (${(confidence * 100).toFixed(1)}% confidence)`);
+            console.log(`🎯 DURATION: ${(finalEndTime - finalStartTime).toFixed(1)}s (${selectedMatch.durationExtended ? 'EXTENDED' : 'ORIGINAL'})`);
           } else {
             // Last resort fallback
             finalStartTime = (index / moments.length) * (videoDuration || 300);

@@ -538,15 +538,18 @@ const VideoSegmentsPage = () => {
                   console.log('Video loaded:', e.target.src);
                   console.log('Video duration:', e.target.duration);
                   
-                  // Get start time in seconds with better precision handling
+                  // Get start and end times to calculate duration
                   let startTimeSeconds = selectedSegment.startTimeSeconds;
+                  let endTimeSeconds = selectedSegment.endTimeSeconds;
                   
                   if (startTimeSeconds === undefined || startTimeSeconds === null) {
-                    // Try to convert from string format
                     startTimeSeconds = timeStringToSeconds(selectedSegment.startTime);
                   }
+                  if (endTimeSeconds === undefined || endTimeSeconds === null) {
+                    endTimeSeconds = timeStringToSeconds(selectedSegment.endTime);
+                  }
                   
-                  // Ensure it's a valid number within video bounds
+                  // Ensure valid numbers within video bounds
                   if (typeof startTimeSeconds !== 'number' || startTimeSeconds < 0) {
                     startTimeSeconds = 0;
                   }
@@ -554,7 +557,16 @@ const VideoSegmentsPage = () => {
                     startTimeSeconds = Math.max(0, e.target.duration - 10);
                   }
                   
-                  // Don't add buffer initially - test exact timing first
+                  // IMMEDIATE FIX: Extend end time if segment is too short
+                  const originalDuration = endTimeSeconds - startTimeSeconds;
+                  if (originalDuration < 8) {
+                    console.log('🔧 FIXING SHORT SEGMENT: Original duration', originalDuration.toFixed(1), 's, extending to minimum 8s');
+                    endTimeSeconds = Math.min(e.target.duration, startTimeSeconds + 8);
+                    // Update the segment object for the auto-pause logic
+                    selectedSegment.endTimeSeconds = endTimeSeconds;
+                    selectedSegment.endTime = endTimeSeconds;
+                  }
+                  
                   const exactStartTime = startTimeSeconds;
                   
                   console.log('🎬 ========== VIDEO PLAYER DEBUG ==========');
@@ -589,19 +601,21 @@ const VideoSegmentsPage = () => {
                       endTimeSeconds = timeStringToSeconds(selectedSegment.endTime);
                     }
                     
-                    // Use exact end time for now to debug
-                    const exactEndTime = endTimeSeconds;
+                    // Use end time with buffer based on segment confidence
+                    const timingConfidence = selectedSegment.timingConfidence || 0.5;
+                    const bufferSeconds = timingConfidence > 0.8 ? 0.5 : 1.5; // Less buffer for high confidence
+                    const bufferedEndTime = Math.max(0, endTimeSeconds - bufferSeconds);
                     
-                    if (typeof endTimeSeconds === 'number' && e.target.currentTime >= exactEndTime) {
-                      console.log('🎬 AUTO-PAUSING at current:', e.target.currentTime.toFixed(2), 's, target end:', exactEndTime.toFixed(2), 's');
-                      console.log('🎬 Difference:', (e.target.currentTime - exactEndTime).toFixed(2), 's');
+                    if (typeof endTimeSeconds === 'number' && e.target.currentTime >= bufferedEndTime) {
+                      console.log('🎬 AUTO-PAUSING at current:', e.target.currentTime.toFixed(2), 's, target end:', endTimeSeconds.toFixed(2), 's (buffered:', bufferedEndTime.toFixed(2), 's)');
+                      console.log('🎬 Difference from original end:', (e.target.currentTime - endTimeSeconds).toFixed(2), 's');
                       e.target.pause();
                       setIsPlaying(false);
                     }
                     
                     // Log every few seconds for debugging
                     if (Math.floor(e.target.currentTime * 10) % 10 === 0) {
-                      console.log('🎬 Playing at:', e.target.currentTime.toFixed(2), 's, will stop at:', exactEndTime.toFixed(2), 's');
+                      console.log('🎬 Playing at:', e.target.currentTime.toFixed(2), 's, will stop at:', bufferedEndTime.toFixed(2), 's');
                     }
                   }
                 }}

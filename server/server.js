@@ -846,10 +846,12 @@ app.post('/api/transcribe-segment', async (req, res) => {
       }
     }
 
-    // Add buffer for natural sentence endings
+    // Add aggressive buffer for complete phrases - prevent cut-offs
     const segmentDuration = adjustedEndTime - adjustedStartTime;
-    const maxBuffer = Math.min(3, segmentDuration * 0.3); // Max 3s buffer
-    const finalEndTime = adjustedEndTime + maxBuffer;
+    const aggressiveBuffer = Math.max(3, Math.min(6, segmentDuration * 0.5)); // Min 3s, max 6s buffer
+    const finalEndTime = adjustedEndTime + aggressiveBuffer;
+    
+    console.log('🔧 🔧 BUFFER ADDED:', `Original duration: ${segmentDuration.toFixed(1)}s, Buffer: ${aggressiveBuffer.toFixed(1)}s, Final duration: ${(finalEndTime - adjustedStartTime).toFixed(1)}s`);
     
     console.log('🎯 Using transcript with corrected timestamps');
     console.log('🔍 DEBUG - Final timestamps:', `${adjustedStartTime.toFixed(1)}s - ${finalEndTime.toFixed(1)}s`);
