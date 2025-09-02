@@ -7,6 +7,8 @@ import { dirname, join } from 'path';
 import fs from 'fs-extra';
 import ffmpeg from 'fluent-ffmpeg';
 import { v4 as uuidv4 } from 'uuid';
+import { exec } from 'child_process';
+import { createReadStream } from 'fs';
 import Groq from 'groq-sdk';
 import { performCompleteAnalysis, transcribeAudio } from './services/aiAnalysis.js';
 import { DatabaseService } from './services/databaseService.js';
@@ -415,8 +417,44 @@ function buildCropFilter(aspectRatio, cropPosition) {
   return `crop=${cropWidth}:${cropHeight}:${cropX}:${cropY}`;
 }
 
+// Find the exact last word that corresponds to a given transcript text
+function findLastWordForTranscript(words, transcriptText, segmentStartTime, segmentEndTime) {
+  if (!words || words.length === 0 || !transcriptText) return null;
+  
+  // Clean and normalize the transcript text for matching
+  const cleanTranscript = transcriptText.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  // Filter words that fall within the segment timeframe
+  const segmentWords = words.filter(word => 
+    word.start >= 0 && word.end <= (segmentEndTime - segmentStartTime)
+  );
+  
+  if (segmentWords.length === 0) return null;
+  
+  // Try to find the last word that matches the transcript
+  const transcriptWords = cleanTranscript.split(' ');
+  const lastTranscriptWord = transcriptWords[transcriptWords.length - 1];
+  
+  // Find the last occurrence of the last transcript word in the segment
+  for (let i = segmentWords.length - 1; i >= 0; i--) {
+    const word = segmentWords[i];
+    const cleanWord = word.word.toLowerCase().replace(/[^\w]/g, '');
+    if (cleanWord === lastTranscriptWord) {
+      console.log(`🎯 Found matching last word: "${word.word}" at ${word.end}s for transcript ending: "${lastTranscriptWord}"`);
+      return word;
+    }
+  }
+  
+  // Fallback: return the last word in the segment
+  console.log(`🎯 No exact match found, using last segment word: "${segmentWords[segmentWords.length - 1].word}"`);
+  return segmentWords[segmentWords.length - 1];
+}
+
 // Generate video with embedded subtitles and word-by-word highlighting
-async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles, words, outputPath, hasWatermark = false, proOptions = {}) {
+async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles, words, outputPath, hasWatermark = false, proOptions = {}, transcriptText = '') {
   return new Promise(async (resolve, reject) => {
     console.log('🎬 GENERATE VIDEO WITH SUBTITLES:', {
       startTime,
@@ -438,7 +476,30 @@ async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitl
     if (!subtitles || subtitles.length === 0) {
       console.log('⚠️ No subtitles provided, creating video without subtitles');
       
-      const calculatedDuration = endTime - startTime;
+      // Calculate duration based on when the last word actually ends (for precise ending)
+      let calculatedDuration = endTime - startTime;
+      if (words && words.length > 0) {
+        // Find the actual last word that should be included in this segment
+        const segmentWords = words.filter(word => 
+          word.start >= 0 && word.end <= (endTime - startTime)
+        );
+        
+        if (segmentWords.length > 0) {
+          const lastSegmentWordEnd = segmentWords[segmentWords.length - 1].end;
+          const preciseEndTime = lastSegmentWordEnd + 0.05;
+          calculatedDuration = preciseEndTime;
+          console.log(`🎯 NO SUBTITLES: Adjusted video duration to end precisely after last segment word: ${lastSegmentWordEnd}s + 0.05s buffer = ${calculatedDuration}s`);
+        } else {
+          // Fallback: use all words
+          const lastWordEnd = words[words.length - 1].end;
+          if (lastWordEnd < calculatedDuration) {
+            const preciseEndTime = lastWordEnd + 0.05;
+            calculatedDuration = preciseEndTime;
+            console.log(`🎯 NO SUBTITLES Fallback: Adjusted video duration to end after last word: ${lastWordEnd}s + 0.05s buffer = ${calculatedDuration}s`);
+          }
+        }
+      }
+      
       console.log(`🎬 FFmpeg parameters: seekInput(${startTime}) duration(${calculatedDuration})`);
       
       // Build ffmpeg command with optional watermark
@@ -492,6 +553,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
     // Generate word-by-word highlighting to match preview behavior
     if (words && words.length > 0) {
+      console.log(`🎬 Segment duration: ${endTime - startTime}s, Last word timing: ${words[words.length - 1].end}s`);
       // Group words into caption chunks like the preview does
       const wordsPerCaption = 6;
       for (let captionStart = 0; captionStart < words.length; captionStart += wordsPerCaption) {
@@ -500,7 +562,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         // Calculate the overall timing for this caption group
         const captionGroupStart = captionWords[0].start;
-        const captionGroupEnd = captionWords[captionWords.length - 1].end;
+        const captionGroupEnd = Math.min(captionWords[captionWords.length - 1].end, endTime - startTime);
         
         // For each word in this caption group, create a subtitle line
         for (let wordIndex = 0; wordIndex < captionWords.length; wordIndex++) {
@@ -524,8 +586,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
           
           // Ensure this subtitle only shows during its caption group timeframe
           // This prevents overlap between different caption groups
+          // Also ensure subtitles don't extend beyond the actual segment duration
           const effectiveStart = Math.max(currentWord.start, captionGroupStart);
-          const effectiveEnd = Math.min(currentWord.end, captionGroupEnd);
+          const effectiveEnd = Math.min(currentWord.end, captionGroupEnd, endTime - startTime);
           
           // Only add if the timing is valid
           if (effectiveStart < effectiveEnd) {
@@ -539,11 +602,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     } else {
       // Fallback to regular subtitles without karaoke if no word timing available
       subtitles.forEach((subtitle) => {
-        const startAss = formatTimeToAss(subtitle.start);
-        const endAss = formatTimeToAss(subtitle.end);
-        const cleanText = subtitle.text.replace(/[\r\n]+/g, ' ').trim();
+        // Ensure subtitle timing doesn't exceed segment duration
+        const constrainedStart = Math.min(subtitle.start, endTime - startTime);
+        const constrainedEnd = Math.min(subtitle.end, endTime - startTime);
         
-        assContent += `Dialogue: 1,${startAss},${endAss},Default,,0,0,0,,{\\pos(640,600)}${cleanText}\n`;
+        // Only add if timing is valid
+        if (constrainedStart < constrainedEnd) {
+          const startAss = formatTimeToAss(constrainedStart);
+          const endAss = formatTimeToAss(constrainedEnd);
+          const cleanText = subtitle.text.replace(/[\r\n]+/g, ' ').trim();
+          
+          assContent += `Dialogue: 1,${startAss},${endAss},Default,,0,0,0,,{\\pos(640,600)}${cleanText}\n`;
+        }
       });
     }
 
@@ -601,7 +671,32 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
       console.log(`💧 Adding watermark for Guest tier user`);
     }
 
-    const calculatedDuration = endTime - startTime;
+    // Calculate duration based on when the last word actually ends (for precise ending)
+    let calculatedDuration = endTime - startTime;
+    if (words && words.length > 0) {
+      // Use the new function to find the exact last word for this transcript
+      const lastWord = findLastWordForTranscript(words, transcriptText, startTime, endTime);
+      
+      if (lastWord) {
+        // Add a minimal buffer (0.03s) after the last word for clean ending
+        const preciseEndTime = lastWord.end + 0.03;
+        calculatedDuration = preciseEndTime;
+        console.log(`🎯 PRECISE: Video duration set to end exactly after last transcript word: ${lastWord.end}s + 0.03s buffer = ${calculatedDuration}s`);
+      } else {
+        // Fallback to segment words
+        const segmentWords = words.filter(word => 
+          word.start >= 0 && word.end <= (endTime - startTime)
+        );
+        
+        if (segmentWords.length > 0) {
+          const lastSegmentWordEnd = segmentWords[segmentWords.length - 1].end;
+          const preciseEndTime = lastSegmentWordEnd + 0.03;
+          calculatedDuration = preciseEndTime;
+          console.log(`🎯 FALLBACK: Adjusted video duration to end after last segment word: ${lastSegmentWordEnd}s + 0.03s buffer = ${calculatedDuration}s`);
+        }
+      }
+    }
+    
     console.log(`🎬 WITH SUBTITLES FFmpeg parameters: seekInput(${startTime}) duration(${calculatedDuration})`);
 
     ffmpeg(videoPath)
@@ -928,6 +1023,85 @@ function calculateTextSimilarity(text1, text2) {
   return matches / Math.max(words1.length, words2.length);
 }
 
+// Serve video segments on-demand for preview
+app.get('/api/segment-video/:filename/:startTime/:endTime/:segmentId', async (req, res) => {
+  try {
+    const { filename, startTime, endTime, segmentId } = req.params;
+    
+    console.log('🎬 SEGMENT VIDEO REQUEST:', {
+      filename,
+      startTime: parseFloat(startTime),
+      endTime: parseFloat(endTime),
+      segmentId,
+      duration: parseFloat(endTime) - parseFloat(startTime)
+    });
+
+    if (!filename || !startTime || !endTime || !segmentId) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    const videoPath = join(uploadDir, filename);
+    const outputPath = join(tempDir, `segment-${segmentId}-${uuidv4()}.mp4`);
+
+    // Check if video file exists
+    if (!await fs.pathExists(videoPath)) {
+      console.error('❌ Video file not found:', videoPath);
+      return res.status(404).json({ error: 'Video file not found' });
+    }
+
+    const startTimeFloat = parseFloat(startTime);
+    const endTimeFloat = parseFloat(endTime);
+    
+    console.log(`🎬 Generating segment ${segmentId}: ${startTimeFloat}s - ${endTimeFloat}s`);
+
+    // Generate video segment without subtitles for quick preview
+    const command = `ffmpeg -i "${videoPath}" -ss ${startTimeFloat} -to ${endTimeFloat} -c:v libx264 -c:a aac -y "${outputPath}"`;
+    
+    console.log(`🚀 ffmpeg command: ${command}`);
+    
+    await new Promise((resolve, reject) => {
+      exec(command, (error, stdout, stderr) => {
+        if (error) {
+          console.error('❌ ffmpeg error:', error);
+          console.error('❌ ffmpeg stderr:', stderr);
+          reject(error);
+        } else {
+          console.log('✅ Video segment generated successfully');
+          resolve();
+        }
+      });
+    });
+
+    // Set proper headers for video streaming
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    
+    // Stream the video file
+    const videoStream = createReadStream(outputPath);
+    videoStream.pipe(res);
+
+    // Clean up the temporary file after streaming
+    videoStream.on('end', () => {
+      setTimeout(async () => {
+        try {
+          await fs.remove(outputPath);
+          console.log(`🗑️ Cleaned up temporary segment file: ${outputPath}`);
+        } catch (cleanupError) {
+          console.error('Cleanup error:', cleanupError);
+        }
+      }, 5000); // Wait 5 seconds before cleanup
+    });
+
+  } catch (error) {
+    console.error('❌ Segment video error:', error);
+    res.status(500).json({ 
+      error: 'Video segment generation failed', 
+      details: error.message 
+    });
+  }
+});
+
 // Generate and download video with subtitles
 app.post('/api/download-video', async (req, res) => {
   try {
@@ -963,11 +1137,17 @@ app.post('/api/download-video', async (req, res) => {
     }
 
     // Generate video with subtitles and word-by-word highlighting
+    // Extract transcript text from subtitles for precise ending
+    let transcriptText = '';
+    if (subtitles && subtitles.length > 0) {
+      transcriptText = subtitles.map(s => s.text).join(' ');
+    }
+    
     await generateVideoWithSubtitles(videoPath, startTime, endTime, subtitles || [], words || [], outputPath, hasWatermark, {
       aspectRatio: aspectRatio || '9:16',
       cropPosition: cropPosition || 'center',
       userTier: userTier || 'guest'
-    });
+    }, transcriptText);
 
     // Send the video file for download
     res.download(outputPath, `segment-${segmentId}.mp4`, async (err) => {

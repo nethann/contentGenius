@@ -2932,14 +2932,6 @@ const ViralClipGenerator = () => {
                               )}
                             </div>
                             
-                            <div className="segment-transcript-preview">
-                              <p className="segment-transcript-label">
-                                <strong>🔍 FULL TRANSCRIPT (DEBUG):</strong> "{moment.transcript}"
-                              </p>
-                              <p style={{fontSize: '12px', color: '#ff6b35', fontWeight: 'bold', marginTop: '5px'}}>
-                                📊 Length: {moment.transcript?.length || 0} chars | DEBUG MODE ACTIVE
-                              </p>
-                            </div>
                           </div>
                         </div>
                         
@@ -2950,130 +2942,163 @@ const ViralClipGenerator = () => {
                               <span>🎬 Auto-generating... {clipProgress[moment.id]}%</span>
                             </div>
                           ) : moment.clipGenerated ? (
-                            <button
-                              onClick={() => showVideoClipModal(moment)}
-                              className="segment-action-primary"
-                            >
-                              <span className="flex items-center gap-1"><Play className="segment-action-icon" />View Clip</span>
-                            </button>
+                            <div className="viral-short-player" style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              width: '100%',
+                              gap: '16px'
+                            }}>
+                              {/* Vertical Short-Style Video Player */}
+                              <div style={{
+                                position: 'relative',
+                                width: '280px',
+                                height: '500px',
+                                borderRadius: '16px',
+                                overflow: 'hidden',
+                                backgroundColor: '#000',
+                                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                                border: '2px solid #333'
+                              }}>
+                                <video
+                                  key={`${moment.id}-short`}
+                                  controls
+                                  autoPlay
+                                  loop
+                                  muted
+                                  playsInline
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover',
+                                    display: 'block'
+                                  }}
+                                  onLoadedData={() => {
+                                    console.log(`✅ Short video loaded for moment ${moment.id}`);
+                                  }}
+                                  onError={(e) => {
+                                    console.error(`❌ Video error for moment ${moment.id}:`, e);
+                                  }}
+                                  onClick={(e) => {
+                                    // Toggle play/pause on click like TikTok
+                                    const video = e.target;
+                                    if (video.paused) {
+                                      video.play();
+                                    } else {
+                                      video.pause();
+                                    }
+                                  }}
+                                >
+                                  <source 
+                                    src={`http://localhost:3001/api/segment-video/${uploadedFileInfo?.filename}/${moment.startTimeSeconds}/${moment.endTimeSeconds}/${moment.id}?t=${Date.now()}`} 
+                                    type="video/mp4" 
+                                  />
+                                  Your browser does not support the video tag.
+                                </video>
+                                
+                                {/* Overlay for interaction hint */}
+                                <div style={{
+                                  position: 'absolute',
+                                  bottom: '20px',
+                                  left: '20px',
+                                  right: '20px',
+                                  color: 'white',
+                                  fontSize: '14px',
+                                  textAlign: 'center',
+                                  background: 'rgba(0,0,0,0.5)',
+                                  padding: '8px 12px',
+                                  borderRadius: '20px',
+                                  opacity: 0.8
+                                }}>
+                                  Tap to play/pause • {moment.duration}
+                                </div>
+                              </div>
+
+                              {/* Download Options Below Video */}
+                              {moment.transcript && (
+                                <div style={{ 
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '12px',
+                                  width: '280px',
+                                  alignItems: 'stretch'
+                                }}>
+                                  {/* Format Selector */}
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    fontSize: '14px',
+                                    color: '#ccc'
+                                  }}>
+                                    <span>🎬</span>
+                                    <span>Choose format:</span>
+                                  </div>
+                                  
+                                  <select
+                                    id={`aspect-select-${moment.id}`}
+                                    style={{
+                                      padding: '12px 16px',
+                                      borderRadius: '12px',
+                                      border: '2px solid #333',
+                                      background: '#1a1a1a',
+                                      color: 'white',
+                                      fontSize: '14px',
+                                      cursor: 'pointer',
+                                      outline: 'none',
+                                      transition: 'border-color 0.2s ease'
+                                    }}
+                                    defaultValue="9:16"
+                                    onFocus={(e) => e.target.style.borderColor = '#0ea5e9'}
+                                    onBlur={(e) => e.target.style.borderColor = '#333'}
+                                  >
+                                    <option value="9:16">📱 TikTok/Instagram Reels (9:16)</option>
+                                    <option value="16:9">📺 YouTube (16:9)</option>
+                                    <option value="1:1">⏹️ Instagram Post (1:1)</option>
+                                    <option value="4:5">📄 Instagram Stories (4:5)</option>
+                                    <option value="21:9">🎬 Cinematic (21:9)</option>
+                                  </select>
+
+                                  {/* Download Button */}
+                                  <button
+                                    onClick={(e) => {
+                                      const selectElement = document.getElementById(`aspect-select-${moment.id}`);
+                                      const selectedRatio = selectElement.value;
+                                      console.log('📥 Downloading with aspect ratio:', selectedRatio);
+                                      downloadVideoWithSubtitles(moment, selectedRatio);
+                                    }}
+                                    style={{
+                                      padding: '12px 24px',
+                                      borderRadius: '12px',
+                                      border: 'none',
+                                      background: 'linear-gradient(45deg, #0ea5e9, #3b82f6)',
+                                      color: 'white',
+                                      fontSize: '14px',
+                                      fontWeight: '600',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '8px'
+                                    }}
+                                    onMouseOver={(e) => {
+                                      e.target.style.transform = 'translateY(-2px)';
+                                      e.target.style.boxShadow = '0 8px 25px rgba(14, 165, 233, 0.3)';
+                                    }}
+                                    onMouseOut={(e) => {
+                                      e.target.style.transform = 'translateY(0)';
+                                      e.target.style.boxShadow = 'none';
+                                    }}
+                                  >
+                                    ⬇️ Download Short
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <div className="auto-processing-status">
                               <span>🚀 Processing automatically...</span>
-                            </div>
-                          )}
-                          
-                          {moment.clipGenerated && moment.transcript && (
-                            <div style={{ 
-                              display: 'flex',
-                              gap: '8px',
-                              flexWrap: 'wrap',
-                              justifyContent: 'center',
-                              alignItems: 'center'
-                            }}>
-
-                              {/* Hybrid Download Button with Dropdown */}
-                              <div style={{ 
-                                display: 'flex', 
-                                alignItems: 'stretch',
-                                width: '100%',
-                                position: 'relative'
-                              }}>
-                                {/* Format Selector */}
-                                <div style={{ position: 'relative' }}>
-                                  <style>
-                                    {`
-                                      .aspect-select-${moment.id} {
-                                        appearance: none;
-                                        -webkit-appearance: none;
-                                        -moz-appearance: none;
-                                        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-                                        background-position: right 0.75rem center;
-                                        background-repeat: no-repeat;
-                                        background-size: 1.25rem;
-                                        padding-right: 3rem;
-                                      }
-                                      
-                                      .aspect-select-${moment.id}:focus {
-                                        outline: none;
-                                        box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.3);
-                                      }
-                                      
-                                      .aspect-select-${moment.id} option {
-                                        background-color: #1e1f23;
-                                        color: #ffffff;
-                                        padding: 0.75rem 1rem;
-                                        border-radius: 0.5rem;
-                                        margin: 0.25rem;
-                                        font-weight: 500;
-                                      }
-                                      
-                                      .aspect-select-${moment.id} option:hover {
-                                        background-color: #0ea5e9;
-                                      }
-                                      
-                                      .aspect-select-${moment.id} option:checked {
-                                        background-color: #0ea5e9;
-                                        color: #ffffff;
-                                      }
-                                    `}
-                                  </style>
-                                  <select
-                                    id={`aspect-select-${moment.id}`}
-                                    className={`aspect-select-${moment.id}`}
-                                    style={{
-                                      fontSize: '12px',
-                                      padding: '0.5rem 1rem',
-                                      background: 'var(--accent-blue)',
-                                      border: 'none',
-                                      borderTopLeftRadius: '0.5rem',
-                                      borderBottomLeftRadius: '0.5rem',
-                                      borderTopRightRadius: 0,
-                                      borderBottomRightRadius: 0,
-                                      borderRight: 'none',
-                                      color: 'var(--text-primary)',
-                                      cursor: 'pointer',
-                                      fontWeight: '500',
-                                      height: '100%',
-                                      minWidth: '140px',
-                                      transition: 'background-color 0.2s ease'
-                                    }}
-                                    defaultValue="16:9"
-                                  >
-                                    <option value="9:16">📱 TikTok (9:16) ▼</option>
-                                    <option value="16:9">📺 YouTube (16:9) ▼</option>
-                                    <option value="1:1">⏹️ Instagram (1:1) ▼</option>
-                                    <option value="4:5">📄 Stories (4:5) ▼</option>
-                                    <option value="21:9">🎬 Cinematic (21:9) ▼</option>
-                                  </select>
-                                </div>
-                                
-                                {/* Main Download Button */}
-                                <button
-                                  onClick={(e) => {
-                                    const selectElement = document.getElementById(`aspect-select-${moment.id}`);
-                                    const selectedRatio = selectElement.value;
-                                    console.log('📥 Downloading with aspect ratio:', selectedRatio);
-                                    downloadVideoWithSubtitles(moment, selectedRatio);
-                                  }}
-                                  className="segment-action-secondary"
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '6px',
-                                    flex: 1,
-                                    padding: '8px 12px',
-                                    fontSize: '12px',
-                                    fontWeight: '500',
-                                    borderTopLeftRadius: 0,
-                                    borderBottomLeftRadius: 0,
-                                    borderTopRightRadius: '6px',
-                                    borderBottomRightRadius: '6px'
-                                  }}
-                                >
-                                  Download Video
-                                </button>
-                              </div>
                             </div>
                           )}
                         </div>
