@@ -2738,6 +2738,23 @@ const ViralClipGenerator = () => {
 
   return (
     <div className="content-scalar min-h-screen">
+      {/* Custom CSS to hide video control buttons */}
+      <style>
+        {`
+          .custom-video-controls::-webkit-media-controls-fullscreen-button {
+            display: none !important;
+          }
+          .custom-video-controls::-webkit-media-controls-overflow-button {
+            display: none !important;
+          }
+          .custom-video-controls::-webkit-media-controls-toggle-closed-captions-button {
+            display: none !important;
+          }
+          .custom-video-controls::-webkit-media-controls-picture-in-picture-button {
+            display: none !important;
+          }
+        `}
+      </style>
       {/* Header */}
       <header className="viral-clip-header">
         <div className="viral-clip-header-content">
@@ -3288,6 +3305,7 @@ const ViralClipGenerator = () => {
                                     objectFit: 'cover',
                                     display: 'block'
                                   }}
+                                  className="custom-video-controls"
                                   onLoadedData={() => {
                                     console.log(`✅ Short video loaded for moment ${moment.id}`);
                                   }}
@@ -3390,41 +3408,6 @@ const ViralClipGenerator = () => {
                                     <option value="21:9">🎬 Cinematic (21:9)</option>
                                   </select>
 
-                                  {/* Preview Button */}
-                                  <button
-                                    onClick={() => {
-                                      console.log('👁️ Preview button clicked for moment:', moment.title);
-                                      downloadClip(moment);
-                                    }}
-                                    style={{
-                                      padding: '10px 20px',
-                                      borderRadius: '10px',
-                                      border: '2px solid #8b5cf6',
-                                      background: 'transparent',
-                                      color: '#8b5cf6',
-                                      fontSize: '14px',
-                                      fontWeight: '600',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.2s ease',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      gap: '6px'
-                                    }}
-                                    onMouseOver={(e) => {
-                                      e.target.style.background = '#8b5cf6';
-                                      e.target.style.color = 'white';
-                                      e.target.style.transform = 'translateY(-1px)';
-                                    }}
-                                    onMouseOut={(e) => {
-                                      e.target.style.background = 'transparent';
-                                      e.target.style.color = '#8b5cf6';
-                                      e.target.style.transform = 'translateY(0)';
-                                    }}
-                                  >
-                                    👁️ Preview with Subtitles
-                                  </button>
-
                                   {/* Download Button */}
                                   <button
                                     onClick={(e) => {
@@ -3459,6 +3442,7 @@ const ViralClipGenerator = () => {
                                   >
                                     ⬇️ Download Short
                                   </button>
+
                                 </div>
                               )}
                             </div>
