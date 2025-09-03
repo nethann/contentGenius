@@ -1523,6 +1523,91 @@ const ViralClipGenerator = () => {
     showVideoClipModal(moment);
   };
 
+  // Create high-accuracy subtitles for download - prioritize word-level timing
+  const createSubtitlesFromTranscript = (moment) => {
+    console.log('🎯 Creating subtitles for download:', {
+      hasTranscript: !!moment.transcript,
+      hasWords: !!moment.words?.length,
+      wordsCount: moment.words?.length || 0
+    });
+    
+    if (!moment.transcript || moment.transcript.length === 0) {
+      return [];
+    }
+    
+    const subtitles = [];
+    
+    // PRIORITY 1: Use word-level timing if available (highest accuracy)
+    if (moment.words && moment.words.length > 0) {
+      console.log('🎯 Using precise word-level timing for download subtitles');
+      
+      // Group words into 4-6 word chunks for better readability
+      const wordsPerGroup = 5;
+      for (let i = 0; i < moment.words.length; i += wordsPerGroup) {
+        const wordGroup = moment.words.slice(i, i + wordsPerGroup);
+        const groupText = wordGroup.map(w => w.word || w.text || '').join(' ');
+        const groupStart = wordGroup[0].start || 0;
+        const groupEnd = wordGroup[wordGroup.length - 1].end || (groupStart + 2);
+        
+        subtitles.push({
+          text: groupText,
+          start: groupStart,
+          end: groupEnd,
+          startTime: groupStart,
+          endTime: groupEnd,
+          words: wordGroup, // Include individual word timing for server
+          style: {
+            background: 'rgba(0,0,0,0.9)',
+            color: 'white',
+            fontSize: '16px',
+            fontWeight: '700',
+            padding: '8px 14px',
+            borderRadius: '6px',
+            textAlign: 'center',
+            textShadow: '1px 1px 3px rgba(0,0,0,1)'
+          }
+        });
+      }
+      
+      console.log(`🎯 Created ${subtitles.length} word-timed subtitle groups for download`);
+    } else {
+      // FALLBACK: Use transcript chunks (lower accuracy)
+      console.log('🎯 Using fallback transcript chunking for download subtitles');
+      
+      const segmentDuration = moment.endTimeSeconds - moment.startTimeSeconds;
+      const words = moment.transcript.split(' ');
+      const wordsPerChunk = Math.max(4, Math.min(7, Math.floor(words.length / Math.max(1, segmentDuration / 2.5))));
+      
+      for (let i = 0; i < words.length; i += wordsPerChunk) {
+        const chunkWords = words.slice(i, i + wordsPerChunk);
+        const chunkIndex = Math.floor(i / wordsPerChunk);
+        const chunkStartTime = (chunkIndex * segmentDuration) / Math.ceil(words.length / wordsPerChunk);
+        const chunkEndTime = ((chunkIndex + 1) * segmentDuration) / Math.ceil(words.length / wordsPerChunk);
+        
+        subtitles.push({
+          text: chunkWords.join(' '),
+          start: chunkStartTime,
+          end: chunkEndTime,
+          startTime: chunkStartTime,
+          endTime: chunkEndTime,
+          style: {
+            background: 'rgba(0,0,0,0.8)',
+            color: 'white',
+            fontSize: '15px',
+            fontWeight: '600',
+            padding: '7px 12px',
+            borderRadius: '5px',
+            textAlign: 'center'
+          }
+        });
+      }
+      
+      console.log(`🎯 Created ${subtitles.length} estimated-time subtitle chunks for download`);
+    }
+    
+    return subtitles;
+  };
+
   const downloadVideoWithSubtitles = async (moment, customAspectRatio = null) => {
     console.log('🔥🔥🔥 DOWNLOAD FUNCTION CALLED! 🔥🔥🔥');
     console.log('🔥 Moment:', moment);
@@ -1541,10 +1626,17 @@ const ViralClipGenerator = () => {
     const activeFileInfo = uploadedFileInfo;
     console.log('🔥 Active file info:', activeFileInfo);
     
-    if (!moment.subtitles || moment.subtitles.length === 0) {
-      alert('No subtitles available for download');
+    // Check if we have transcript data (which we use for subtitles)
+    if (!moment.transcript || moment.transcript.length === 0) {
+      alert('No transcript data available for subtitles');
       return;
     }
+    
+    console.log('🎯 Creating subtitles from transcript for download:', moment.transcript.substring(0, 100) + '...');
+    
+    // Create subtitles and log them for debugging
+    const generatedSubtitles = createSubtitlesFromTranscript(moment);
+    console.log('🎯 Generated subtitles for server:', generatedSubtitles);
 
     // Check tier restrictions for clip downloads
     const tierLimits = getTierLimits();
@@ -1566,7 +1658,8 @@ const ViralClipGenerator = () => {
           filename: activeFileInfo.filename,
           startTime: moment.startTimeSeconds,
           endTime: moment.endTimeSeconds,
-          subtitles: moment.subtitles,
+          subtitles: generatedSubtitles, // Use the pre-generated subtitles
+          transcript: moment.transcript, // Send full transcript
           words: moment.words || [], // Include word-level timestamps for karaoke highlighting
           segmentId: moment.id,
           userTier: userTier, // Add user tier for watermark logic
@@ -2172,7 +2265,15 @@ const ViralClipGenerator = () => {
         
         if (result.viralMoments && result.viralMoments.length > 0) {
           // Use AI-identified viral moments
+          console.log('🔤 WORD DATA DEBUG - Checking each viral moment for word timing:');
           result.viralMoments.forEach((moment, index) => {
+            console.log(`🔤 Moment ${index + 1} word data:`, {
+              title: moment.title,
+              hasWords: !!moment.words,
+              wordCount: moment.words?.length || 0,
+              sampleWords: moment.words?.slice(0, 5) || 'No words',
+              transcript: moment.transcript?.substring(0, 50) + '...'
+            });
             const formatTime = (seconds) => {
               const mins = Math.floor(seconds / 60);
               const secs = seconds % 60;
@@ -2191,6 +2292,9 @@ const ViralClipGenerator = () => {
               description: moment.reasoning || `${moment.category} content with high viral potential`,
               category: moment.category || 'engaging',
               transcript: moment.transcript || "AI-generated viral moment",
+              words: moment.words || [], // 🔤 CRITICAL: Pass through word-level timing data
+              timingMethod: moment.timingMethod || 'unknown',
+              timingConfidence: moment.timingConfidence || 0,
               suggestedCaption: `${moment.title} 🎬`,
               thumbnail: generateThumbnail(moment.category || 'engaging'),
               clipGenerated: false,
@@ -2200,12 +2304,17 @@ const ViralClipGenerator = () => {
               aiAnalyzed: true
             };
 
-            // Debug logging for transcript data
+            // Debug logging for transcript and word timing data
             console.log(`🎯 Created segment ${index + 1}:`, {
               title: segment.title,
               hasTranscript: !!segment.transcript,
               transcriptLength: segment.transcript?.length || 0,
+              hasWords: !!segment.words?.length,
+              wordCount: segment.words?.length || 0,
+              timingMethod: segment.timingMethod,
+              timingConfidence: segment.timingConfidence,
               transcriptPreview: segment.transcript?.substring(0, 100) + '...',
+              sampleWords: segment.words?.slice(0, 3) || 'No word data',
               originalMomentTranscript: moment.transcript?.substring(0, 100) + '...'
             });
 
@@ -3221,52 +3330,196 @@ const ViralClipGenerator = () => {
                                           if (!subtitleOverlay || videoEl.paused) return;
                                           
                                           const currentTime = videoEl.currentTime;
-                                          const segmentDuration = moment.endTimeSeconds - moment.startTimeSeconds;
                                           
-                                          // Create time-based chunks from transcript
-                                          if (moment.transcript && moment.transcript.length > 0) {
-                                            const words = moment.transcript.split(' ');
-                                            const wordsPerChunk = Math.max(3, Math.min(6, Math.floor(words.length / Math.max(1, segmentDuration / 2))));
-                                            const chunks = [];
+                                          // COMPREHENSIVE WORD DATA DEBUGGING
+                                          console.log(`🎯 === DETAILED DEBUG FOR ${moment.title} ===`);
+                                          console.log(`⏰ Current time: ${currentTime.toFixed(3)}s`);
+                                          console.log(`📊 Words available:`, !!moment.words?.length);
+                                          console.log(`📊 Words count:`, moment.words?.length || 0);
+                                          console.log(`📊 Full moment object:`, moment);
+                                          
+                                          if (moment.words?.length > 0) {
+                                            console.log(`🔤 Sample words:`, moment.words.slice(0, 10));
+                                            console.log(`🔤 Word timing range:`, {
+                                              firstWord: moment.words[0],
+                                              lastWord: moment.words[moment.words.length - 1]
+                                            });
+                                          }
+                                          
+                                          // PRIORITY 1: 100% ACCURATE WORD-LEVEL TIMING
+                                          if (moment.words && moment.words.length > 0) {
+                                            console.log(`🎯 Using PRECISE word timing for ${moment.title}`);
                                             
-                                            for (let i = 0; i < words.length; i += wordsPerChunk) {
-                                              const chunkWords = words.slice(i, i + wordsPerChunk);
-                                              const chunkIndex = Math.floor(i / wordsPerChunk);
-                                              const chunkStartTime = (chunkIndex * segmentDuration) / Math.ceil(words.length / wordsPerChunk);
-                                              const chunkEndTime = ((chunkIndex + 1) * segmentDuration) / Math.ceil(words.length / wordsPerChunk);
+                                            // Find the EXACT current word with precise timing
+                                            let currentWord = null;
+                                            let currentWordIndex = -1;
+                                            
+                                            for (let i = 0; i < moment.words.length; i++) {
+                                              const wordObj = moment.words[i];
+                                              const wordStart = wordObj.start || 0;
+                                              const wordEnd = wordObj.end || wordStart + 0.3;
                                               
-                                              chunks.push({
-                                                text: chunkWords.join(' '),
-                                                startTime: chunkStartTime,
-                                                endTime: chunkEndTime
-                                              });
+                                              if (currentTime >= wordStart && currentTime <= wordEnd) {
+                                                currentWord = wordObj;
+                                                currentWordIndex = i;
+                                                console.log(`🗣️ CURRENT WORD:`, {
+                                                  word: wordObj.word || wordObj.text,
+                                                  start: wordStart.toFixed(3),
+                                                  end: wordEnd.toFixed(3),
+                                                  currentTime: currentTime.toFixed(3),
+                                                  index: i
+                                                });
+                                                break;
+                                              }
                                             }
                                             
-                                            // Find the current chunk
-                                            const currentChunk = chunks.find(chunk => 
-                                              currentTime >= chunk.startTime && currentTime < chunk.endTime
-                                            );
-                                            
-                                            if (currentChunk) {
+                                            if (currentWord || moment.words.length > 0) {
+                                              // Show context words (current + surrounding)
+                                              const contextRange = 5; // Show 5 words before and after
+                                              const startIndex = Math.max(0, currentWordIndex - contextRange);
+                                              const endIndex = Math.min(moment.words.length - 1, currentWordIndex + contextRange);
+                                              
+                                              const contextWords = [];
+                                              for (let i = startIndex; i <= endIndex; i++) {
+                                                if (moment.words[i]) {
+                                                  contextWords.push({ ...moment.words[i], index: i });
+                                                }
+                                              }
+                                              
+                                              console.log(`📝 Showing ${contextWords.length} context words (${startIndex}-${endIndex})`);
+                                              
+                                              // Create DRAMATIC word highlighting
+                                              const wordElements = contextWords.map((wordObj, relativeIndex) => {
+                                                const word = wordObj.word || wordObj.text || '';
+                                                const wordStart = wordObj.start || 0;
+                                                const wordEnd = wordObj.end || wordStart + 0.3;
+                                                const isCurrentWord = wordObj.index === currentWordIndex;
+                                                const isUpcoming = currentTime < wordStart;
+                                                const isSpoken = currentTime > wordEnd;
+                                                
+                                                if (isCurrentWord && currentWord) {
+                                                  // 🔥 CURRENTLY SPEAKING - MAKE IT HUGE AND BRIGHT
+                                                  return `<span style="
+                                                    color: #FFFF00; 
+                                                    font-size: 28px; 
+                                                    font-weight: 900; 
+                                                    text-shadow: 3px 3px 6px rgba(0,0,0,1), 0 0 10px rgba(255,255,0,0.8); 
+                                                    transform: scale(1.4); 
+                                                    display: inline-block;
+                                                    background: rgba(255,0,0,0.7);
+                                                    padding: 4px 8px;
+                                                    border-radius: 6px;
+                                                    margin: 0 4px;
+                                                    animation: pulse 0.3s ease-in-out infinite alternate;
+                                                  ">${word}</span>`;
+                                                } else if (isUpcoming && wordStart <= currentTime + 3) {
+                                                  // About to be spoken - medium bright
+                                                  return `<span style="
+                                                    color: rgba(255,255,255,0.8); 
+                                                    font-size: 16px; 
+                                                    font-weight: 600;
+                                                    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+                                                  ">${word}</span>`;
+                                                } else if (isSpoken && wordEnd >= currentTime - 2) {
+                                                  // Recently spoken - dimmed but visible
+                                                  return `<span style="
+                                                    color: rgba(255,255,255,0.5); 
+                                                    font-size: 14px; 
+                                                    font-weight: 500;
+                                                    text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+                                                  ">${word}</span>`;
+                                                } else {
+                                                  // Default context word
+                                                  return `<span style="
+                                                    color: rgba(255,255,255,0.4); 
+                                                    font-size: 13px; 
+                                                    font-weight: 400;
+                                                  ">${word}</span>`;
+                                                }
+                                              }).join(' ');
+                                              
+                                              // Add CSS animation for pulsing effect
+                                              if (!document.getElementById('subtitle-animations')) {
+                                                const style = document.createElement('style');
+                                                style.id = 'subtitle-animations';
+                                                style.textContent = `
+                                                  @keyframes pulse {
+                                                    0% { transform: scale(1.4); }
+                                                    100% { transform: scale(1.5); }
+                                                  }
+                                                `;
+                                                document.head.appendChild(style);
+                                              }
+                                              
                                               subtitleOverlay.innerHTML = `
                                                 <div style="
-                                                  background: rgba(0,0,0,0.8); 
-                                                  color: white; 
-                                                  padding: 6px 12px; 
-                                                  border-radius: 4px; 
-                                                  font-size: 14px; 
-                                                  font-weight: 600; 
+                                                  background: rgba(0,0,0,0.9); 
+                                                  padding: 12px 16px; 
+                                                  border-radius: 8px; 
                                                   text-align: center; 
-                                                  line-height: 1.3;
-                                                  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-                                                  max-width: 90%;
+                                                  line-height: 1.6;
+                                                  max-width: 95%;
                                                   word-wrap: break-word;
+                                                  border: 2px solid rgba(255,255,0,0.4);
+                                                  transition: all 0.1s ease;
+                                                  box-shadow: 0 4px 12px rgba(0,0,0,0.8);
                                                 ">
-                                                  ${currentChunk.text}
+                                                  ${wordElements}
                                                 </div>
                                               `;
                                             } else {
+                                              console.log(`❌ No current or context words found for time ${currentTime.toFixed(3)}`);
                                               subtitleOverlay.innerHTML = '';
+                                            }
+                                          } else {
+                                            // FALLBACK: Use transcript chunks (less accurate)
+                                            console.log(`🎯 Using fallback transcript chunks for ${moment.title}`);
+                                            const segmentDuration = moment.endTimeSeconds - moment.startTimeSeconds;
+                                            
+                                            if (moment.transcript && moment.transcript.length > 0) {
+                                              const words = moment.transcript.split(' ');
+                                              const wordsPerChunk = Math.max(4, Math.min(8, Math.floor(words.length / Math.max(1, segmentDuration / 2.5))));
+                                              const chunks = [];
+                                              
+                                              for (let i = 0; i < words.length; i += wordsPerChunk) {
+                                                const chunkWords = words.slice(i, i + wordsPerChunk);
+                                                const chunkIndex = Math.floor(i / wordsPerChunk);
+                                                const chunkStartTime = (chunkIndex * segmentDuration) / Math.ceil(words.length / wordsPerChunk);
+                                                const chunkEndTime = ((chunkIndex + 1) * segmentDuration) / Math.ceil(words.length / wordsPerChunk);
+                                                
+                                                chunks.push({
+                                                  text: chunkWords.join(' '),
+                                                  startTime: chunkStartTime,
+                                                  endTime: chunkEndTime
+                                                });
+                                              }
+                                              
+                                              // Find the current chunk
+                                              const currentChunk = chunks.find(chunk => 
+                                                currentTime >= chunk.startTime && currentTime < chunk.endTime
+                                              );
+                                              
+                                              if (currentChunk) {
+                                                subtitleOverlay.innerHTML = `
+                                                  <div style="
+                                                    background: rgba(0,0,0,0.8); 
+                                                    color: white; 
+                                                    padding: 6px 12px; 
+                                                    border-radius: 4px; 
+                                                    font-size: 14px; 
+                                                    font-weight: 600; 
+                                                    text-align: center; 
+                                                    line-height: 1.3;
+                                                    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+                                                    max-width: 90%;
+                                                    word-wrap: break-word;
+                                                  ">
+                                                    ${currentChunk.text}
+                                                  </div>
+                                                `;
+                                              } else {
+                                                subtitleOverlay.innerHTML = '';
+                                              }
                                             }
                                           }
                                         };

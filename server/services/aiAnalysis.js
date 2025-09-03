@@ -1100,12 +1100,27 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
           console.warn(`⚠️ No transcript text available for moment ${index + 1}, using fallback timing`);
         }
         
+        // Extract word-level timing data for this specific moment
+        let momentWords = [];
+        if (transcriptionData.words && transcriptionData.words.length > 0) {
+          // Find words that fall within this moment's timeframe
+          momentWords = transcriptionData.words.filter(wordObj => {
+            const wordStart = wordObj.start || 0;
+            const wordEnd = wordObj.end || wordStart + 0.5;
+            // Include words that overlap with the moment's timeframe
+            return (wordStart >= finalStartTime - 0.5 && wordEnd <= finalEndTime + 0.5);
+          });
+          
+          console.log(`🔤 Extracted ${momentWords.length} words for moment ${index + 1} (${finalStartTime.toFixed(2)}s-${finalEndTime.toFixed(2)}s)`);
+        }
+
         return {
           ...moment,
           startTime: finalStartTime,
           endTime: finalEndTime,
           startTimeSeconds: finalStartTime,
           endTimeSeconds: finalEndTime,
+          words: momentWords, // Add word-level timing data for this moment
           timingMethod: timingMethod,
           timingConfidence: confidence,
           preciseTimingUsed: confidence > 0.6
