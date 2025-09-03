@@ -789,25 +789,29 @@ const ViralClipGenerator = () => {
     // Store current caption index
     let currentCaptionIndex = 0;
 
-    // Create captions overlay for backend transcripts
+    // Create captions overlay for backend transcripts - HIGHLY VISIBLE
     const captionsOverlay = document.createElement("div");
+    captionsOverlay.id = 'subtitles-overlay-' + Date.now(); // Unique ID for debugging
     captionsOverlay.style.cssText = `
-      position: absolute; bottom: 60px; left: 10px; right: 10px;
-      color: white; padding: 12px 16px; border-radius: 8px; 
+      position: absolute; bottom: 20px; left: 10px; right: 10px;
+      color: #FFFF00; padding: 8px 12px; border-radius: 6px; 
       font-size: 18px; font-weight: 600; text-align: center; 
       line-height: 1.4; letter-spacing: 0.3px;
       text-shadow: 2px 2px 4px rgba(0,0,0,1), -1px -1px 2px rgba(0,0,0,1);
-      opacity: 1; transition: all 0.3s ease;
+      opacity: 1; transition: opacity 0.2s ease;
       font-family: Arial, sans-serif;
       pointer-events: none;
-      z-index: 1000;
-      background: rgba(0,0,0,0.85);
-      backdrop-filter: blur(4px);
-      max-height: 140px;
-      overflow-y: auto;
-      border: 2px solid rgba(255,255,255,0.1);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      z-index: 9999;
+      background: rgba(0,0,0,0.9);
+      border: 2px solid #FFFF00;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     `;
+    
+    console.log('🎯 Created captions overlay with ID:', captionsOverlay.id);
     
     // Show transcript or captions based on what's available
     console.log('🎯 DEBUG: Modal moment data:', {
@@ -835,14 +839,34 @@ const ViralClipGenerator = () => {
       console.log('❌ Using default subtitle text');
     }
 
+    // ALWAYS show initial content to test visibility
     captionsOverlay.innerHTML = `
-      <div style="color: yellow; font-size: 24px; font-weight: 700; font-family: Arial, sans-serif; 
-                  background: rgba(255,0,0,0.8); padding: 16px 20px; border-radius: 12px; line-height: 1.5;
-                  text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.8);
-                  border: 3px solid white; margin: 10px;">
-        🎬 SUBTITLES: ${subtitleContent}
+      <div style="color: #FFFF00; font-size: 18px; font-weight: bold; text-align: center;">
+        🎬 SUBTITLES READY - This should be visible!
       </div>
     `;
+    
+    console.log('🎯 Initial caption content set:', captionsOverlay.innerHTML);
+    
+    // After 2 seconds, show the proper preview
+    setTimeout(() => {
+      if (moment.transcript && moment.transcript.length > 0) {
+        const previewText = moment.transcript.split(' ').slice(0, 8).join(' ') + '...';
+        captionsOverlay.innerHTML = `
+          <div style="color: #FFFFFF; font-size: 16px; font-weight: 500;">
+            Preview: ${previewText}
+          </div>
+        `;
+        console.log('🎯 Updated to transcript preview:', previewText);
+      } else {
+        captionsOverlay.innerHTML = `
+          <div style="color: #FFAA00; font-size: 16px;">
+            Press ▶ to see live subtitles
+          </div>
+        `;
+        console.log('🎯 Updated to play instruction');
+      }
+    }, 2000);
     
     console.log('🎯 Subtitle overlay created and added to modal');
     console.log('🎯 CaptionsOverlay element:', captionsOverlay);
@@ -927,49 +951,129 @@ const ViralClipGenerator = () => {
       subtitleBtn.style.color = subtitlesVisible ? 'white' : '#ccc';
     };
 
-    // Caption display system with word-by-word animation
+    // Live subtitle system - shows text chunks that appear/disappear based on timing
     const updateCaptions = () => {
-      if (!subtitlesVisible) return; // Don't update if subtitles are hidden
+      console.log('🎯 updateCaptions called, subtitlesVisible:', subtitlesVisible);
+      if (!subtitlesVisible) {
+        captionsOverlay.style.display = 'none';
+        return;
+      }
       
+      captionsOverlay.style.display = 'block';
       const currentTime = video.currentTime - moment.startTimeSeconds;
+      console.log('🎯 Current video time in segment:', currentTime.toFixed(2) + 's');
       
-      // Always show the full transcript with highlighting
-      if (moment.transcript) {
-        const highlightedSubtitles = moment.highlightedSubtitles || moment.subtitles;
-        // If we have word-level timing data, use that for precise highlighting
+      // Create live subtitles that appear/disappear based on timing
+      if (moment.transcript && moment.transcript.length > 0) {
+        console.log('🎯 Creating live subtitles from transcript');
+        
+        // If we have word-level timing, show precise word-by-word subtitles
         if (moment.words && moment.words.length > 0) {
-          const words = moment.words;
-          const currentWordIndex = words.findIndex(word => 
-            currentTime >= word.start && currentTime <= word.end
+          console.log('🎯 Using word-level timing for live subtitles');
+          
+          // Find currently active words (words being spoken right now)
+          const activeWords = moment.words.filter(wordObj => {
+            const wordStart = wordObj.start || 0;
+            const wordEnd = wordObj.end || wordStart + 1;
+            return currentTime >= wordStart && currentTime <= wordEnd;
+          });
+          
+          // Find upcoming words (next few words to be spoken)
+          const upcomingWords = moment.words.filter(wordObj => {
+            const wordStart = wordObj.start || 0;
+            return currentTime < wordStart && wordStart <= currentTime + 2; // Next 2 seconds
+          });
+          
+          if (activeWords.length > 0 || upcomingWords.length > 0) {
+            // Show currently active words + upcoming words
+            const allDisplayWords = [...activeWords, ...upcomingWords.slice(0, 8)]; // Limit upcoming words
+            
+            const subtitleText = allDisplayWords.map((wordObj, index) => {
+              const word = wordObj.word || wordObj.text || '';
+              const wordStart = wordObj.start || 0;
+              
+              if (currentTime >= wordStart && currentTime <= (wordObj.end || wordStart + 1)) {
+                // Currently being spoken - bright highlight
+                return `<span style="color: #FFFF00; background: rgba(255,0,0,0.7); padding: 2px 4px; border-radius: 3px; font-weight: bold;">${word}</span>`;
+              } else if (currentTime < wordStart) {
+                // Upcoming word - dimmed
+                return `<span style="color: rgba(255,255,255,0.6);">${word}</span>`;
+              } else {
+                // Already spoken - normal
+                return `<span style="color: #FFFFFF;">${word}</span>`;
+              }
+            }).join(' ');
+            
+            captionsOverlay.innerHTML = `
+              <div style="color: #FFFFFF; font-size: 18px; font-weight: 500; font-family: Arial, sans-serif; 
+                          background: rgba(0,0,0,0.85); padding: 8px 12px; border-radius: 6px; 
+                          text-align: center; line-height: 1.4; max-width: 80%; margin: 0 auto;
+                          box-shadow: 0 2px 8px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2);">
+                ${subtitleText}
+              </div>
+            `;
+          } else {
+            // No active words right now - hide subtitles
+            captionsOverlay.innerHTML = '';
+          }
+        } else {
+          // No word-level timing - create time-based chunks from transcript
+          console.log('🎯 Creating time-based subtitle chunks from transcript');
+          
+          const transcript = moment.transcript;
+          const segmentDuration = moment.endTimeSeconds - moment.startTimeSeconds;
+          
+          // Split transcript into chunks (roughly 3-4 words per chunk, 2-3 seconds each)
+          const words = transcript.split(' ');
+          const wordsPerChunk = Math.max(3, Math.min(6, Math.floor(words.length / Math.max(1, segmentDuration / 2))));
+          const chunks = [];
+          
+          for (let i = 0; i < words.length; i += wordsPerChunk) {
+            const chunkWords = words.slice(i, i + wordsPerChunk);
+            const chunkIndex = Math.floor(i / wordsPerChunk);
+            const chunkStartTime = (chunkIndex * segmentDuration) / Math.ceil(words.length / wordsPerChunk);
+            const chunkEndTime = ((chunkIndex + 1) * segmentDuration) / Math.ceil(words.length / wordsPerChunk);
+            
+            chunks.push({
+              text: chunkWords.join(' '),
+              startTime: chunkStartTime,
+              endTime: chunkEndTime
+            });
+          }
+          
+          // Find the current chunk
+          const currentChunk = chunks.find(chunk => 
+            currentTime >= chunk.startTime && currentTime < chunk.endTime
           );
           
-          const animatedHTML = words.map((wordObj, index) => {
-            const word = wordObj.word || wordObj.text || '';
-            if (index < currentWordIndex) {
-              // Already spoken - show in white
-              return `<span style="color: white; opacity: 1;">${word}</span>`;
-            } else if (index === currentWordIndex) {
-              // Currently being spoken - show highlighted
-              return `<span style="color: #ffd700; opacity: 1; font-weight: bold;">${word}</span>`;
-            } else {
-              // Not yet spoken - show dimmed
-              return `<span style="color: white; opacity: 0.6;">${word}</span>`;
-            }
-          }).join(' ');
-          
+          if (currentChunk) {
+            console.log('🎯 Showing chunk:', currentChunk.text);
+            captionsOverlay.innerHTML = `
+              <div style="color: #FFFFFF; font-size: 18px; font-weight: 500; font-family: Arial, sans-serif; 
+                          background: rgba(0,0,0,0.85); padding: 8px 12px; border-radius: 6px; 
+                          text-align: center; line-height: 1.4; max-width: 80%; margin: 0 auto;
+                          box-shadow: 0 2px 8px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2);">
+                ${currentChunk.text}
+              </div>
+            `;
+          } else {
+            console.log('🎯 No active chunk at time', currentTime);
+            captionsOverlay.innerHTML = '';
+          }
+        }
+      } else {
+        console.log('🎯 No transcript available');
+        // Show a brief message that fades away
+        if (currentTime < 2) {
           captionsOverlay.innerHTML = `
-            <div style="color: white; font-size: 18px; font-weight: 500; font-family: Arial, sans-serif; transition: all 0.1s ease;">
-              ${animatedHTML}
+            <div style="color: rgba(255,255,255,0.7); font-size: 14px; font-family: Arial, sans-serif; 
+                        background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px; 
+                        text-align: center;">
+              No subtitles available
             </div>
           `;
         } else {
-          // Fallback: show full transcript with attention word highlighting
-          const highlightedTranscript = highlightAttentionWordsClient(moment.transcript);
-          captionsOverlay.innerHTML = `
-            <div style="color: white; font-size: 18px; opacity: 0.9; font-family: Arial, sans-serif;">
-              ${highlightedTranscript}
-            </div>
-          `;
+          captionsOverlay.innerHTML = '';
         }
       }
     };
@@ -1342,12 +1446,71 @@ const ViralClipGenerator = () => {
     modal.appendChild(downloadBtn);
     modal.appendChild(closeBtn);
     modal.appendChild(subtitleBtn);
+    
+    // DEBUG: Check if elements are properly added
+    console.log('🎯 Modal structure created:');
+    console.log('  - Video element:', video);
+    console.log('  - Captions overlay:', captionsOverlay);
+    console.log('  - Captions overlay style:', captionsOverlay.style.cssText);
+    console.log('  - Captions overlay innerHTML:', captionsOverlay.innerHTML);
+    console.log('  - Captions overlay parent:', captionsOverlay.parentElement);
+    console.log('  - Video container children:', videoContainer.children.length);
     modal.appendChild(title);
     modal.appendChild(aspectIndicator);
     modal.appendChild(videoContainer);
     modal.appendChild(controls);
 
     document.body.appendChild(modal);
+    
+    // DEBUG: Test captions immediately after modal is shown
+    console.log('🎯 Modal appended to body, testing captions now...');
+    
+    setTimeout(() => {
+      console.log('🎯 FINAL DEBUG: Checking captions overlay in DOM:');
+      console.log('  - Modal in DOM:', document.body.contains(modal));
+      console.log('  - CaptionsOverlay in DOM:', document.body.contains(captionsOverlay));
+      console.log('  - CaptionsOverlay ID:', captionsOverlay.id);
+      console.log('  - CaptionsOverlay current innerHTML:', captionsOverlay.innerHTML);
+      
+      // Get computed styles
+      const computedStyle = window.getComputedStyle(captionsOverlay);
+      console.log('  - CaptionsOverlay computed styles:');
+      console.log('    display:', computedStyle.display);
+      console.log('    position:', computedStyle.position);
+      console.log('    bottom:', computedStyle.bottom);
+      console.log('    zIndex:', computedStyle.zIndex);
+      console.log('    opacity:', computedStyle.opacity);
+      console.log('    backgroundColor:', computedStyle.backgroundColor);
+      console.log('    color:', computedStyle.color);
+      
+      // Get position info
+      const rect = captionsOverlay.getBoundingClientRect();
+      console.log('  - CaptionsOverlay position:');
+      console.log('    top:', rect.top);
+      console.log('    left:', rect.left);
+      console.log('    width:', rect.width);
+      console.log('    height:', rect.height);
+      console.log('    visible area:', rect.width > 0 && rect.height > 0);
+      
+      // Make it EXTREMELY visible for testing
+      captionsOverlay.style.background = 'rgba(255,0,0,0.95)';
+      captionsOverlay.style.border = '3px solid #FFFF00';
+      captionsOverlay.innerHTML = `
+        <div style="color: #FFFFFF; font-size: 20px; font-weight: bold; padding: 10px;">
+          ⚡ LIVE SUBTITLES TEST ⚡<br>
+          If you see this, subtitles are working!
+        </div>
+      `;
+      console.log('🎯 Set EXTREMELY visible test content');
+      
+      // Force an update of captions to make sure they're visible
+      if (subtitlesVisible) {
+        console.log('🎯 Forcing captions update after 3 seconds...');
+        setTimeout(() => {
+          updateCaptions();
+        }, 3000);
+      }
+    }, 100);
   };
 
   const downloadClip = async (moment) => {
@@ -3030,6 +3193,90 @@ const ViralClipGenerator = () => {
                               }}>
                                 <video
                                   key={`${moment.id}-short`}
+                                  ref={(videoEl) => {
+                                    if (videoEl) {
+                                      // Set up live subtitles for this video
+                                      const setupSubtitles = () => {
+                                        console.log(`🎯 Setting up live subtitles for moment: ${moment.title}`);
+                                        
+                                        const updateSubtitles = () => {
+                                          const subtitleOverlay = document.getElementById(`subtitles-${moment.id}`);
+                                          if (!subtitleOverlay || videoEl.paused) return;
+                                          
+                                          const currentTime = videoEl.currentTime;
+                                          const segmentDuration = moment.endTimeSeconds - moment.startTimeSeconds;
+                                          
+                                          // Create time-based chunks from transcript
+                                          if (moment.transcript && moment.transcript.length > 0) {
+                                            const words = moment.transcript.split(' ');
+                                            const wordsPerChunk = Math.max(3, Math.min(6, Math.floor(words.length / Math.max(1, segmentDuration / 2))));
+                                            const chunks = [];
+                                            
+                                            for (let i = 0; i < words.length; i += wordsPerChunk) {
+                                              const chunkWords = words.slice(i, i + wordsPerChunk);
+                                              const chunkIndex = Math.floor(i / wordsPerChunk);
+                                              const chunkStartTime = (chunkIndex * segmentDuration) / Math.ceil(words.length / wordsPerChunk);
+                                              const chunkEndTime = ((chunkIndex + 1) * segmentDuration) / Math.ceil(words.length / wordsPerChunk);
+                                              
+                                              chunks.push({
+                                                text: chunkWords.join(' '),
+                                                startTime: chunkStartTime,
+                                                endTime: chunkEndTime
+                                              });
+                                            }
+                                            
+                                            // Find the current chunk
+                                            const currentChunk = chunks.find(chunk => 
+                                              currentTime >= chunk.startTime && currentTime < chunk.endTime
+                                            );
+                                            
+                                            if (currentChunk) {
+                                              subtitleOverlay.innerHTML = `
+                                                <div style="
+                                                  background: rgba(0,0,0,0.8); 
+                                                  color: white; 
+                                                  padding: 6px 12px; 
+                                                  border-radius: 4px; 
+                                                  font-size: 14px; 
+                                                  font-weight: 600; 
+                                                  text-align: center; 
+                                                  line-height: 1.3;
+                                                  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+                                                  max-width: 90%;
+                                                  word-wrap: break-word;
+                                                ">
+                                                  ${currentChunk.text}
+                                                </div>
+                                              `;
+                                            } else {
+                                              subtitleOverlay.innerHTML = '';
+                                            }
+                                          }
+                                        };
+                                        
+                                        // Update subtitles during playback
+                                        videoEl.addEventListener('timeupdate', updateSubtitles);
+                                        
+                                        // Clear subtitles when paused
+                                        videoEl.addEventListener('pause', () => {
+                                          const subtitleOverlay = document.getElementById(`subtitles-${moment.id}`);
+                                          if (subtitleOverlay) {
+                                            subtitleOverlay.innerHTML = '';
+                                          }
+                                        });
+                                        
+                                        // Show initial subtitle when video starts playing
+                                        videoEl.addEventListener('play', updateSubtitles);
+                                      };
+                                      
+                                      // Set up subtitles when video metadata is loaded
+                                      if (videoEl.readyState >= 1) {
+                                        setupSubtitles();
+                                      } else {
+                                        videoEl.addEventListener('loadedmetadata', setupSubtitles, { once: true });
+                                      }
+                                    }
+                                  }}
                                   controls
                                   autoPlay
                                   loop
@@ -3063,6 +3310,23 @@ const ViralClipGenerator = () => {
                                   />
                                   Your browser does not support the video tag.
                                 </video>
+                                
+                                {/* Live Subtitles Overlay */}
+                                <div
+                                  id={`subtitles-${moment.id}`}
+                                  style={{
+                                    position: 'absolute',
+                                    bottom: '60px',
+                                    left: '8px',
+                                    right: '8px',
+                                    pointerEvents: 'none',
+                                    zIndex: 10,
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    minHeight: '20px'
+                                  }}
+                                ></div>
                                 
                                 {/* Duration indicator - moved to top right corner and smaller */}
                                 <div style={{
@@ -3125,6 +3389,41 @@ const ViralClipGenerator = () => {
                                     <option value="4:5">📄 Instagram Stories (4:5)</option>
                                     <option value="21:9">🎬 Cinematic (21:9)</option>
                                   </select>
+
+                                  {/* Preview Button */}
+                                  <button
+                                    onClick={() => {
+                                      console.log('👁️ Preview button clicked for moment:', moment.title);
+                                      downloadClip(moment);
+                                    }}
+                                    style={{
+                                      padding: '10px 20px',
+                                      borderRadius: '10px',
+                                      border: '2px solid #8b5cf6',
+                                      background: 'transparent',
+                                      color: '#8b5cf6',
+                                      fontSize: '14px',
+                                      fontWeight: '600',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '6px'
+                                    }}
+                                    onMouseOver={(e) => {
+                                      e.target.style.background = '#8b5cf6';
+                                      e.target.style.color = 'white';
+                                      e.target.style.transform = 'translateY(-1px)';
+                                    }}
+                                    onMouseOut={(e) => {
+                                      e.target.style.background = 'transparent';
+                                      e.target.style.color = '#8b5cf6';
+                                      e.target.style.transform = 'translateY(0)';
+                                    }}
+                                  >
+                                    👁️ Preview with Subtitles
+                                  </button>
 
                                   {/* Download Button */}
                                   <button
