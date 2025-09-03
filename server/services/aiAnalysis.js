@@ -89,9 +89,54 @@ function cleanTranscriptionText(text) {
 }
 
 /**
+ * Generate thumbnail from video (first frame)
+ */
+export async function generateVideoThumbnail(videoPath) {
+  const thumbnailPath = videoPath.replace(path.extname(videoPath), '_thumbnail.jpg');
+  
+  return new Promise((resolve, reject) => {
+    console.log('🖼️ Generating thumbnail from:', videoPath);
+    console.log('🖼️ Output thumbnail path:', thumbnailPath);
+    
+    // Add timeout to prevent hanging
+    const timeout = setTimeout(() => {
+      console.error('⏰ Thumbnail generation timeout after 30 seconds');
+      reject(new Error('Thumbnail generation timeout'));
+    }, 30000); // 30 second timeout
+
+    const ffmpegCommand = ffmpeg(videoPath)
+      .screenshots({
+        timestamps: ['00:00:01'], // Take screenshot at 1 second
+        filename: path.basename(thumbnailPath),
+        folder: path.dirname(thumbnailPath),
+        size: '320x180' // 16:9 aspect ratio thumbnail
+      })
+      .on('end', () => {
+        clearTimeout(timeout);
+        console.log('✅ Thumbnail generation completed successfully');
+        // Verify the thumbnail file was created
+        fs.pathExists(thumbnailPath).then(exists => {
+          if (exists) {
+            resolve(thumbnailPath);
+          } else {
+            reject(new Error('Thumbnail file was not created'));
+          }
+        }).catch(err => {
+          reject(err);
+        });
+      })
+      .on('error', (error) => {
+        clearTimeout(timeout);
+        console.error('❌ Thumbnail generation failed:', error.message);
+        reject(error);
+      });
+  });
+}
+
+/**
  * Extract audio from video file for transcription
  */
-export async function extractAudioFromVideo(videoPath) {
+export async function extractAudioFromVideo(videoPath, progressCallback = null) {
   const audioPath = videoPath.replace(path.extname(videoPath), '_audio.wav');
   
   return new Promise((resolve, reject) => {
@@ -116,6 +161,11 @@ export async function extractAudioFromVideo(videoPath) {
       .on('progress', (progress) => {
         if (progress.percent) {
           console.log(`📊 Audio extraction progress: ${Math.round(progress.percent)}%`);
+          // Send progress update for audio extraction (20-35% range)
+          const overallProgress = 20 + (progress.percent / 100) * 15;
+          if (progressCallback) {
+            progressCallback(Math.round(overallProgress), `Extracting audio... ${Math.round(progress.percent)}%`);
+          }
         }
       })
       .on('end', () => {
@@ -292,7 +342,7 @@ async function transcribeAudioInChunks(audioPath) {
 /**
  * Transcribe audio using Groq Whisper (fast and free)
  */
-export async function transcribeAudio(audioPath) {
+export async function transcribeAudio(audioPath, progressCallback = null) {
   try {
     console.log('🎯 Starting transcription with Groq Whisper...');
     console.log('🎵 Audio file path:', audioPath);
@@ -307,6 +357,7 @@ export async function transcribeAudio(audioPath) {
     });
 
     console.log('🔄 Sending to Groq Whisper API...');
+    progressCallback?.(52, 'Connecting to Groq Whisper API...');
     let transcription;
     let retryCount = 0;
     const maxRetries = 2;
@@ -344,10 +395,12 @@ export async function transcribeAudio(audioPath) {
     for (const config of transcriptionConfigs) {
       try {
         console.log(`🔄 Attempt ${retryCount + 1}/${transcriptionConfigs.length} with config:`, Object.keys(config).join(', '));
+        progressCallback?.(54 + retryCount * 2, `Transcribing with ${config.model} (attempt ${retryCount + 1}/${transcriptionConfigs.length})...`);
         transcription = await groq.audio.transcriptions.create({
           file: audioFile,
           ...config
         });
+        progressCallback?.(58, 'Transcription successful, processing results...');
         break; // Success, exit loop
       } catch (error) {
         retryCount++;
@@ -434,7 +487,7 @@ export async function transcribeAudio(audioPath) {
 /**
  * Analyze content for viral potential using OpenAI GPT
  */
-export async function analyzeViralPotential(transcript, userTier = 'guest') {
+export async function analyzeViralPotential(transcript, userTier = 'guest', progressCallback = null) {
   try {
     console.log('🧠 Analyzing viral potential with GPT...');
     console.log('🔍 DEBUG - User tier for viral analysis:', userTier);
@@ -473,6 +526,7 @@ export async function analyzeViralPotential(transcript, userTier = 'guest') {
     
     Return valid JSON only, no additional text.`;
 
+    progressCallback?.(72, 'Sending content to AI analyzer...');
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
@@ -1085,13 +1139,28 @@ export async function performCompleteAnalysis(videoPath, userTier = 'guest', pro
       throw new Error(`Video file not found: ${videoPath}`);
     }
     
-    progressCallback?.(10, 'Initializing AI analysis...');
+    progressCallback?.(5, 'Initializing AI analysis...');
     
-    // Step 1: Extract audio (20% progress)
+    // Step 1: Generate thumbnail (10% progress)
+    progressCallback?.(10, 'Generating video thumbnail...');
+    console.log('🖼️ Starting thumbnail generation for:', videoPath);
+    let thumbnailPath = null;
+    try {
+      thumbnailPath = await generateVideoThumbnail(videoPath);
+      console.log('✅ Thumbnail generated successfully:', thumbnailPath);
+      progressCallback?.(15, 'Thumbnail generated successfully');
+    } catch (thumbnailError) {
+      console.warn('⚠️ Thumbnail generation failed:', thumbnailError.message);
+      console.warn('⚠️ Thumbnail error details:', thumbnailError);
+      // Continue without thumbnail - it's not critical
+      progressCallback?.(15, 'Thumbnail generation skipped (optional)');
+    }
+    
+    // Step 2: Extract audio (20% progress)
     progressCallback?.(20, 'Extracting audio from video...');
     let audioPath;
     try {
-      audioPath = await extractAudioFromVideo(videoPath);
+      audioPath = await extractAudioFromVideo(videoPath, progressCallback);
       progressCallback?.(35, 'Audio extraction completed');
     } catch (audioError) {
       console.error('❌ Audio extraction failed:', audioError.message);
@@ -1102,7 +1171,7 @@ export async function performCompleteAnalysis(videoPath, userTier = 'guest', pro
     progressCallback?.(50, 'Transcribing audio to text...');
     let transcriptionData;
     try {
-      transcriptionData = await transcribeAudio(audioPath);
+      transcriptionData = await transcribeAudio(audioPath, progressCallback);
       progressCallback?.(60, 'Transcription completed');
     } catch (transcriptionError) {
       console.error('❌ Transcription failed:', transcriptionError.message);
@@ -1115,7 +1184,7 @@ export async function performCompleteAnalysis(videoPath, userTier = 'guest', pro
     progressCallback?.(70, 'Analyzing viral potential...');
     let viralAnalysis;
     try {
-      viralAnalysis = await analyzeViralPotential(transcriptionData.text, userTier);
+      viralAnalysis = await analyzeViralPotential(transcriptionData.text, userTier, progressCallback);
       progressCallback?.(80, 'Viral analysis completed');
     } catch (analysisError) {
       console.error('❌ Viral analysis failed:', analysisError.message);
@@ -1170,6 +1239,7 @@ export async function performCompleteAnalysis(videoPath, userTier = 'guest', pro
       segments: transcriptionData.segments,
       viralAnalysis,
       viralMoments,
+      thumbnailPath,
       analysisTimestamp: new Date().toISOString()
     };
     

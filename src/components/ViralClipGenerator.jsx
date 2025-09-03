@@ -792,30 +792,61 @@ const ViralClipGenerator = () => {
     // Create captions overlay for backend transcripts
     const captionsOverlay = document.createElement("div");
     captionsOverlay.style.cssText = `
-      position: absolute; bottom: 15px; left: 15px; right: 15px;
-      color: white; padding: 8px 12px; border-radius: 6px; 
-      font-size: 20px; font-weight: 600; text-align: center; 
-      line-height: 1.3; letter-spacing: 0.3px;
-      text-shadow: 1px 1px 1px rgba(0,0,0,1), -1px -1px 1px rgba(0,0,0,1);
+      position: absolute; bottom: 60px; left: 10px; right: 10px;
+      color: white; padding: 12px 16px; border-radius: 8px; 
+      font-size: 18px; font-weight: 600; text-align: center; 
+      line-height: 1.4; letter-spacing: 0.3px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,1), -1px -1px 2px rgba(0,0,0,1);
       opacity: 1; transition: all 0.3s ease;
       font-family: Arial, sans-serif;
       pointer-events: none;
+      z-index: 1000;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(4px);
+      max-height: 140px;
+      overflow-y: auto;
+      border: 2px solid rgba(255,255,255,0.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     `;
     
     // Show transcript or captions based on what's available
-    if (moment.transcribed && moment.transcript) {
-      captionsOverlay.innerHTML = `
-        <div style="color: white; font-size: 18px;">
-          ${moment.transcript}
-        </div>
-      `;
+    console.log('🎯 DEBUG: Modal moment data:', {
+      hasTranscript: !!moment.transcript,
+      transcriptLength: moment.transcript?.length || 0,
+      transcriptPreview: moment.transcript?.substring(0, 100) + '...',
+      transcribed: moment.transcribed,
+      title: moment.title
+    });
+    
+    // Always show some subtitle content for testing
+    let subtitleContent = '';
+    if (moment.transcript && moment.transcript.length > 0) {
+      // Use the actual transcript
+      const highlightedTranscript = highlightAttentionWordsClient(moment.transcript);
+      subtitleContent = highlightedTranscript;
+      console.log('✅ Subtitles displayed with transcript:', moment.transcript.substring(0, 50) + '...');
+    } else if (moment.title) {
+      // Fallback to showing the title as subtitle
+      subtitleContent = `<strong>${moment.title}</strong> - Click CC to toggle subtitles`;
+      console.log('⚠️ Using title as fallback subtitle:', moment.title);
     } else {
-      captionsOverlay.innerHTML = `
-        <div style="color: #ffa500; font-style: italic; opacity: 0.8;">
-          Generate clip first to see transcript
-        </div>
-      `;
+      // Last resort fallback
+      subtitleContent = 'Sample subtitle text - Subtitles will appear here during video playback';
+      console.log('❌ Using default subtitle text');
     }
+
+    captionsOverlay.innerHTML = `
+      <div style="color: yellow; font-size: 24px; font-weight: 700; font-family: Arial, sans-serif; 
+                  background: rgba(255,0,0,0.8); padding: 16px 20px; border-radius: 12px; line-height: 1.5;
+                  text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.8);
+                  border: 3px solid white; margin: 10px;">
+        🎬 SUBTITLES: ${subtitleContent}
+      </div>
+    `;
+    
+    console.log('🎯 Subtitle overlay created and added to modal');
+    console.log('🎯 CaptionsOverlay element:', captionsOverlay);
+    console.log('🎯 CaptionsOverlay innerHTML:', captionsOverlay.innerHTML);
 
     // Create controls
     const controls = document.createElement("div");
@@ -874,18 +905,37 @@ const ViralClipGenerator = () => {
       cursor: pointer; backdrop-filter: blur(10px);
     `;
 
+    // Subtitle toggle button
+    const subtitleBtn = document.createElement("button");
+    subtitleBtn.innerHTML = "CC";
+    let subtitlesVisible = true;
+    subtitleBtn.style.cssText = `
+      position: absolute; top: 20px; right: 75px; 
+      background: rgba(138, 92, 246, 0.8); border: none; color: white; 
+      font-size: 14px; width: 45px; height: 45px; border-radius: 50%; 
+      cursor: pointer; backdrop-filter: blur(10px);
+      font-weight: bold;
+      transition: all 0.3s ease;
+    `;
+    subtitleBtn.title = "Toggle Subtitles";
+    
+    subtitleBtn.onclick = () => {
+      subtitlesVisible = !subtitlesVisible;
+      captionsOverlay.style.display = subtitlesVisible ? 'block' : 'none';
+      subtitleBtn.style.background = subtitlesVisible ? 
+        'rgba(138, 92, 246, 0.8)' : 'rgba(255,255,255,0.2)';
+      subtitleBtn.style.color = subtitlesVisible ? 'white' : '#ccc';
+    };
+
     // Caption display system with word-by-word animation
     const updateCaptions = () => {
-      const highlightedSubtitles = moment.highlightedSubtitles || moment.subtitles;
-      if (!highlightedSubtitles || highlightedSubtitles.length === 0) return;
+      if (!subtitlesVisible) return; // Don't update if subtitles are hidden
       
       const currentTime = video.currentTime - moment.startTimeSeconds;
-      const currentCaption = highlightedSubtitles.find(caption => 
-        currentTime >= caption.start && currentTime <= caption.end
-      );
       
       // Always show the full transcript with highlighting
       if (moment.transcript) {
+        const highlightedSubtitles = moment.highlightedSubtitles || moment.subtitles;
         // If we have word-level timing data, use that for precise highlighting
         if (moment.words && moment.words.length > 0) {
           const words = moment.words;
@@ -1291,6 +1341,7 @@ const ViralClipGenerator = () => {
     videoContainer.appendChild(captionsOverlay);
     modal.appendChild(downloadBtn);
     modal.appendChild(closeBtn);
+    modal.appendChild(subtitleBtn);
     modal.appendChild(title);
     modal.appendChild(aspectIndicator);
     modal.appendChild(videoContainer);
@@ -1899,6 +1950,7 @@ const ViralClipGenerator = () => {
                       if (data.type === 'complete') {
                         await handleCompleteMessage(data);
                       } else if (data.type === 'progress') {
+                        console.log('📊 Progress update:', data.progress + '%', data.status);
                         setProgress(data.progress);
                         setCurrentStep(data.status);
                       }
@@ -1914,6 +1966,7 @@ const ViralClipGenerator = () => {
                       const data = JSON.parse(jsonStr);
                       
                       if (data.type === 'progress') {
+                        console.log('📊 Progress update:', data.progress + '%', data.status);
                         setProgress(data.progress);
                         setCurrentStep(data.status);
                       } else if (data.type === 'complete') {
@@ -1983,6 +2036,15 @@ const ViralClipGenerator = () => {
               transcribed: true,
               aiAnalyzed: true
             };
+
+            // Debug logging for transcript data
+            console.log(`🎯 Created segment ${index + 1}:`, {
+              title: segment.title,
+              hasTranscript: !!segment.transcript,
+              transcriptLength: segment.transcript?.length || 0,
+              transcriptPreview: segment.transcript?.substring(0, 100) + '...',
+              originalMomentTranscript: moment.transcript?.substring(0, 100) + '...'
+            });
 
             // Add tier-specific analytics from AI
             if (tierLimits.hasDetailedAnalytics) {
@@ -2088,9 +2150,9 @@ const ViralClipGenerator = () => {
           
           const savedVideo = VideoLibraryService.saveVideoAnalysis(user.id, fileInfo.filename, {
             extractedMoments: limitedSegments,
-            analysis: response, // Save the full analysis response
+            analysis: result, // Save the full analysis response
             uploadedFileInfo: fileInfo, // Use fileInfo instead of uploadedFileInfo
-            thumbnail: limitedSegments.length > 0 ? limitedSegments[0].thumbnail : null // Use first segment's thumbnail
+            thumbnail: result.thumbnailUrl || (limitedSegments.length > 0 ? limitedSegments[0].thumbnail : null) // Use actual video thumbnail
           });
           
           console.log('💾 Video saved result:', savedVideo);
@@ -2173,7 +2235,8 @@ const ViralClipGenerator = () => {
               const data = JSON.parse(jsonStr);
               
               if (data.type === 'progress') {
-                setProgress(Math.min(data.progress || 30, 45)); // Cap at 45% for this step
+                console.log('📊 Upload/Transcription progress:', (data.progress || 30) + '%', data.status || 'processing...');
+                setProgress(data.progress || 30); // Remove artificial 45% cap
               } else if (data.type === 'complete') {
                 result = data;
                 break;
@@ -2628,7 +2691,7 @@ const ViralClipGenerator = () => {
                     </div>
                     <div className="terminal-line terminal-current">
                       <span className="terminal-warning">[PROC]</span> 
-                      <span className="terminal-current-text">{currentStep}</span>
+                      <span className="terminal-current-text">{currentStep || 'Processing...'}</span>
                       <span className="terminal-cursor">_</span>
                     </div>
                     <div className="terminal-progress-container">
@@ -2637,22 +2700,27 @@ const ViralClipGenerator = () => {
                       </div>
                       <span className="terminal-percentage">[{progress}%]</span>
                     </div>
-                    {progress > 20 && (
+                    {progress >= 15 && (
+                      <div className="terminal-line">
+                        <span className="terminal-success">[✓]</span> Video thumbnail generated
+                      </div>
+                    )}
+                    {progress >= 35 && (
                       <div className="terminal-line">
                         <span className="terminal-success">[✓]</span> Audio extraction completed
                       </div>
                     )}
-                    {progress > 50 && (
+                    {progress >= 60 && (
                       <div className="terminal-line">
                         <span className="terminal-success">[✓]</span> Speech transcription completed
                       </div>
                     )}
-                    {progress > 70 && (
+                    {progress >= 80 && (
                       <div className="terminal-line">
                         <span className="terminal-success">[✓]</span> Viral potential analysis completed
                       </div>
                     )}
-                    {progress > 90 && (
+                    {progress >= 95 && (
                       <div className="terminal-line">
                         <span className="terminal-success">[✓]</span> Viral moments identified
                       </div>
@@ -2996,21 +3064,20 @@ const ViralClipGenerator = () => {
                                   Your browser does not support the video tag.
                                 </video>
                                 
-                                {/* Overlay for interaction hint */}
+                                {/* Duration indicator - moved to top right corner and smaller */}
                                 <div style={{
                                   position: 'absolute',
-                                  bottom: '20px',
-                                  left: '20px',
-                                  right: '20px',
+                                  top: '8px',
+                                  right: '8px',
                                   color: 'white',
-                                  fontSize: '14px',
-                                  textAlign: 'center',
-                                  background: 'rgba(0,0,0,0.5)',
-                                  padding: '8px 12px',
-                                  borderRadius: '20px',
-                                  opacity: 0.8
+                                  fontSize: '12px',
+                                  background: 'rgba(0,0,0,0.7)',
+                                  padding: '4px 8px',
+                                  borderRadius: '12px',
+                                  opacity: 0.9,
+                                  pointerEvents: 'none'
                                 }}>
-                                  Tap to play/pause • {moment.duration}
+                                  {moment.duration}
                                 </div>
                               </div>
 
@@ -3138,12 +3205,29 @@ const ViralClipGenerator = () => {
                     >
                       <div className="library-video-thumbnail">
                         {video.thumbnail ? (
-                          <img src={video.thumbnail} alt={video.originalName} />
+                          <>
+                            <img src={video.thumbnail} alt={video.originalName} onError={(e) => {
+                              console.log('❌ Thumbnail failed to load:', video.thumbnail);
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }} />
+                            <div className="library-video-placeholder" style={{display: 'none'}}>
+                              <FileVideo className="w-8 h-8" />
+                            </div>
+                          </>
                         ) : (
                           <div className="library-video-placeholder">
                             <FileVideo className="w-8 h-8" />
                           </div>
                         )}
+                        {/* Debug info */}
+                        {console.log('🎬 Video thumbnail debug:', {
+                          id: video.id,
+                          originalName: video.originalName,
+                          hasThumbnail: !!video.thumbnail,
+                          thumbnailUrl: video.thumbnail,
+                          thumbnailLength: video.thumbnail?.length || 0
+                        })}
                         <div className="library-video-duration">
                           {VideoLibraryService.formatDuration(video.duration)}
                         </div>

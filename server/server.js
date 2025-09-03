@@ -324,6 +324,13 @@ app.post('/api/analyze-video', async (req, res) => {
       // Perform complete AI analysis
       const analysisResult = await performCompleteAnalysis(videoPath, userTier, progressCallback);
       
+      // Generate thumbnail URL if thumbnail was created
+      if (analysisResult.thumbnailPath) {
+        const thumbnailFilename = path.basename(analysisResult.thumbnailPath);
+        analysisResult.thumbnailUrl = `/uploads/${thumbnailFilename}`;
+        console.log('🖼️ Thumbnail URL generated:', analysisResult.thumbnailUrl);
+      }
+      
       // Send final result - compress large objects to prevent SSE issues
       const resultMessage = { type: 'complete', result: analysisResult };
       const messageStr = JSON.stringify(resultMessage);
