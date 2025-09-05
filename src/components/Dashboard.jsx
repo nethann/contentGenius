@@ -20,7 +20,9 @@ import {
   Crown,
   ChevronDown,
   Shield,
-  MessageSquare
+  MessageSquare,
+  Menu,
+  X
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -77,6 +79,7 @@ const Dashboard = () => {
   const isAdmin = React.useMemo(() => user && AdminService.isAdmin(userEmail), [user, userEmail]);
   const isDeveloper = React.useMemo(() => userTier === 'developer', [userTier]);
   const [showTierDropdown, setShowTierDropdown] = React.useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [modalState, setModalState] = React.useState({
     isOpen: false,
     type: '',
@@ -420,7 +423,8 @@ const Dashboard = () => {
             <span className="dashboard-logo-text">ClipGenius</span>
           </div>
           
-          <div className="dashboard-user-section">
+          {/* Desktop User Section */}
+          <div className="dashboard-user-section desktop-user-section">
             <div className="dashboard-user-info">
               <span className="dashboard-user-name">
                 Welcome, {user?.fullName || user?.emailAddresses?.[0]?.emailAddress || 'User'}
@@ -523,7 +527,96 @@ const Dashboard = () => {
               <LogOut className="w-5 h-5" />
             </button>
           </div>
+          
+          {/* Mobile Hamburger Button */}
+          <button 
+            className="dashboard-mobile-menu-button"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle mobile menu"
+          >
+            {isMobileMenuOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
+          </button>
         </div>
+        
+        {/* Mobile Menu Dropdown */}
+        {isMobileMenuOpen && (
+          <div className="dashboard-mobile-menu">
+            <div className="dashboard-mobile-menu-content">
+              <div className="dashboard-mobile-user-info">
+                <span className="dashboard-mobile-user-name">
+                  {user?.fullName || user?.emailAddresses?.[0]?.emailAddress || 'User'}
+                </span>
+                <div className={`token-container tier-${userTier}`}>
+                  <span className="token-icon">🪙</span>
+                  <div className="token-info">
+                    <span className="token-count">
+                      {userTokens === -1 ? '∞' : userTokens}
+                    </span>
+                    <span className="token-label">
+                      {userTokens === -1 ? 'Unlimited' : 'Tokens'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="dashboard-mobile-menu-actions">
+                <button
+                  onClick={() => {
+                    setShowTierDropdown(!showTierDropdown);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`dashboard-mobile-menu-item tier-${userTier}`}
+                >
+                  {userTier === 'pro' ? (
+                    <Crown className="w-5 h-5 text-yellow-400" />
+                  ) : (
+                    <span className="w-5 h-5">🔓</span>
+                  )}
+                  <span>{getTokenInfo().name} Plan</span>
+                </button>
+                
+                {(isAdmin || isDeveloper) && (
+                  <button
+                    onClick={() => {
+                      navigate('/admin-test');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="dashboard-mobile-menu-item"
+                  >
+                    <Shield className="w-5 h-5" />
+                    <span>Admin Panel</span>
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => {
+                    setReportModal({ ...reportModal, isOpen: true });
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="dashboard-mobile-menu-item"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  <span>Report Bug</span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    handleSignOut();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="dashboard-mobile-menu-item dashboard-mobile-signout"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}

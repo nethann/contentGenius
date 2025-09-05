@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Zap,
@@ -12,10 +12,13 @@ import {
   Video,
   MessageSquare,
   TrendingUp,
+  Menu,
+  X,
 } from 'lucide-react';
 
 const Homepage = () => {
   const scrollRef = useRef(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     let animationId;
@@ -65,7 +68,9 @@ const Homepage = () => {
               <Zap className="w-8 h-8 text-yellow-400" />
               <span className="nav-logo-text">ClipGenius</span>
             </div>
-            <div className="nav-actions">
+            
+            {/* Desktop Navigation */}
+            <div className="nav-actions desktop-nav">
               <Link to="/pricing" className="nav-login">
                 Pricing
               </Link>
@@ -76,7 +81,49 @@ const Homepage = () => {
                 Sign Up
               </Link>
             </div>
+            
+            {/* Mobile Hamburger Button */}
+            <button 
+              className="mobile-menu-button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Toggle mobile menu"
+            >
+              {isMobileMenuOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <Menu className="w-6 h-6" />
+              )}
+            </button>
           </div>
+          
+          {/* Mobile Menu Dropdown */}
+          {isMobileMenuOpen && (
+            <div className="mobile-menu">
+              <div className="mobile-menu-content">
+                <Link 
+                  to="/pricing" 
+                  className="mobile-nav-link"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Pricing
+                </Link>
+                <Link 
+                  to="/login" 
+                  className="mobile-nav-link"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Log In
+                </Link>
+                <Link 
+                  to="/pricing" 
+                  className="mobile-nav-cta"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Sign Up
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 

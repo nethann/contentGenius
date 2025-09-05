@@ -310,3 +310,52 @@ body {
 .transition-colors {
   transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
+
+/* Mobile Responsive Utilities */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 0.75rem;
+  }
+  
+  /* Responsive button adjustments */
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    padding: 0.75rem 1rem;
+    font-size: 14px;
+  }
+  
+  /* Responsive input adjustments */
+  .input {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  /* Card responsive adjustments */
+  .card {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+  
+  .surface {
+    border-radius: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 0.5rem;
+  }
+  
+  /* Typography adjustments for small screens */
+  .text-3xl { font-size: 24px; }
+  .text-2xl { font-size: 20px; }
+  .text-xl { font-size: 18px; }
+  
+  /* Button adjustments for small screens */
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    padding: 0.625rem 0.875rem;
+    font-size: 13px;
+  }
+}
