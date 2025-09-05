@@ -101,63 +101,19 @@
     0 1px 0 rgba(255, 255, 255, 0.2) inset,
     0 -1px 0 rgba(0, 0, 0, 0.1) inset;
   overflow: hidden;
-  animation: jelloDropdown 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  animation: dropdownSlide 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 9999;
   position: absolute;
 }
 
-.tier-dropdown-menu::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.6) 0%,
-    rgba(248, 250, 252, 0.5) 25%,
-    rgba(241, 245, 249, 0.4) 50%,
-    rgba(248, 250, 252, 0.5) 75%,
-    rgba(255, 255, 255, 0.6) 100%
-  );
-  border-radius: 1rem;
-  pointer-events: none;
-  z-index: -1;
-}
-
-@keyframes jelloDropdown {
-  0% {
+@keyframes dropdownSlide {
+  from {
     opacity: 0;
-    transform: translateY(10px) scale3d(1, 1, 1);
+    transform: translateY(8px) scale(0.95);
   }
-  11.1% {
-    opacity: 0.8;
-    transform: translateY(0) scale3d(0.9, 1.1, 1);
-  }
-  22.2% {
-    transform: translateY(0) scale3d(1.1, 0.9, 1);
-  }
-  33.3% {
-    transform: translateY(0) scale3d(1.0, 1.0, 1);
-  }
-  44.4% {
-    transform: translateY(0) scale3d(1.03, 0.97, 1);
-  }
-  55.5% {
-    transform: translateY(0) scale3d(0.97, 1.03, 1);
-  }
-  66.6% {
-    transform: translateY(0) scale3d(1.02, 0.98, 1);
-  }
-  77.7% {
-    transform: translateY(0) scale3d(0.99, 1.01, 1);
-  }
-  88.8% {
-    transform: translateY(0) scale3d(1.01, 0.99, 1);
-  }
-  100% {
+  to {
     opacity: 1;
-    transform: translateY(0) scale3d(1, 1, 1);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -340,78 +296,16 @@
     0 8px 32px rgba(0, 0, 0, 0.3),
     0 1px 0 rgba(255, 255, 255, 0.2) inset,
     0 -1px 0 rgba(0, 0, 0, 0.1) inset;
-  animation: smoothBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: modalSlide 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 }
 
-.tier-modal-content::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg,
-    rgba(255, 255, 255, 0.25) 0%,
-    rgba(255, 255, 255, 0.1) 25%,
-    rgba(255, 255, 255, 0.05) 50%,
-    rgba(255, 255, 255, 0.1) 75%,
-    rgba(255, 255, 255, 0.25) 100%
-  );
-  border-radius: 24px;
-  padding: 2px;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: xor;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  pointer-events: none;
-}
-
-.tier-modal-content::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  right: -50%;
-  bottom: -50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-  animation: liquidGlassShimmer 4s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@keyframes liquidGlassShimmer {
-  0%, 100% {
-    transform: rotate(0deg) translate(-50%, -50%);
-    opacity: 0.05;
-  }
-  25% {
-    transform: rotate(90deg) translate(-30%, -70%);
-    opacity: 0.1;
-  }
-  50% {
-    transform: rotate(180deg) translate(-50%, -50%);
-    opacity: 0.15;
-  }
-  75% {
-    transform: rotate(270deg) translate(-70%, -30%);
-    opacity: 0.1;
-  }
-}
-
-@keyframes smoothBounce {
-  0% {
+@keyframes modalSlide {
+  from {
     opacity: 0;
-    transform: translateY(30px) scale(0.8);
+    transform: translateY(16px) scale(0.95);
   }
-  30% {
-    opacity: 0.8;
-    transform: translateY(-8px) scale(1.05);
-  }
-  60% {
-    opacity: 1;
-    transform: translateY(3px) scale(0.98);
-  }
-  100% {
+  to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
@@ -494,7 +388,7 @@
 
 .tier-modal-icon {
   margin: 0 auto 1.5rem;
-  animation: smoothIconBounce 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.3s both;
+  animation: iconFade 0.3s ease-out 0.1s both;
 }
 
 @keyframes liquidIconSplash {
@@ -554,7 +448,7 @@
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 0.75rem;
-  animation: smoothTextPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s both;
+  animation: textFade 0.3s ease-out 0.2s both;
 }
 
 .tier-modal-message {
@@ -562,7 +456,29 @@
   color: var(--text-secondary);
   margin-bottom: 2rem;
   line-height: 1.5;
-  animation: smoothTextPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.7s both;
+  animation: textFade 0.3s ease-out 0.3s both;
+}
+
+@keyframes iconFade {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes textFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes liquidTextSplash {
@@ -661,7 +577,7 @@
   font-size: 0.75rem;
   color: var(--text-quaternary);
   margin: 0;
-  animation: smoothTextPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.9s both;
+  animation: textFade 0.3s ease-out 0.4s both;
 }
 
 /* Mobile responsiveness */

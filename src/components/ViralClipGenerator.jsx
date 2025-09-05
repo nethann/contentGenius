@@ -3388,81 +3388,41 @@ const ViralClipGenerator = () => {
                                               
                                               console.log(`📝 Showing ${contextWords.length} context words (${startIndex}-${endIndex})`);
                                               
-                                              // Create DRAMATIC word highlighting
+                                              // Create clean word highlighting - current word slightly bigger
                                               const wordElements = contextWords.map((wordObj, relativeIndex) => {
                                                 const word = wordObj.word || wordObj.text || '';
                                                 const wordStart = wordObj.start || 0;
                                                 const wordEnd = wordObj.end || wordStart + 0.3;
                                                 const isCurrentWord = wordObj.index === currentWordIndex;
-                                                const isUpcoming = currentTime < wordStart;
-                                                const isSpoken = currentTime > wordEnd;
                                                 
                                                 if (isCurrentWord && currentWord) {
-                                                  // 🔥 CURRENTLY SPEAKING - MAKE IT HUGE AND BRIGHT
+                                                  // Currently speaking - white, slightly bigger
                                                   return `<span style="
-                                                    color: #FFFF00; 
-                                                    font-size: 28px; 
-                                                    font-weight: 900; 
-                                                    text-shadow: 3px 3px 6px rgba(0,0,0,1), 0 0 10px rgba(255,255,0,0.8); 
-                                                    transform: scale(1.4); 
-                                                    display: inline-block;
-                                                    background: rgba(255,0,0,0.7);
-                                                    padding: 4px 8px;
-                                                    border-radius: 6px;
-                                                    margin: 0 4px;
-                                                    animation: pulse 0.3s ease-in-out infinite alternate;
-                                                  ">${word}</span>`;
-                                                } else if (isUpcoming && wordStart <= currentTime + 3) {
-                                                  // About to be spoken - medium bright
-                                                  return `<span style="
-                                                    color: rgba(255,255,255,0.8); 
-                                                    font-size: 16px; 
-                                                    font-weight: 600;
-                                                    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-                                                  ">${word}</span>`;
-                                                } else if (isSpoken && wordEnd >= currentTime - 2) {
-                                                  // Recently spoken - dimmed but visible
-                                                  return `<span style="
-                                                    color: rgba(255,255,255,0.5); 
-                                                    font-size: 14px; 
-                                                    font-weight: 500;
-                                                    text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+                                                    color: white; 
+                                                    font-size: 20px; 
+                                                    font-weight: 600; 
+                                                    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
                                                   ">${word}</span>`;
                                                 } else {
-                                                  // Default context word
+                                                  // All other words - normal white
                                                   return `<span style="
-                                                    color: rgba(255,255,255,0.4); 
-                                                    font-size: 13px; 
-                                                    font-weight: 400;
+                                                    color: white; 
+                                                    font-size: 16px; 
+                                                    font-weight: 500;
+                                                    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
                                                   ">${word}</span>`;
                                                 }
                                               }).join(' ');
                                               
-                                              // Add CSS animation for pulsing effect
-                                              if (!document.getElementById('subtitle-animations')) {
-                                                const style = document.createElement('style');
-                                                style.id = 'subtitle-animations';
-                                                style.textContent = `
-                                                  @keyframes pulse {
-                                                    0% { transform: scale(1.4); }
-                                                    100% { transform: scale(1.5); }
-                                                  }
-                                                `;
-                                                document.head.appendChild(style);
-                                              }
-                                              
                                               subtitleOverlay.innerHTML = `
                                                 <div style="
-                                                  background: rgba(0,0,0,0.9); 
-                                                  padding: 12px 16px; 
-                                                  border-radius: 8px; 
+                                                  background: rgba(0,0,0,0.85); 
+                                                  padding: 10px 14px; 
+                                                  border-radius: 6px; 
                                                   text-align: center; 
-                                                  line-height: 1.6;
-                                                  max-width: 95%;
+                                                  line-height: 1.4;
+                                                  max-width: 90%;
                                                   word-wrap: break-word;
-                                                  border: 2px solid rgba(255,255,0,0.4);
-                                                  transition: all 0.1s ease;
-                                                  box-shadow: 0 4px 12px rgba(0,0,0,0.8);
                                                 ">
                                                   ${wordElements}
                                                 </div>

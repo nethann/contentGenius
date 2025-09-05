@@ -160,17 +160,20 @@ body {
 }
 
 .nav-signup {
-  padding: 0.625rem 1.5rem;
-  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
-  color: var(--text-primary);
+  padding: 0.75rem 1.5rem;
+  background: var(--accent-primary);
+  color: white;
   text-decoration: none;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 14px;
 }
 
 .nav-signup:hover {
-  transform: translateY(-2px);
+  background: var(--accent-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
 }
 
 /* Hero Section */
@@ -237,18 +240,21 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 1.125rem 2.5rem;
-  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
-  color: var(--text-primary);
-  font-size: 1.125rem;
-  font-weight: 600;
+  padding: 1rem 2rem;
+  background: var(--accent-primary);
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
   text-decoration: none;
-  border-radius: 1rem;
-  transition: all 0.3s ease;
+  border-radius: 12px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
 }
 
 .hero-cta:hover {
-  transform: translateY(-3px);
+  background: var(--accent-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
 }
 
 .hero-demo {
@@ -256,25 +262,23 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 1.125rem 2.5rem;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
+  padding: 1rem 2rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-primary);
   color: var(--text-primary);
-  font-size: 1.125rem;
-  font-weight: 600;
-  border-radius: 1rem;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .hero-demo:hover {
-  background: var(--glass-bg-strong);
-  border-color: var(--glass-border-strong);
+  background: var(--bg-tertiary);
+  border-color: var(--border-secondary);
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px 0 rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 /* Features Grid */
@@ -291,23 +295,20 @@ body {
 }
 
 .feature-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: 1.5rem;
-  padding: 2.5rem;
-  border: 1px solid var(--glass-border);
-  transition: all 0.3s ease;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  background: var(--bg-surface);
+  border-radius: 16px;
+  padding: 2rem;
+  border: 1px solid var(--border-primary);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   position: relative;
   z-index: 1;
 }
 
 .feature-card:hover {
-  background: var(--glass-bg-strong);
-  border-color: var(--glass-border-strong);
-  transform: translateY(-5px);
-  box-shadow: 0 16px 50px 0 rgba(0, 0, 0, 0.2);
+  border-color: var(--border-secondary);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
 }
 
 .feature-icon {
@@ -482,18 +483,21 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 1.25rem 2.5rem;
-  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
-  color: var(--text-primary);
-  font-size: 1.125rem;
-  font-weight: 600;
+  padding: 1rem 2rem;
+  background: var(--accent-primary);
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
   text-decoration: none;
-  border-radius: 1rem;
-  transition: all 0.3s ease;
+  border-radius: 12px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
 }
 
 .cta-button:hover {
-  transform: translateY(-3px);
+  background: var(--accent-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
 }
 
 /* Footer */

@@ -1,51 +1,53 @@
-/* Linear-inspired Design System Variables */
+/* Modern Design System Variables */
 :root {
-  /* Background Colors - Linear Style */
-  --bg-primary: #08090a; /* Linear's deep black */
-  --bg-secondary: #0f0f10; /* Slightly lighter black */
-  --bg-tertiary: #1a1b1e; /* Dark gray */
-  --bg-quaternary: #26282c; /* Medium dark gray */
-  --bg-surface: #1e1f23; /* Surface color */
+  /* Background Colors - Refined neutral palette */
+  --bg-primary: #0a0a0b; /* Deeper, warmer black */
+  --bg-secondary: #111113; /* Subtle warmth */
+  --bg-tertiary: #1c1c1f; /* More refined gray */
+  --bg-quaternary: #27272a; /* Medium contrast */
+  --bg-surface: #18181b; /* Clean surface */
   
-  /* Glass Effect Colors - Simplified */
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-bg-medium: rgba(255, 255, 255, 0.05);
-  --glass-bg-strong: rgba(255, 255, 255, 0.07);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-border-light: rgba(255, 255, 255, 0.06);
-  --glass-border-strong: rgba(255, 255, 255, 0.12);
+  /* Glass Effect Colors - More subtle */
+  --glass-bg: rgba(255, 255, 255, 0.02);
+  --glass-bg-medium: rgba(255, 255, 255, 0.04);
+  --glass-bg-strong: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-border-light: rgba(255, 255, 255, 0.04);
+  --glass-border-strong: rgba(255, 255, 255, 0.08);
   
-  /* Text Colors - Linear's precise hierarchy */
-  --text-primary: #ffffff;
-  --text-secondary: #b4b4b4; /* Linear's secondary text */
-  --text-tertiary: #8a8a8a; /* Linear's tertiary text */
-  --text-quaternary: #666666; /* Linear's quaternary text */
-  --text-disabled: #4a4a4a;
+  /* Text Colors - Enhanced readability */
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa; /* Warmer gray */
+  --text-tertiary: #71717a; /* Better contrast */
+  --text-quaternary: #52525b; /* Readable muted */
+  --text-disabled: #3f3f46;
   
-  /* Accent Colors - Linear's muted palette */
-  --accent-primary: #5e6ad2; /* Linear's primary purple */
-  --accent-secondary: #6366f1; /* Muted indigo */
-  --accent-blue: #6366f1; /* Muted purple-blue - more visible */
-  --accent-green: #059669; /* Muted teal-green - more visible */
-  --accent-red: #ef4444; /* Keep red for danger */
-  --accent-orange: #f97316; /* Linear's orange */
-  --accent-yellow: #eab308; /* Linear's yellow */
+  /* Accent Colors - Modern, accessible palette */
+  --accent-primary: #6366f1; /* Clean indigo */
+  --accent-secondary: #8b5cf6; /* Refined purple */
+  --accent-blue: #3b82f6; /* Vibrant but not neon */
+  --accent-green: #10b981; /* Modern emerald */
+  --accent-red: #ef4444; /* Clean red */
+  --accent-orange: #f59e0b; /* Warm amber */
+  --accent-yellow: #eab308; /* Rich yellow */
   
-  /* Status Colors - More muted but visible */
-  --success: #059669; /* Muted teal-green instead of bright green */
-  --success-hover: #047857; /* Darker teal on hover */
-  --warning: #f97316;
+  /* Status Colors - Clear and accessible */
+  --success: #10b981;
+  --success-hover: #059669;
+  --warning: #f59e0b;
   --danger: #ef4444;
-  --info: #6366f1; /* Muted purple-blue */
+  --info: #3b82f6;
   
-  /* Hover states for muted colors */
-  --accent-blue-hover: #4f46e5; /* Darker purple-blue on hover */
-  --accent-green-hover: #047857; /* Darker teal */
+  /* Hover states */
+  --accent-blue-hover: #2563eb;
+  --accent-green-hover: #059669;
+  --accent-primary-hover: #4f46e5;
   
-  /* Border Colors */
-  --border-primary: #26282c;
-  --border-secondary: #1e1f23;
+  /* Border Colors - Subtle refinements */
+  --border-primary: #27272a;
+  --border-secondary: #3f3f46;
   --border-focus: var(--accent-primary);
+  --border-subtle: #1f1f23;
 }
 
 /* Global Reset and Base Styles */
@@ -82,136 +84,148 @@ body {
 
 .btn-primary {
   background: var(--accent-primary);
-  color: var(--text-primary);
-  padding: 0.625rem 1rem;
-  border-radius: 6px;
-  border: 1px solid var(--accent-primary);
+  color: white;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  border: none;
   font-weight: 500;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   position: relative;
 }
 
 .btn-primary:hover {
-  background: color-mix(in srgb, var(--accent-primary) 90%, white);
-  border-color: color-mix(in srgb, var(--accent-primary) 90%, white);
+  background: var(--accent-primary-hover);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  transform: translateY(-1px);
 }
 
 .btn-primary:active {
-  background: color-mix(in srgb, var(--accent-primary) 80%, black);
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .btn-secondary {
-  background: transparent;
-  color: var(--text-secondary);
-  padding: 0.625rem 1rem;
-  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
   border: 1px solid var(--border-primary);
   font-weight: 500;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .btn-secondary:hover {
-  background: var(--glass-bg);
+  background: var(--bg-tertiary);
   border-color: var(--border-secondary);
-  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .btn-ghost {
   background: transparent;
   color: var(--text-secondary);
-  padding: 0.625rem 1rem;
-  border-radius: 6px;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
   border: none;
   font-weight: 500;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-ghost:hover {
-  background: var(--glass-bg);
+  background: var(--glass-bg-medium);
   color: var(--text-primary);
 }
 
-/* Linear-style Components */
+/* Modern Components */
 .surface {
   background: var(--bg-surface);
   border: 1px solid var(--border-primary);
-  border-radius: 8px;
-  transition: all 0.15s ease;
+  border-radius: 12px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .surface:hover {
-  background: color-mix(in srgb, var(--bg-surface) 95%, white);
   border-color: var(--border-secondary);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
 .card {
   background: var(--bg-surface);
   border: 1px solid var(--border-primary);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 1.5rem;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .card:hover {
-  background: color-mix(in srgb, var(--bg-surface) 95%, white);
   border-color: var(--border-secondary);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
 }
 
 .glass {
   background: var(--glass-bg-medium);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border);
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 12px;
+}
+
+.glass:hover {
+  background: var(--glass-bg-strong);
+  border-color: var(--glass-border-strong);
 }
 
 .glass-strong {
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border-strong);
+  border-radius: 12px;
 }
 
 .input {
   background: var(--bg-surface);
   border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  padding: 0.625rem 0.75rem;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
   color: var(--text-primary);
   width: 100%;
-  transition: all 0.15s ease;
-  font-size: 13px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 14px;
   font-weight: 400;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--border-focus);
-  background: color-mix(in srgb, var(--bg-surface) 95%, white);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  transform: translateY(-1px);
 }
 
 .input::placeholder {
   color: var(--text-tertiary);
 }
 
-/* Typography System - Linear inspired */
-.text-xs { font-size: 11px; line-height: 1.4; }
-.text-sm { font-size: 13px; line-height: 1.4; }
-.text-base { font-size: 14px; line-height: 1.5; }
-.text-lg { font-size: 16px; line-height: 1.5; }
-.text-xl { font-size: 18px; line-height: 1.4; }
-.text-2xl { font-size: 24px; line-height: 1.3; }
-.text-3xl { font-size: 32px; line-height: 1.2; }
+/* Typography System - Modern scale */
+.text-xs { font-size: 12px; line-height: 1.4; }
+.text-sm { font-size: 14px; line-height: 1.5; }
+.text-base { font-size: 16px; line-height: 1.6; }
+.text-lg { font-size: 18px; line-height: 1.6; }
+.text-xl { font-size: 20px; line-height: 1.5; }
+.text-2xl { font-size: 24px; line-height: 1.4; }
+.text-3xl { font-size: 32px; line-height: 1.3; }
+.text-4xl { font-size: 40px; line-height: 1.2; }
 
 .font-normal { font-weight: 400; }
 .font-medium { font-weight: 500; }

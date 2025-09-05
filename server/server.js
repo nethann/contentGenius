@@ -551,7 +551,7 @@ PlayResY: 720
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,20,&H00ffffff,&H00ffffff,&H00000000,&H80000000,-1,0,0,0,100,100,0.3,0,1,2,1,2,15,15,15,1
+Style: Default,Arial,16,&H00ffffff,&H00ffffff,&H00000000,&H80000000,-1,0,0,0,100,100,0.3,0,1,2,1,2,15,15,15,1
 Style: Highlight,Arial,20,&H00ffffff,&H00ffffff,&H00000000,&H80000000,1,0,0,0,100,100,0.3,0,1,2,1,2,15,15,15,1
 
 [Events]
@@ -577,16 +577,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
           const wordStart = formatTimeToAss(currentWord.start);
           const wordEnd = formatTimeToAss(currentWord.end);
           
-          // Build the caption text with current word highlighted
+          // Build the caption text with current word highlighted (match preview exactly)
           let captionText = '';
           for (let i = 0; i < captionWords.length; i++) {
             const word = captionWords[i];
             if (i === wordIndex) {
-              // Current word being spoken - white and slightly bigger
-              captionText += `{\\c&H00ffffff&\\b1\\fs24}${word.word}{\\b0\\fs20}`;
+              // Current word being spoken - white, 20px equivalent, font-weight 600 equivalent
+              captionText += `{\\c&H00ffffff&\\b1\\fs20}${word.word}{\\b0\\fs16}`;
             } else {
-              // Other words in caption - white
-              captionText += word.word;
+              // Other words in caption - white, 16px, font-weight 500 equivalent  
+              captionText += `{\\c&H00ffffff&}${word.word}`;
             }
             if (i < captionWords.length - 1) captionText += ' ';
           }
