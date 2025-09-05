@@ -901,34 +901,13 @@
 }
 
 .dashboard-card {
-  background: var(--glass-bg-medium);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   transform: translateY(0);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   position: relative;
-}
-
-.dashboard-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.1) 0%,
-    rgba(255, 255, 255, 0.05) 25%,
-    rgba(255, 255, 255, 0.02) 50%,
-    rgba(255, 255, 255, 0.05) 75%,
-    rgba(255, 255, 255, 0.1) 100%
-  );
-  pointer-events: none;
-  z-index: 0;
 }
 
 .dashboard-card-available {
@@ -936,10 +915,8 @@
 }
 
 .dashboard-card-available:hover {
-  background: var(--glass-bg-strong);
-  border-color: var(--glass-border-strong);
-  transform: translateY(-4px);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  border-color: var(--border-secondary);
+  transform: translateY(-2px);
 }
 
 .dashboard-card-disabled {
@@ -948,14 +925,14 @@
 }
 
 .dashboard-card-gradient {
-  padding: 2rem;
+  padding: 1.75rem;
   position: relative;
   background: transparent;
 }
 
 .dashboard-card-content {
   position: relative;
-  z-index: 2;
+  z-index: 1;
 }
 
 .dashboard-card-header {
@@ -966,26 +943,21 @@
 }
 
 .dashboard-card-icon {
-  width: 3.5rem;
-  height: 3.5rem;
-  background: linear-gradient(135deg, 
-    rgba(99, 102, 241, 0.8) 0%, 
-    rgba(139, 92, 246, 0.8) 100%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 1rem;
+  width: 3rem;
+  height: 3rem;
+  background: var(--accent-primary);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
 }
 
 .dashboard-card:hover .dashboard-card-icon {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.4);
+  background: var(--accent-primary-hover);
+  transform: scale(1.05);
 }
 
 .dashboard-coming-soon {
@@ -998,14 +970,13 @@
 }
 
 .dashboard-card-title {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.375rem;
+  font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 0.75rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Card Pills Container */
@@ -1019,36 +990,28 @@
 .beta-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.375rem 0.875rem;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.9) 0%, rgba(248, 113, 113, 0.9) 100%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 0.25rem 0.625rem;
+  background: #ef4444;
   color: white;
-  font-size: 0.75rem;
-  font-weight: 600;
-  border-radius: 1rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  border-radius: 4px;
   text-transform: uppercase;
   letter-spacing: 0.025em;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 /* Token Cost Pill */
 .token-cost-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.375rem 0.875rem;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.9) 0%, rgba(168, 85, 247, 0.9) 100%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  padding: 0.25rem 0.625rem;
+  background: var(--accent-primary);
   color: white;
-  font-size: 0.75rem;
-  font-weight: 600;
-  border-radius: 1rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  border-radius: 4px;
   text-transform: none;
   letter-spacing: 0.025em;
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
 
 .dashboard-card-description {
@@ -1066,9 +1029,9 @@
 }
 
 .dashboard-card-action-text {
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: 1rem;
+  color: var(--accent-primary);
+  font-weight: 500;
+  font-size: 0.875rem;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -1076,8 +1039,8 @@
 }
 
 .dashboard-card:hover .dashboard-card-action-text {
-  color: var(--accent-primary);
-  transform: translateX(4px);
+  color: var(--accent-primary-hover);
+  transform: translateX(2px);
 }
 
 /* Quick Stats */
