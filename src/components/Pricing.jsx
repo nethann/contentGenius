@@ -112,7 +112,6 @@ const Pricing = () => {
 
         {/* Pro Tier */}
         <div className="pricing-card pricing-card-pro">
-          
           <div className="pricing-card-header">
             <div className="pricing-card-icon">
               <Crown className="w-6 h-6" />
