@@ -216,11 +216,25 @@ body {
   }
   
   .desktop-nav {
-    display: none;
+    display: none !important;
+  }
+  
+  .nav-actions {
+    display: none !important;
   }
   
   .mobile-menu-button {
-    display: flex;
+    display: flex !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-content {
+    padding: 0.625rem 1.25rem;
+  }
+  
+  .nav-logo-text {
+    font-size: 1.25rem;
   }
 }
 
@@ -240,6 +254,13 @@ body {
   display: flex;
   align-items: center;
   gap: 1.5rem;
+}
+
+/* Ensure mobile menu button is visible */
+@media (min-width: 769px) {
+  .mobile-menu-button {
+    display: none;
+  }
 }
 
 .nav-login {
