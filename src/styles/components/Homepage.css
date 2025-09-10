@@ -60,7 +60,7 @@ body {
   transition: width 0.1s ease-out;
 }
 
-/* Homepage Component Styles - iOS aesthetic */
+/* Homepage Component Styles - iOS 26 liquid aesthetic */
 .homepage {
   min-height: 100vh;
   background: transparent;
@@ -74,60 +74,148 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: 100vh;
+  height: 200vh; /* Extended for liquid flow */
   background: 
-    radial-gradient(circle at 20% 30%, rgba(0, 122, 255, 0.08) 0%, transparent 60%),
-    radial-gradient(circle at 80% 20%, rgba(88, 86, 214, 0.06) 0%, transparent 60%),
-    radial-gradient(circle at 40% 80%, rgba(48, 209, 88, 0.04) 0%, transparent 60%);
+    radial-gradient(ellipse 800px 600px at 20% 10%, rgba(0, 122, 255, 0.15) 0%, transparent 70%),
+    radial-gradient(ellipse 600px 800px at 80% 30%, rgba(88, 86, 214, 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 700px 500px at 40% 60%, rgba(48, 209, 88, 0.1) 0%, transparent 70%),
+    radial-gradient(ellipse 500px 700px at 70% 80%, rgba(255, 214, 10, 0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 900px 400px at 10% 90%, rgba(255, 69, 58, 0.06) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
+  animation: liquidFlow 25s ease-in-out infinite;
 }
 
-/* The Liquid Glass Pill */
+@keyframes liquidFlow {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  25% {
+    transform: translateY(-10px) rotate(0.5deg);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateY(-5px) rotate(-0.3deg);
+    opacity: 0.95;
+  }
+  75% {
+    transform: translateY(-15px) rotate(0.2deg);
+    opacity: 0.85;
+  }
+}
+
+/* The Liquid Glass Pill - iOS 26 Enhanced */
 .liquid-navbar-pill {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 1rem 2.5rem;
-  max-width: 800px; /* Made longer */
+  max-width: 800px;
   width: 100%;
   
-  /* Ultra-transparent glass effect */
-  background: rgba(255, 255, 255, 0.01);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  /* Enhanced liquid glass effect */
+  background: 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%),
+    radial-gradient(circle at 30% 30%, rgba(0, 122, 255, 0.1) 0%, transparent 70%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 50px;
   
-  /* Subtle shadow */
+  /* Enhanced iOS 26 shadows and highlights */
   box-shadow: 
-    0 2px 15px rgba(0, 0, 0, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
   
-  transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
 }
 
-/* Hover effect - slightly more visible */
+/* Floating liquid effect */
+.liquid-navbar-pill::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, 
+    rgba(0, 122, 255, 0.1) 0%,
+    rgba(88, 86, 214, 0.08) 25%,
+    rgba(48, 209, 88, 0.06) 50%,
+    rgba(255, 214, 10, 0.04) 75%,
+    rgba(0, 122, 255, 0.1) 100%
+  );
+  border-radius: 52px;
+  z-index: -1;
+  opacity: 0;
+  animation: liquidBorder 8s ease-in-out infinite;
+  transition: opacity 0.6s ease;
+}
+
+@keyframes liquidBorder {
+  0%, 100% { 
+    background: linear-gradient(45deg, 
+      rgba(0, 122, 255, 0.1) 0%,
+      rgba(88, 86, 214, 0.08) 25%,
+      rgba(48, 209, 88, 0.06) 50%,
+      rgba(255, 214, 10, 0.04) 75%,
+      rgba(0, 122, 255, 0.1) 100%
+    );
+  }
+  50% { 
+    background: linear-gradient(45deg, 
+      rgba(255, 214, 10, 0.1) 0%,
+      rgba(0, 122, 255, 0.08) 25%,
+      rgba(88, 86, 214, 0.06) 50%,
+      rgba(48, 209, 88, 0.04) 75%,
+      rgba(255, 214, 10, 0.1) 100%
+    );
+  }
+}
+
+/* Enhanced hover effect - iOS 26 liquid interaction */
 .liquid-navbar-pill:hover {
-  background: rgba(255, 255, 255, 0.02);
-  border-color: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  transform: translateY(-1px);
+  background: 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%),
+    radial-gradient(circle at 30% 30%, rgba(0, 122, 255, 0.15) 0%, transparent 70%);
+  border-color: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(25px) saturate(200%);
+  -webkit-backdrop-filter: blur(25px) saturate(200%);
+  transform: translateY(-3px) scale(1.02);
   box-shadow: 
-    0 4px 20px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 12px 48px rgba(0, 0, 0, 0.15),
+    0 4px 12px rgba(0, 122, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
 }
 
-/* Scrolled state - more prominent but still very transparent */
+.liquid-navbar-pill:hover::before {
+  opacity: 0.6;
+  animation-duration: 4s;
+}
+
+/* Scrolled state - Enhanced iOS 26 glass morphism */
 .liquid-navbar.scrolled .liquid-navbar-pill {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%),
+    radial-gradient(circle at 50% 50%, rgba(0, 122, 255, 0.08) 0%, transparent 70%);
+  border-color: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
   box-shadow: 
-    0 6px 25px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 16px 64px rgba(0, 0, 0, 0.2),
+    0 4px 16px rgba(0, 122, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.liquid-navbar.scrolled .liquid-navbar-pill::before {
+  opacity: 0.3;
+  animation-duration: 6s;
 }
 
 /* Brand Logo */
@@ -171,7 +259,9 @@ body {
 }
 
 .navbar-cta {
-  background: rgba(0, 122, 255, 0.8);
+  background: 
+    linear-gradient(135deg, rgba(0, 122, 255, 0.9) 0%, rgba(0, 122, 255, 0.7) 100%),
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 20px;
@@ -180,11 +270,41 @@ body {
   font-weight: 600;
   transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
   letter-spacing: -0.3px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 4px 16px rgba(0, 122, 255, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.navbar-cta::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.3) 50%, 
+    transparent 100%
+  );
+  transition: left 0.6s ease;
 }
 
 .navbar-cta:hover {
-  background: rgba(0, 122, 255, 1);
-  transform: scale(1.05);
+  background: 
+    linear-gradient(135deg, rgba(0, 122, 255, 1) 0%, rgba(0, 122, 255, 0.8) 100%),
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+  transform: scale(1.08) translateY(-1px);
+  box-shadow: 
+    0 8px 32px rgba(0, 122, 255, 0.4),
+    0 4px 16px rgba(0, 122, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.navbar-cta:hover::before {
+  left: 100%;
 }
 
 /* Mobile Toggle Button */
@@ -412,26 +532,55 @@ body {
   justify-content: center;
   gap: 0.5rem;
   padding: 1rem 2rem;
-  background: var(--accent-primary);
+  background: 
+    linear-gradient(135deg, rgba(0, 122, 255, 0.95) 0%, rgba(0, 122, 255, 0.85) 100%),
+    radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
   color: white;
-  font-size: 17px; /* iOS default font size */
-  font-weight: 600; /* iOS semibold */
+  font-size: 17px;
+  font-weight: 600;
   text-decoration: none;
-  border-radius: 14px; /* iOS button radius */
-  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); /* iOS easing */
+  border-radius: 16px;
+  transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
   box-shadow: 
-    0 4px 20px rgba(0, 122, 255, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 8px 32px rgba(0, 122, 255, 0.3),
+    0 4px 16px rgba(0, 122, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
   min-width: 200px;
-  letter-spacing: -0.43px; /* iOS letter spacing */
+  letter-spacing: -0.43px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-cta::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.4) 50%, 
+    transparent 100%
+  );
+  transition: left 0.8s ease;
 }
 
 .hero-cta:hover {
-  background: var(--accent-primary-hover);
-  transform: translateY(-3px) scale(1.02);
+  background: 
+    linear-gradient(135deg, rgba(0, 122, 255, 1) 0%, rgba(0, 122, 255, 0.9) 100%),
+    radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+  transform: translateY(-6px) scale(1.05);
   box-shadow: 
-    0 12px 30px rgba(0, 122, 255, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    0 20px 64px rgba(0, 122, 255, 0.4),
+    0 8px 24px rgba(0, 122, 255, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+}
+
+.hero-cta:hover::before {
+  left: 100%;
 }
 
 .hero-demo {
@@ -506,27 +655,60 @@ body {
 }
 
 .feature-card {
-  background: rgba(255, 255, 255, 0.005); /* Ultra transparent */
-  border-radius: 20px; /* iOS card radius */
+  background: 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.008) 100%),
+    radial-gradient(circle at 70% 30%, rgba(0, 122, 255, 0.04) 0%, transparent 70%);
+  border-radius: 24px; /* More rounded for iOS 26 */
   padding: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.02); /* Barely visible border */
-  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); /* iOS easing */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
   box-shadow: 
-    0 2px 10px rgba(0, 0, 0, 0.08), /* Minimal shadow */
-    inset 0 1px 0 rgba(255, 255, 255, 0.02); /* Barely there highlight */
+    0 8px 32px rgba(0, 0, 0, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.02);
   position: relative;
   z-index: 1;
-  backdrop-filter: blur(4px); /* Minimal blur for maximum transparency */
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  overflow: hidden;
+}
+
+/* Floating particle effect */
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), 
+    rgba(0, 122, 255, 0.1) 0%, 
+    transparent 40%
+  );
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .feature-card:hover {
-  background: rgba(255, 255, 255, 0.015); /* Ultra subtle hover */
-  border-color: rgba(255, 255, 255, 0.04);
-  transform: translateY(-2px) scale(1.005);
+  background: 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%),
+    radial-gradient(circle at 70% 30%, rgba(0, 122, 255, 0.12) 0%, transparent 70%);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-8px) scale(1.02);
   box-shadow: 
-    0 4px 15px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    0 24px 64px rgba(0, 0, 0, 0.15),
+    0 8px 24px rgba(0, 122, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+
+.feature-card:hover::before {
+  opacity: 1;
 }
 
 @media (max-width: 480px) {
