@@ -36,71 +36,57 @@ const Homepage = () => {
 
   return (
     <>
-      {/* Fixed Navbar - Outside smooth scroll wrapper */}
-      <nav className={`homepage-nav ${scrollY > 50 ? 'scrolled' : ''}`}>
-        <div className="nav-container">
-          <div className="nav-content">
-            <div className="nav-logo">
-              <Zap className="w-8 h-8 text-yellow-400" />
-              <span className="nav-logo-text">ClipGenius</span>
-            </div>
-            
-            {/* Desktop Navigation */}
-            <div className="nav-actions desktop-nav">
-              <Link to="/pricing" className="nav-login">
-                Pricing
-              </Link>
-              <Link to="/login" className="nav-login">
-                Log In
-              </Link>
-              <Link to="/pricing" className="nav-signup">
-                Sign Up
-              </Link>
-            </div>
-            
-            {/* Mobile Hamburger Button */}
-            <button 
-              className="mobile-menu-button"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label="Toggle mobile menu"
-            >
-              {isMobileMenuOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
-              )}
-            </button>
+      {/* Custom Ultra-Transparent Liquid Glass Navbar */}
+      <nav className={`liquid-navbar ${scrollY > 50 ? 'scrolled' : ''}`}>
+        <div className="liquid-navbar-pill">
+          {/* Logo */}
+          <div className="navbar-brand">
+            <Zap className="brand-icon" />
+            <span className="brand-text">ClipGenius</span>
           </div>
           
-          {/* Mobile Menu Dropdown */}
-          {isMobileMenuOpen && (
-            <div className="mobile-menu">
-              <div className="mobile-menu-content">
-                <Link 
-                  to="/pricing" 
-                  className="mobile-nav-link"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Pricing
-                </Link>
-                <Link 
-                  to="/login" 
-                  className="mobile-nav-link"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Log In
-                </Link>
-                <Link 
-                  to="/pricing" 
-                  className="mobile-nav-cta"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Sign Up
-                </Link>
-              </div>
-            </div>
-          )}
+          {/* Desktop Links */}
+          <div className="navbar-links">
+            <Link to="/pricing" className="navbar-link">Pricing</Link>
+            <Link to="/login" className="navbar-link">Log In</Link>
+            <Link to="/pricing" className="navbar-cta">Sign Up</Link>
+          </div>
+          
+          {/* Mobile Menu Toggle */}
+          <button 
+            className="mobile-toggle"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
+        
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="mobile-dropdown">
+            <Link 
+              to="/pricing" 
+              className="mobile-link"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Pricing
+            </Link>
+            <Link 
+              to="/login" 
+              className="mobile-link"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Log In
+            </Link>
+            <Link 
+              to="/pricing" 
+              className="mobile-cta"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Sign Up
+            </Link>
+          </div>
+        )}
       </nav>
 
       {/* Content wrapper */}

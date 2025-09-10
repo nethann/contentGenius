@@ -9,22 +9,18 @@ body {
   padding: 0;
 }
 
-/* iOS-style fixed navbar with liquid glass effect */
-.homepage-nav {
+/* Custom Ultra-Transparent Liquid Glass Navbar */
+.liquid-navbar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  padding: 1rem 2rem;
   z-index: 1000;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: center;
   background: transparent;
-  border: none;
-  transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-/* Transparent state - when at top of page */
-.homepage-nav:not(.scrolled) {
-  background: transparent;
+  transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 /* Custom Scrollbar */
@@ -87,245 +83,228 @@ body {
   z-index: 0;
 }
 
-/* Navigation styles handled above */
-
-/* Navbar when scrolled - NO background, only the pill has the effect */
-.homepage-nav.scrolled {
-  background: transparent;
-}
-
-.nav-container {
-  max-width: 80rem;
-  margin: 0 auto;
-  padding: 0;
-  background: transparent;
-}
-
-.nav-content {
+/* The Liquid Glass Pill */
+.liquid-navbar-pill {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  padding: 0.875rem 2rem;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 2rem;
+  padding: 1rem 2.5rem;
+  max-width: 800px; /* Made longer */
+  width: 100%;
+  
+  /* Ultra-transparent glass effect */
+  background: rgba(255, 255, 255, 0.01);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 50px;
+  
+  /* Subtle shadow */
   box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
-  transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+    0 2px 15px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  
+  transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.nav-content:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.25);
+/* Hover effect - slightly more visible */
+.liquid-navbar-pill:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transform: translateY(-1px);
   box-shadow: 
-    0 12px 40px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
-  transform: translateY(-2px);
+    0 4px 20px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-/* Enhanced glass effect when scrolled - only affects the pill */
-.homepage-nav.scrolled .nav-content {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(60px);
-  -webkit-backdrop-filter: blur(60px);
+/* Scrolled state - more prominent but still very transparent */
+.liquid-navbar.scrolled .liquid-navbar-pill {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   box-shadow: 
-    0 12px 40px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+    0 6px 25px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-/* Mobile Menu Button */
-.mobile-menu-button {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem;
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.mobile-menu-button:hover {
-  background: var(--glass-bg-medium);
-}
-
-/* Desktop Navigation */
-.desktop-nav {
+/* Brand Logo */
+.navbar-brand {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-}
-
-/* Mobile Menu */
-.mobile-menu {
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  left: 0;
-  right: 0;
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--glass-border-strong);
-  border-radius: 1rem;
-  margin: 0 1rem;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
-  animation: mobileMenuSlide 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 1000;
-}
-
-.mobile-menu-content {
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
   gap: 0.5rem;
 }
 
-.mobile-nav-link {
-  padding: 0.875rem 1rem;
-  color: var(--text-primary);
+.brand-icon {
+  width: 24px;
+  height: 24px;
+  color: #FFD60A; /* iOS yellow */
+}
+
+.brand-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: -0.5px;
+}
+
+/* Desktop Navigation Links */
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 2.5rem; /* Increased spacing for longer navbar */
+}
+
+.navbar-link {
+  color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
-  border-radius: 8px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.95rem;
   font-weight: 500;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  letter-spacing: -0.3px;
 }
 
-.mobile-nav-link:hover {
-  background: var(--glass-bg-medium);
-  color: var(--accent-primary);
+.navbar-link:hover {
+  color: rgba(255, 255, 255, 0.9);
 }
 
-.mobile-nav-cta {
-  padding: 0.875rem 1rem;
-  background: var(--accent-primary);
+.navbar-cta {
+  background: rgba(0, 122, 255, 0.8);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  letter-spacing: -0.3px;
+}
+
+.navbar-cta:hover {
+  background: rgba(0, 122, 255, 1);
+  transform: scale(1.05);
+}
+
+/* Mobile Toggle Button */
+.mobile-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.mobile-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Mobile Dropdown */
+.mobile-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 1rem;
+  min-width: 200px;
+  box-shadow: 
+    0 8px 30px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: slideDown 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.mobile-link {
+  display: block;
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  margin-bottom: 0.25rem;
+}
+
+.mobile-link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 1);
+}
+
+.mobile-cta {
+  display: block;
+  background: rgba(0, 122, 255, 0.8);
   color: white;
   text-decoration: none;
-  border-radius: 12px; /* iOS style radius */
-  font-weight: 600; /* iOS semibold */
-  font-size: 17px; /* iOS default size */
+  padding: 0.75rem 1rem;
+  border-radius: 15px;
+  font-size: 0.95rem;
+  font-weight: 600;
   text-align: center;
   margin-top: 0.5rem;
-  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); /* iOS easing */
-  letter-spacing: -0.43px; /* iOS letter spacing */
-  box-shadow: 
-    0 4px 16px rgba(0, 122, 255, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
 }
 
-.mobile-nav-cta:hover {
-  background: var(--accent-primary-hover);
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 
-    0 8px 24px rgba(0, 122, 255, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+.mobile-cta:hover {
+  background: rgba(0, 122, 255, 1);
 }
 
-@keyframes mobileMenuSlide {
+@keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-8px) scale(0.95);
+    transform: translateX(-50%) translateY(-10px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 }
 
-/* Responsive Navigation */
+/* Responsive Design */
 @media (max-width: 768px) {
-  .homepage-nav {
-    padding: 0.75rem 1rem;
+  .navbar-links {
+    display: none;
   }
   
-  .nav-content {
-    padding: 0.75rem 1.5rem;
-    border-radius: 1.5rem;
-    position: relative;
+  .mobile-toggle {
+    display: block;
   }
   
-  .desktop-nav {
-    display: none !important;
+  .liquid-navbar-pill {
+    padding: 0.75rem 1.5rem; /* Slightly larger for mobile */
+    max-width: 90%; /* Responsive width */
   }
   
-  .nav-actions {
-    display: none !important;
+  .brand-text {
+    font-size: 1.1rem;
   }
   
-  .mobile-menu-button {
-    display: flex !important;
+  .brand-icon {
+    width: 20px;
+    height: 20px;
   }
 }
 
 @media (max-width: 480px) {
-  .nav-content {
-    padding: 0.625rem 1.25rem;
+  .liquid-navbar-pill {
+    padding: 0.6rem 1.2rem;
+    max-width: 95%;
   }
   
-  .nav-logo-text {
-    font-size: 1.25rem;
+  .brand-text {
+    font-size: 1rem;
   }
 }
 
-.nav-logo {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
 
-.nav-logo-text {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: var(--text-primary);
-}
-
-.nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-/* Ensure mobile menu button is visible */
-@media (min-width: 769px) {
-  .mobile-menu-button {
-    display: none;
-  }
-}
-
-.nav-login {
-  padding: 0.5rem 1rem;
-  color: var(--text-primary);
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.nav-login:hover {
-  color: var(--accent-blue-light);
-}
-
-.nav-signup {
-  padding: 0.75rem 1.5rem;
-  background: var(--accent-primary);
-  color: white;
-  text-decoration: none;
-  border-radius: 8px;
-  font-weight: 500;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 14px;
-}
-
-.nav-signup:hover {
-  background: var(--accent-primary-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
-}
 
 /* Hero Section */
 .hero-section {
@@ -340,7 +319,7 @@ body {
 .hero-title {
   font-size: 2.5rem;
   font-weight: 700; /* iOS heavy weight */
-  color: var(--text-primary);
+  color: rgba(255, 255, 255, 0.6); /* More transparent */
   margin-bottom: 1.5rem;
   line-height: 1.15; /* iOS tight line height for headlines */
   letter-spacing: -0.025em; /* iOS headline letter spacing */
@@ -363,7 +342,7 @@ body {
 
 .hero-description {
   font-size: 1.125rem;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.4); /* Much more transparent */
   margin-bottom: 2rem;
   max-width: 48rem;
   margin-left: auto;
@@ -527,27 +506,27 @@ body {
 }
 
 .feature-card {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02); /* Much more transparent */
   border-radius: 20px; /* iOS card radius */
   padding: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.06); /* Subtle border */
   transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); /* iOS easing */
   box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 4px 20px rgba(0, 0, 0, 0.15), /* Lighter shadow */
+    inset 0 1px 0 rgba(255, 255, 255, 0.05); /* Subtle highlight */
   position: relative;
   z-index: 1;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(10px); /* Less blur for more transparency */
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .feature-card:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
-  transform: translateY(-6px) scale(1.02);
+  background: rgba(255, 255, 255, 0.04); /* Subtle hover increase */
+  border-color: rgba(255, 255, 255, 0.08);
+  transform: translateY(-4px) scale(1.01);
   box-shadow: 
-    0 16px 48px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    0 8px 30px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 @media (max-width: 480px) {
@@ -586,21 +565,21 @@ body {
 .feature-title {
   font-size: 1.25rem;
   font-weight: bold;
-  color: var(--text-primary);
+  color: rgba(255, 255, 255, 0.7); /* More transparent */
   margin-bottom: 0.75rem;
 }
 
 .feature-description {
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.5); /* Much more transparent */
 }
 
 /* How It Works Section - iOS glass effect */
 .how-it-works {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.01); /* Ultra transparent */
+  backdrop-filter: blur(15px); /* Less blur for more transparency */
+  -webkit-backdrop-filter: blur(15px);
+  border-top: 1px solid rgba(255, 255, 255, 0.04); /* Barely visible borders */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   position: relative;
   z-index: 1;
 }
@@ -619,7 +598,7 @@ body {
 .how-it-works-title {
   font-size: 2.5rem;
   font-weight: bold;
-  color: var(--text-primary);
+  color: rgba(255, 255, 255, 0.6); /* More transparent */
   margin-bottom: 1.5rem;
 }
 
@@ -631,7 +610,7 @@ body {
 
 .how-it-works-description {
   font-size: 1.25rem;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.4); /* More transparent */
   max-width: 32rem;
   margin: 0 auto;
 }
@@ -679,12 +658,12 @@ body {
 .step-title {
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: rgba(255, 255, 255, 0.7); /* More transparent */
   margin-bottom: 0.5rem;
 }
 
 .step-description {
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.5); /* Much more transparent */
 }
 
 /* CTA Section */
