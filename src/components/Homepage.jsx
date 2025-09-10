@@ -17,51 +17,27 @@ import {
 } from 'lucide-react';
 
 const Homepage = () => {
-  const scrollRef = useRef(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
-    let animationId;
-    let currentScroll = 0;
-    let targetScroll = 0;
-    const ease = 0.08; // Lower = smoother/slower
-
-    const smoothScroll = () => {
-      targetScroll = window.pageYOffset;
-      currentScroll += (targetScroll - currentScroll) * ease;
-      
-      if (scrollRef.current) {
-        scrollRef.current.style.transform = `translateY(${-currentScroll}px)`;
-      }
-      
-      animationId = requestAnimationFrame(smoothScroll);
+    // Handle scroll events for navbar transparency
+    const handleScroll = () => {
+      setScrollY(window.pageYOffset);
     };
 
-    // Start the smooth scroll animation
-    smoothScroll();
-
-    // Update body height to match content
-    const updateBodyHeight = () => {
-      if (scrollRef.current) {
-        document.body.style.height = scrollRef.current.offsetHeight + 'px';
-      }
-    };
-
-    updateBodyHeight();
-    window.addEventListener('resize', updateBodyHeight);
+    // Add scroll listener for navbar transparency
+    window.addEventListener('scroll', handleScroll);
 
     return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener('resize', updateBodyHeight);
-      document.body.style.height = '';
+      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
   return (
-    <div ref={scrollRef} className="smooth-scroll-content">
-      <div className="homepage">
-      {/* Navbar */}
-      <nav className="homepage-nav">
+    <>
+      {/* Fixed Navbar - Outside smooth scroll wrapper */}
+      <nav className={`homepage-nav ${scrollY > 50 ? 'scrolled' : ''}`}>
         <div className="nav-container">
           <div className="nav-content">
             <div className="nav-logo">
@@ -127,7 +103,9 @@ const Homepage = () => {
         </div>
       </nav>
 
-      {/* Hero Section */}
+      {/* Content wrapper */}
+      <div className="homepage">
+          {/* Hero Section */}
       <section className="hero-section">
         <h1 className="hero-title">
           Turn Your Videos Into
@@ -270,7 +248,7 @@ const Homepage = () => {
         </div>
       </footer>
       </div>
-    </div>
+    </>
   );
 };
 

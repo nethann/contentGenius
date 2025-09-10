@@ -1,53 +1,54 @@
-/* Modern Design System Variables */
+/* iOS-inspired Design System Variables */
 :root {
-  /* Background Colors - Refined neutral palette */
-  --bg-primary: #0a0a0b; /* Deeper, warmer black */
-  --bg-secondary: #111113; /* Subtle warmth */
-  --bg-tertiary: #1c1c1f; /* More refined gray */
-  --bg-quaternary: #27272a; /* Medium contrast */
-  --bg-surface: #18181b; /* Clean surface */
+  /* Background Colors - iOS aesthetic */
+  --bg-primary: #000000; /* True black like iOS */
+  --bg-secondary: #1c1c1e; /* iOS secondary background */
+  --bg-tertiary: #2c2c2e; /* iOS tertiary background */
+  --bg-quaternary: #3a3a3c; /* iOS quaternary background */
+  --bg-surface: #1c1c1e; /* iOS surface color */
   
-  /* Glass Effect Colors - More subtle */
-  --glass-bg: rgba(255, 255, 255, 0.02);
-  --glass-bg-medium: rgba(255, 255, 255, 0.04);
-  --glass-bg-strong: rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.06);
-  --glass-border-light: rgba(255, 255, 255, 0.04);
-  --glass-border-strong: rgba(255, 255, 255, 0.08);
+  /* Glass Effect Colors - iOS-style glass morphism */
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-bg-medium: rgba(255, 255, 255, 0.08);
+  --glass-bg-strong: rgba(255, 255, 255, 0.12);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-border-light: rgba(255, 255, 255, 0.06);
+  --glass-border-strong: rgba(255, 255, 255, 0.15);
   
-  /* Text Colors - Enhanced readability */
-  --text-primary: #fafafa;
-  --text-secondary: #a1a1aa; /* Warmer gray */
-  --text-tertiary: #71717a; /* Better contrast */
-  --text-quaternary: #52525b; /* Readable muted */
-  --text-disabled: #3f3f46;
+  /* Text Colors - iOS text hierarchy */
+  --text-primary: #ffffff;
+  --text-secondary: #ebebf5; /* iOS secondary text */
+  --text-tertiary: #ebebf599; /* iOS tertiary text with opacity */
+  --text-quaternary: #ebebf54d; /* iOS quaternary text with opacity */
+  --text-disabled: #ebebf533;
   
-  /* Accent Colors - Modern, accessible palette */
-  --accent-primary: #6366f1; /* Clean indigo */
-  --accent-secondary: #8b5cf6; /* Refined purple */
-  --accent-blue: #3b82f6; /* Vibrant but not neon */
-  --accent-green: #10b981; /* Modern emerald */
-  --accent-red: #ef4444; /* Clean red */
-  --accent-orange: #f59e0b; /* Warm amber */
-  --accent-yellow: #eab308; /* Rich yellow */
+  /* Accent Colors - iOS system colors */
+  --accent-primary: #007AFF; /* iOS blue */
+  --accent-secondary: #5856D6; /* iOS purple */
+  --accent-blue: #007AFF; /* iOS system blue */
+  --accent-blue-light: #40A9FF; /* Lighter iOS blue */
+  --accent-green: #30D158; /* iOS green */
+  --accent-red: #FF453A; /* iOS red */
+  --accent-orange: #FF9F0A; /* iOS orange */
+  --accent-yellow: #FFD60A; /* iOS yellow */
   
-  /* Status Colors - Clear and accessible */
-  --success: #10b981;
-  --success-hover: #059669;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --info: #3b82f6;
+  /* Status Colors - iOS system colors */
+  --success: #30D158;
+  --success-hover: #28CD4F;
+  --warning: #FF9F0A;
+  --danger: #FF453A;
+  --info: #007AFF;
   
   /* Hover states */
-  --accent-blue-hover: #2563eb;
-  --accent-green-hover: #059669;
-  --accent-primary-hover: #4f46e5;
+  --accent-blue-hover: #0056CC;
+  --accent-green-hover: #28CD4F;
+  --accent-primary-hover: #0056CC;
   
-  /* Border Colors - Subtle refinements */
-  --border-primary: #27272a;
-  --border-secondary: #3f3f46;
+  /* Border Colors - iOS-style borders */
+  --border-primary: rgba(255, 255, 255, 0.1);
+  --border-secondary: rgba(255, 255, 255, 0.15);
   --border-focus: var(--accent-primary);
-  --border-subtle: #1f1f23;
+  --border-subtle: rgba(255, 255, 255, 0.05);
 }
 
 /* Global Reset and Base Styles */
@@ -57,17 +58,17 @@
 
 body {
   margin: 0;
-  font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--bg-primary);
+  background: linear-gradient(180deg, #000000 0%, #1a1a1a 100%);
+  min-height: 100vh;
   color: var(--text-primary);
   overflow-x: hidden;
-  line-height: 1.5;
-  font-size: 14px;
+  line-height: 1.47; /* iOS line height */
+  font-size: 17px; /* iOS default font size */
   font-weight: 400;
+  letter-spacing: -0.43px; /* iOS letter spacing */
 }
 
 /* Common Utility Classes */
