@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ClerkAuthProvider } from './contexts/ClerkAuthContext';
 import Homepage from './components/Homepage';
 import Pricing from './components/Pricing';
@@ -16,10 +16,22 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 import './App.css';
 
+// Scroll to top component
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
+
 function App() {
   return (
     <ClerkAuthProvider>
       <Router>
+        <ScrollToTop />
             <div className="App">
             <Routes>
             {/* Public Routes */}

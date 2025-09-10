@@ -319,7 +319,7 @@ body {
 .hero-title {
   font-size: 2.5rem;
   font-weight: 700; /* iOS heavy weight */
-  color: rgba(255, 255, 255, 0.6); /* More transparent */
+  color: rgba(255, 255, 255, 0.3); /* Ultra transparent */
   margin-bottom: 1.5rem;
   line-height: 1.15; /* iOS tight line height for headlines */
   letter-spacing: -0.025em; /* iOS headline letter spacing */
@@ -342,7 +342,7 @@ body {
 
 .hero-description {
   font-size: 1.125rem;
-  color: rgba(255, 255, 255, 0.4); /* Much more transparent */
+  color: rgba(255, 255, 255, 0.2); /* Ultra transparent */
   margin-bottom: 2rem;
   max-width: 48rem;
   margin-left: auto;
@@ -506,27 +506,27 @@ body {
 }
 
 .feature-card {
-  background: rgba(255, 255, 255, 0.02); /* Much more transparent */
+  background: rgba(255, 255, 255, 0.005); /* Ultra transparent */
   border-radius: 20px; /* iOS card radius */
   padding: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.06); /* Subtle border */
+  border: 1px solid rgba(255, 255, 255, 0.02); /* Barely visible border */
   transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); /* iOS easing */
   box-shadow: 
-    0 4px 20px rgba(0, 0, 0, 0.15), /* Lighter shadow */
-    inset 0 1px 0 rgba(255, 255, 255, 0.05); /* Subtle highlight */
+    0 2px 10px rgba(0, 0, 0, 0.08), /* Minimal shadow */
+    inset 0 1px 0 rgba(255, 255, 255, 0.02); /* Barely there highlight */
   position: relative;
   z-index: 1;
-  backdrop-filter: blur(10px); /* Less blur for more transparency */
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(4px); /* Minimal blur for maximum transparency */
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .feature-card:hover {
-  background: rgba(255, 255, 255, 0.04); /* Subtle hover increase */
-  border-color: rgba(255, 255, 255, 0.08);
-  transform: translateY(-4px) scale(1.01);
+  background: rgba(255, 255, 255, 0.015); /* Ultra subtle hover */
+  border-color: rgba(255, 255, 255, 0.04);
+  transform: translateY(-2px) scale(1.005);
   box-shadow: 
-    0 8px 30px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 4px 15px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 @media (max-width: 480px) {
@@ -565,21 +565,21 @@ body {
 .feature-title {
   font-size: 1.25rem;
   font-weight: bold;
-  color: rgba(255, 255, 255, 0.7); /* More transparent */
+  color: rgba(255, 255, 255, 0.4); /* Ultra transparent */
   margin-bottom: 0.75rem;
 }
 
 .feature-description {
-  color: rgba(255, 255, 255, 0.5); /* Much more transparent */
+  color: rgba(255, 255, 255, 0.25); /* Ultra transparent */
 }
 
 /* How It Works Section - iOS glass effect */
 .how-it-works {
-  background: rgba(255, 255, 255, 0.01); /* Ultra transparent */
-  backdrop-filter: blur(15px); /* Less blur for more transparency */
-  -webkit-backdrop-filter: blur(15px);
-  border-top: 1px solid rgba(255, 255, 255, 0.04); /* Barely visible borders */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.003); /* Almost invisible */
+  backdrop-filter: blur(8px); /* Minimal blur */
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(255, 255, 255, 0.02); /* Almost invisible borders */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
   position: relative;
   z-index: 1;
 }
@@ -598,7 +598,7 @@ body {
 .how-it-works-title {
   font-size: 2.5rem;
   font-weight: bold;
-  color: rgba(255, 255, 255, 0.6); /* More transparent */
+  color: rgba(255, 255, 255, 0.25); /* Ultra transparent */
   margin-bottom: 1.5rem;
 }
 
@@ -610,7 +610,7 @@ body {
 
 .how-it-works-description {
   font-size: 1.25rem;
-  color: rgba(255, 255, 255, 0.4); /* More transparent */
+  color: rgba(255, 255, 255, 0.2); /* Ultra transparent */
   max-width: 32rem;
   margin: 0 auto;
 }
@@ -658,12 +658,12 @@ body {
 .step-title {
   font-size: 1.125rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.7); /* More transparent */
+  color: rgba(255, 255, 255, 0.35); /* Ultra transparent */
   margin-bottom: 0.5rem;
 }
 
 .step-description {
-  color: rgba(255, 255, 255, 0.5); /* Much more transparent */
+  color: rgba(255, 255, 255, 0.22); /* Ultra transparent */
 }
 
 /* CTA Section */
