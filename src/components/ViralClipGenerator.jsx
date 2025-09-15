@@ -383,15 +383,11 @@ const ViralClipGenerator = () => {
     if (!uploadedFile) return;
 
     const validTypes = [
-      "video/mp4",
-      "audio/mp3", 
-      "audio/mpeg",
-      "video/quicktime",
-      "audio/wav",
+      "video/mp4"
     ];
 
     if (!validTypes.includes(uploadedFile.type)) {
-      setError("Please upload an MP4 video, MP3 audio, or WAV file");
+      setError("Please upload an MP4 video file only");
       return;
     }
 
@@ -674,10 +670,12 @@ const ViralClipGenerator = () => {
     
     // Set video source from server  
     const fileUrl = `http://localhost:3001/uploads/${activeFileInfo.filename}`;
-    const isAudioFile = activeFileInfo.filename.match(/\.(mp3|wav|m4a|aac|ogg)$/i);
+    // Only treat pure audio files as audio, not videos with singing
+    const isAudioFile = activeFileInfo.filename.match(/\.(mp3|wav|m4a|aac|ogg)$/i) && !activeFileInfo.filename.match(/\.(mp4|mov|avi|mkv|webm)$/i);
     
     console.log('🎥 Setting video source:', fileUrl);
     console.log('🎵 Is audio file:', isAudioFile);
+    console.log('📄 Original filename:', activeFileInfo.filename);
     
     // Style video element differently for audio files
     if (isAudioFile) {
@@ -2932,22 +2930,18 @@ const ViralClipGenerator = () => {
                 Upload Your Content
               </h3>
               <p className="upload-subtitle">
-                Drop your MP4 video, MP3 audio, or WAV file here
+                Drop your MP4 video file here
               </p>
               <div className="upload-file-types">
                 <div className="upload-file-type">
                   <FileVideo className="upload-file-type-icon" />
-                  <span>MP4 Video</span>
-                </div>
-                <div className="upload-file-type">
-                  <FileAudio className="upload-file-type-icon" />
-                  <span>MP3/WAV Audio</span>
+                  <span>MP4 Video Only</span>
                 </div>
               </div>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".mp4,.mp3,.wav,audio/mpeg,video/mp4,audio/wav"
+                accept=".mp4,video/mp4"
                 onChange={handleFileUpload}
                 className="upload-input"
               />
@@ -3330,41 +3324,27 @@ const ViralClipGenerator = () => {
                                           const subtitleOverlay = document.getElementById(`subtitles-${moment.id}`);
                                           if (!subtitleOverlay || videoEl.paused) return;
                                           
-                                          // Get absolute video time for comparison with word timings
+                                          // Video currentTime is already relative to the clip (0 to clip duration)
                                           const currentTime = videoEl.currentTime;
-                                          console.log(`🕐 Video currentTime: ${currentTime.toFixed(3)}s | Moment start: ${moment.startTimeSeconds}s | Moment end: ${moment.endTimeSeconds}s`);
+                                          const segmentDuration = moment.endTimeSeconds - moment.startTimeSeconds;
+                                          console.log(`🕐 Video currentTime: ${currentTime.toFixed(3)}s | Segment duration: ${segmentDuration.toFixed(3)}s`);
                                           
-                                          // COMPREHENSIVE WORD DATA DEBUGGING
-                                          console.log(`🎯 === DETAILED DEBUG FOR ${moment.title} ===`);
-                                          console.log(`⏰ Current time: ${currentTime.toFixed(3)}s`);
-                                          console.log(`📊 Words available:`, !!moment.words?.length);
-                                          console.log(`📊 Words count:`, moment.words?.length || 0);
-                                          console.log(`📊 Full moment object:`, moment);
-                                          
-                                          if (moment.words?.length > 0) {
-                                            console.log(`🔤 Sample words:`, moment.words.slice(0, 10));
-                                            console.log(`🔤 Word timing range:`, {
-                                              firstWord: moment.words[0],
-                                              lastWord: moment.words[moment.words.length - 1]
-                                            });
-                                            console.log(`🔤 FIRST 3 WORD DETAILS:`, moment.words.slice(0, 3).map(w => ({
-                                              word: w.word || w.text,
-                                              start: w.start,
-                                              end: w.end
-                                            })));
-                                          }
-                                          
-                                          // PRIORITY 1: 100% ACCURATE WORD-LEVEL TIMING
+                                          // PRIORITY 1: RESPONSIVE SUBTITLE TIMING
                                           if (moment.words && moment.words.length > 0) {
-                                            console.log(`🎯 Using PRECISE word timing for ${moment.title}`);
+                                            console.log(`🎯 Using responsive subtitle timing for ${moment.title}`);
                                             
-                                            // Create responsive subtitle chunks (5-6 words per chunk for better flow)
-                                            const segmentDuration = moment.endTimeSeconds - moment.startTimeSeconds;
-                                            const wordsPerChunk = 6; // Show 6 words at a time for better sentence flow
-                                            const chunkDuration = segmentDuration / Math.ceil(moment.words.length / wordsPerChunk); // Responsive timing
+                                            // Current time is already relative to clip start
+                                            const relativeTime = currentTime;
+                                            const wordsPerChunk = 6; // Show 6 words per chunk
                                             
-                                            // Find which chunk we should be showing based on time
-                                            const chunkIndex = Math.floor(currentTime / chunkDuration);
+                                            // Calculate progress through the clip (0 to 1)
+                                            const clipProgress = Math.max(0, Math.min(1, relativeTime / segmentDuration));
+                                            
+                                            // Determine which chunk to show based on progress
+                                            const totalChunks = Math.ceil(moment.words.length / wordsPerChunk);
+                                            const currentChunkIndex = Math.floor(clipProgress * totalChunks);
+                                            const chunkIndex = Math.min(currentChunkIndex, totalChunks - 1);
+                                            
                                             const startWordIndex = chunkIndex * wordsPerChunk;
                                             const endWordIndex = Math.min(startWordIndex + wordsPerChunk - 1, moment.words.length - 1);
                                             
@@ -3376,9 +3356,9 @@ const ViralClipGenerator = () => {
                                                 }
                                               }
                                               
-                                              console.log(`📝 Showing chunk ${chunkIndex}: words ${startWordIndex}-${endWordIndex} (${chunkWords.length} words)`);
+                                              console.log(`📝 Responsive timing: chunk ${chunkIndex}/${totalChunks-1}, words ${startWordIndex}-${endWordIndex}, progress: ${(clipProgress*100).toFixed(1)}%`);
                                               
-                                              // Create simple text without individual word highlighting
+                                              // Simple text display without word highlighting for better reliability
                                               const chunkText = chunkWords.map(wordObj => wordObj.word || wordObj.text || '').join(' ');
                                               
                                               subtitleOverlay.innerHTML = `
@@ -3399,7 +3379,7 @@ const ViralClipGenerator = () => {
                                                 </div>
                                               `;
                                             } else {
-                                              console.log(`❌ No chunk found for time ${currentTime.toFixed(3)}`);
+                                              console.log(`❌ No chunk found for progress ${(clipProgress*100).toFixed(1)}%`);
                                               subtitleOverlay.innerHTML = '';
                                             }
                                           } else {
