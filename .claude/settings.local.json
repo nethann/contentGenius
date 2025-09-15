@@ -28,7 +28,9 @@
       "WebFetch(domain:linear.app)",
       "Bash(cmd /c:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(dir \"C:\\Users\\netha\\Documents\\Programming\\ReactApps\\content-scalar\\server\\uploads\" /s)"
+      "Bash(dir \"C:\\Users\\netha\\Documents\\Programming\\ReactApps\\content-scalar\\server\\uploads\" /s)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": [],

@@ -905,14 +905,16 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
     console.log('🔍 Word-level timing data available:', !!transcriptionData.words?.length);
     console.log('🔍 Words count:', transcriptionData.words?.length || 0);
     
+    const clipCount = userTier === 'guest' ? 3 : 5;
     const basePrompt = `You are an expert at identifying viral moments in video content. 
-        Analyze the transcript and identify 3-5 segments with the highest viral potential.
+        Analyze the transcript and identify ${clipCount} segments with the highest viral potential.
         
         CRITICAL INSTRUCTIONS:
         - Focus on finding the EXACT TEXT QUOTES from the transcript that would make great viral clips
         - Each transcript quote should be 10-30 words long for optimal clip length
         - Find complete sentences or compelling phrases that stand alone
         - DO NOT provide timestamps - we will calculate those precisely later
+        - Return EXACTLY ${clipCount} moments (no more, no less)
         
         Return a JSON object with a "moments" array, each moment having:
         - title (descriptive name)
@@ -1006,6 +1008,13 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
       }
       
       console.log('🔍 Processing', moments.length, 'moments for precise timing');
+      
+      // Enforce clip limits based on user tier
+      const maxClips = userTier === 'guest' ? 3 : 5;
+      if (moments.length > maxClips) {
+        console.log(`🔒 Limiting ${userTier} tier to ${maxClips} clips (was ${moments.length})`);
+        moments = moments.slice(0, maxClips);
+      }
       
       // MULTI-LAYERED timing search with priority order for better accuracy
       const preciselyTimedMoments = moments.map((moment, index) => {

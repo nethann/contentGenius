@@ -1141,6 +1141,7 @@ const ViralClipGenerator = () => {
       }
 
       updateProgress();
+      updateCaptions(); // Add real-time subtitle updates
     });
 
     video.addEventListener("play", () => {
@@ -3329,7 +3330,9 @@ const ViralClipGenerator = () => {
                                           const subtitleOverlay = document.getElementById(`subtitles-${moment.id}`);
                                           if (!subtitleOverlay || videoEl.paused) return;
                                           
+                                          // Get absolute video time for comparison with word timings
                                           const currentTime = videoEl.currentTime;
+                                          console.log(`🕐 Video currentTime: ${currentTime.toFixed(3)}s | Moment start: ${moment.startTimeSeconds}s | Moment end: ${moment.endTimeSeconds}s`);
                                           
                                           // COMPREHENSIVE WORD DATA DEBUGGING
                                           console.log(`🎯 === DETAILED DEBUG FOR ${moment.title} ===`);
@@ -3344,6 +3347,11 @@ const ViralClipGenerator = () => {
                                               firstWord: moment.words[0],
                                               lastWord: moment.words[moment.words.length - 1]
                                             });
+                                            console.log(`🔤 FIRST 3 WORD DETAILS:`, moment.words.slice(0, 3).map(w => ({
+                                              word: w.word || w.text,
+                                              start: w.start,
+                                              end: w.end
+                                            })));
                                           }
                                           
                                           // PRIORITY 1: 100% ACCURATE WORD-LEVEL TIMING
@@ -3356,16 +3364,23 @@ const ViralClipGenerator = () => {
                                             
                                             for (let i = 0; i < moment.words.length; i++) {
                                               const wordObj = moment.words[i];
-                                              const wordStart = wordObj.start || 0;
-                                              const wordEnd = wordObj.end || wordStart + 0.3;
+                                              // Convert absolute word timing to relative clip timing
+                                              const wordStart = (wordObj.start || 0) - moment.startTimeSeconds;
+                                              const wordEnd = (wordObj.end || wordObj.start + 0.3) - moment.startTimeSeconds;
+                                              
+                                              // Debug every word comparison for first few words
+                                              if (i < 5) {
+                                                console.log(`🔍 Word ${i}: "${wordObj.word || wordObj.text}" | originalStart:${wordObj.start.toFixed(3)} clipStart:${wordStart.toFixed(3)} clipEnd:${wordEnd.toFixed(3)} | currentTime:${currentTime.toFixed(3)} | match: ${currentTime >= wordStart && currentTime <= wordEnd}`);
+                                              }
                                               
                                               if (currentTime >= wordStart && currentTime <= wordEnd) {
                                                 currentWord = wordObj;
                                                 currentWordIndex = i;
-                                                console.log(`🗣️ CURRENT WORD:`, {
+                                                console.log(`🗣️ CURRENT WORD FOUND:`, {
                                                   word: wordObj.word || wordObj.text,
-                                                  start: wordStart.toFixed(3),
-                                                  end: wordEnd.toFixed(3),
+                                                  originalStart: wordObj.start.toFixed(3),
+                                                  clipStart: wordStart.toFixed(3),
+                                                  clipEnd: wordEnd.toFixed(3),
                                                   currentTime: currentTime.toFixed(3),
                                                   index: i
                                                 });
@@ -3396,10 +3411,10 @@ const ViralClipGenerator = () => {
                                                 const isCurrentWord = wordObj.index === currentWordIndex;
                                                 
                                                 if (isCurrentWord && currentWord) {
-                                                  // Currently speaking - white, slightly bigger
+                                                  // Currently speaking - yellow highlight
                                                   return `<span style="
-                                                    color: white; 
-                                                    font-size: 20px; 
+                                                    color: #FFFF00; 
+                                                    font-size: 18px; 
                                                     font-weight: 600; 
                                                     text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
                                                   ">${word}</span>`;
@@ -3407,7 +3422,7 @@ const ViralClipGenerator = () => {
                                                   // All other words - normal white
                                                   return `<span style="
                                                     color: white; 
-                                                    font-size: 16px; 
+                                                    font-size: 18px; 
                                                     font-weight: 500;
                                                     text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
                                                   ">${word}</span>`;

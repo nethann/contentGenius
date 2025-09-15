@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { VideoLibraryService } from '../services/videoLibraryService';
+import { ClerkDatabaseService } from '../services/clerkDatabaseService';
 import {
   ArrowLeft,
   Clock,
@@ -10,7 +11,9 @@ import {
   FileVideo,
   X,
   Pause,
-  Volume2
+  Volume2,
+  Lock,
+  Crown
 } from 'lucide-react';
 
 const VideoSegmentsPage = () => {
@@ -20,6 +23,18 @@ const VideoSegmentsPage = () => {
   const videoData = location.state?.videoData;
   const [selectedSegment, setSelectedSegment] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentSubtitle, setCurrentSubtitle] = useState('');
+  const [currentTime, setCurrentTime] = useState(0);
+  
+  // Get user tier
+  const userTier = user ? ClerkDatabaseService.getUserTier(user) : 'guest';
+  const isGuestTier = userTier === 'guest';
+  
+  // Limit segments for guest users
+  const maxSegmentsForGuest = 3;
+  const allSegments = videoData?.extractedMoments || [];
+  const visibleSegments = isGuestTier ? allSegments.slice(0, maxSegmentsForGuest) : allSegments;
+  const lockedSegments = isGuestTier ? allSegments.slice(maxSegmentsForGuest) : [];
 
   // Convert time string (e.g., "2:30") to seconds
   const timeStringToSeconds = (timeString) => {
@@ -67,10 +82,13 @@ const VideoSegmentsPage = () => {
   }
 
   const previewSegment = (segment) => {
-    console.log('Preview segment clicked:', segment);
-    console.log('Video data:', videoData);
-    console.log('Uploaded file info:', videoData.uploadedFileInfo);
-    console.log('Video filename:', videoData.uploadedFileInfo?.filename || videoData.filename);
+    console.log('🔍 SUBTITLE DEBUG: Preview segment clicked:', segment);
+    console.log('🔍 SUBTITLE DEBUG: Video data:', videoData);
+    console.log('🔍 SUBTITLE DEBUG: Segment words available:', !!segment.words);
+    console.log('🔍 SUBTITLE DEBUG: Segment words length:', segment.words?.length || 0);
+    console.log('🔍 SUBTITLE DEBUG: First few words:', segment.words?.slice(0, 5));
+    console.log('🔍 SUBTITLE DEBUG: Uploaded file info:', videoData.uploadedFileInfo);
+    console.log('🔍 SUBTITLE DEBUG: Video filename:', videoData.uploadedFileInfo?.filename || videoData.filename);
     setSelectedSegment(segment);
     setIsPlaying(false);
   };
@@ -78,6 +96,8 @@ const VideoSegmentsPage = () => {
   const closePreview = () => {
     setSelectedSegment(null);
     setIsPlaying(false);
+    setCurrentSubtitle('');
+    setCurrentTime(0);
   };
 
   const togglePlay = () => {
@@ -90,6 +110,62 @@ const VideoSegmentsPage = () => {
       }
       setIsPlaying(!isPlaying);
     }
+  };
+
+  // Generate real-time subtitles from word-level timing data
+  const generateSubtitle = (currentTime, segmentWords, segmentStartTime) => {
+    if (!segmentWords || segmentWords.length === 0) {
+      console.log('🔍 SUBTITLE DEBUG: No words available for subtitles');
+      return '';
+    }
+
+    console.log(`🔍 SUBTITLE DEBUG: videoTime=${currentTime.toFixed(2)}s, segmentStartTime=${segmentStartTime.toFixed(2)}s`);
+    
+    // Find words that should be displayed at current time
+    const activeWords = [];
+    const lookAheadTime = 2.0; // Show more words ahead for 5-second clips
+    const lookBehindTime = 0.5; // Keep words visible longer
+    
+    // Convert word timestamps to be relative to the clip start time
+    // The words have original video timestamps, we need to subtract segmentStartTime
+    console.log(`🔍 SUBTITLE DEBUG: Converting ${segmentWords.length} word timestamps...`);
+    
+    for (const wordObj of segmentWords) {
+      const originalWordStart = wordObj.start || 0;
+      const originalWordEnd = wordObj.end || originalWordStart + 0.5;
+      
+      // Convert from original video time to clip time by subtracting segment start
+      const clipWordStart = originalWordStart - segmentStartTime;
+      const clipWordEnd = originalWordEnd - segmentStartTime;
+      
+      console.log(`🔍 SUBTITLE DEBUG: Word "${wordObj.word}": original(${originalWordStart.toFixed(2)}s-${originalWordEnd.toFixed(2)}s) -> clip(${clipWordStart.toFixed(2)}s-${clipWordEnd.toFixed(2)}s)`);
+      
+      // Include words that are currently being spoken or about to be spoken in the clip timeline
+      if (clipWordStart <= currentTime + lookAheadTime && clipWordEnd >= currentTime - lookBehindTime && clipWordStart >= -0.5) {
+        activeWords.push({
+          word: wordObj.word,
+          clipStart: clipWordStart,
+          clipEnd: clipWordEnd
+        });
+        console.log(`🔍 SUBTITLE DEBUG: ✅ Active word: "${wordObj.word}" (clip time: ${clipWordStart.toFixed(2)}s-${clipWordEnd.toFixed(2)}s)`);
+      }
+    }
+    
+    if (activeWords.length === 0) {
+      console.log('🔍 SUBTITLE DEBUG: No active words found for current time');
+      return '';
+    }
+    
+    // Sort by timing and take words that should be showing now
+    activeWords.sort((a, b) => a.clipStart - b.clipStart);
+    
+    // For short clips, show 3-6 words at a time for better readability
+    const maxWords = 6;
+    const displayWords = activeWords.slice(0, maxWords).map(w => w.word);
+    
+    const subtitle = displayWords.join(' ').replace(/[^\w\s'-]/g, ''); // Clean punctuation for readability
+    console.log(`🔍 SUBTITLE DEBUG: Generated subtitle (${displayWords.length} words): "${subtitle}"`);
+    return subtitle;
   };
 
   const pageStyles = {
@@ -347,6 +423,80 @@ const VideoSegmentsPage = () => {
       color: 'white',
       fontSize: '14px',
       fontFamily: 'monospace'
+    },
+    lockedSegmentCard: {
+      backgroundColor: '#1e293b',
+      borderRadius: '12px',
+      padding: '24px',
+      border: '1px solid #334155',
+      opacity: 0.6,
+      position: 'relative',
+      overflow: 'hidden'
+    },
+    lockedOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(15, 23, 42, 0.8)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '12px',
+      backdropFilter: 'blur(2px)'
+    },
+    lockIcon: {
+      color: '#fbbf24',
+      padding: '12px',
+      backgroundColor: 'rgba(251, 191, 36, 0.1)',
+      borderRadius: '50%'
+    },
+    proOnlyText: {
+      color: '#fbbf24',
+      fontSize: '14px',
+      fontWeight: '600',
+      textAlign: 'center'
+    },
+    upgradeButton: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '8px 16px',
+      backgroundColor: '#fbbf24',
+      color: '#0f172a',
+      border: 'none',
+      borderRadius: '6px',
+      fontSize: '12px',
+      fontWeight: '600',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease'
+    },
+    subtitleOverlay: {
+      position: 'absolute',
+      bottom: '80px', // Above the controls
+      left: '50%',
+      transform: 'translateX(-50%)',
+      padding: '12px 20px',
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      borderRadius: '8px',
+      border: '2px solid #8b5cf6',
+      backdropFilter: 'blur(4px)',
+      maxWidth: '80%',
+      textAlign: 'center',
+      zIndex: 10,
+      transition: 'all 0.3s ease'
+    },
+    subtitleText: {
+      color: '#ffffff',
+      fontSize: '16px',
+      fontWeight: '700',
+      textShadow: '2px 2px 4px rgba(0, 0, 0, 0.8)',
+      letterSpacing: '0.5px',
+      lineHeight: '1.4',
+      margin: 0,
+      textTransform: 'uppercase'
     }
   };
 
@@ -405,21 +555,27 @@ const VideoSegmentsPage = () => {
 
       {/* Content */}
       <div style={pageStyles.content}>
-        {videoData.extractedMoments && videoData.extractedMoments.length > 0 ? (
+        {allSegments.length > 0 ? (
           <>
             {/* Stats */}
             <div style={pageStyles.stats}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981' }}>
                 <Eye className="w-5 h-5" />
                 <span style={{ fontWeight: '500', fontSize: '16px' }}>
-                  {videoData.extractedMoments.length} viral segments found
+                  {allSegments.length} viral segments found
+                  {isGuestTier && lockedSegments.length > 0 && (
+                    <span style={{ color: '#94a3b8', fontWeight: '400', fontSize: '14px', marginLeft: '8px' }}>
+                      ({visibleSegments.length} visible, {lockedSegments.length} Pro only)
+                    </span>
+                  )}
                 </span>
               </div>
             </div>
 
             {/* Segments Grid */}
             <div style={pageStyles.segmentsGrid}>
-              {videoData.extractedMoments.map((moment) => (
+              {/* Visible segments */}
+              {visibleSegments.map((moment) => (
                 <div 
                   key={moment.id} 
                   style={pageStyles.segmentCard}
@@ -485,6 +641,75 @@ const VideoSegmentsPage = () => {
                     <Play className="w-4 h-4" />
                     Preview Segment
                   </button>
+                </div>
+              ))}
+              
+              {/* Locked segments (Pro only) */}
+              {lockedSegments.map((moment, index) => (
+                <div 
+                  key={`locked-${moment.id || index}`} 
+                  style={pageStyles.lockedSegmentCard}
+                >
+                  {/* Background content (blurred) */}
+                  <div style={{ filter: 'blur(2px)' }}>
+                    {/* Header */}
+                    <div style={pageStyles.segmentHeader}>
+                      <div style={{
+                        ...pageStyles.categoryBadge,
+                        backgroundColor: getCategoryColor(moment.category)
+                      }}>
+                        {getCategoryIcon(moment.category)}
+                        {moment.category}
+                      </div>
+                      <div style={pageStyles.segmentTime}>
+                        <span>
+                          {typeof moment.startTime === 'number' ? secondsToTimeString(moment.startTime) : moment.startTime} - {typeof moment.endTime === 'number' ? secondsToTimeString(moment.endTime) : moment.endTime}
+                        </span>
+                        <span style={pageStyles.viralScore}>
+                          {moment.viralScore}%
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Content */}
+                    <h3 style={pageStyles.segmentTitle}>{moment.title}</h3>
+                    <p style={pageStyles.segmentDescription}>{moment.description}</p>
+                    
+                    {/* Transcript */}
+                    {moment.transcript && (
+                      <div style={pageStyles.transcript}>
+                        <div style={pageStyles.transcriptLabel}>Transcript:</div>
+                        <p style={pageStyles.transcriptText}>
+                          "{moment.transcript}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Lock overlay */}
+                  <div style={pageStyles.lockedOverlay}>
+                    <div style={pageStyles.lockIcon}>
+                      <Lock className="w-6 h-6" />
+                    </div>
+                    <div style={pageStyles.proOnlyText}>
+                      Pro Only
+                    </div>
+                    <button 
+                      style={pageStyles.upgradeButton}
+                      onClick={() => navigate('/pricing')}
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = '#f59e0b';
+                        e.target.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = '#fbbf24';
+                        e.target.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      <Crown className="w-3 h-3" />
+                      Upgrade to Pro
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -586,6 +811,26 @@ const VideoSegmentsPage = () => {
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => setIsPlaying(false)}
                 onTimeUpdate={(e) => {
+                  const videoCurrentTime = e.target.currentTime;
+                  setCurrentTime(videoCurrentTime);
+                  
+                  console.log(`🔥 SUBTITLE DEBUG: onTimeUpdate called - time: ${videoCurrentTime.toFixed(2)}s`);
+                  console.log(`🔥 SUBTITLE DEBUG: selectedSegment exists: ${!!selectedSegment}`);
+                  console.log(`🔥 SUBTITLE DEBUG: selectedSegment.words exists: ${!!selectedSegment?.words}`);
+                  console.log(`🔥 SUBTITLE DEBUG: words length: ${selectedSegment?.words?.length || 0}`);
+                  
+                  // Generate real-time subtitles
+                  if (selectedSegment && selectedSegment.words) {
+                    const segmentStartTime = selectedSegment.startTimeSeconds || timeStringToSeconds(selectedSegment.startTime);
+                    console.log(`🔥 SUBTITLE DEBUG: Calling generateSubtitle with segmentStartTime: ${segmentStartTime.toFixed(2)}s`);
+                    const subtitle = generateSubtitle(videoCurrentTime, selectedSegment.words, segmentStartTime);
+                    console.log(`🔥 SUBTITLE DEBUG: Generated subtitle: "${subtitle}"`);
+                    setCurrentSubtitle(subtitle);
+                  } else {
+                    console.log(`🔥 SUBTITLE DEBUG: NOT calling generateSubtitle - missing data`);
+                    setCurrentSubtitle(''); // Clear subtitle if no data
+                  }
+                  
                   // Auto-pause when reaching segment end time - test exact timing
                   if (selectedSegment && isPlaying) {
                     let endTimeSeconds = selectedSegment.endTimeSeconds;
@@ -600,14 +845,16 @@ const VideoSegmentsPage = () => {
                       e.target.pause();
                       setIsPlaying(false);
                     }
-                    
-                    // Log every few seconds for debugging
-                    if (Math.floor(e.target.currentTime * 10) % 10 === 0) {
-                      console.log('🎬 Playing at:', e.target.currentTime.toFixed(2), 's, will stop at:', endTimeSeconds.toFixed(2), 's');
-                    }
                   }
                 }}
               />
+              
+              {/* Real-time Subtitles */}
+              {currentSubtitle && (
+                <div style={pageStyles.subtitleOverlay}>
+                  <p style={pageStyles.subtitleText}>{currentSubtitle}</p>
+                </div>
+              )}
               
               {/* Video Controls */}
               <div style={pageStyles.videoControls}>
