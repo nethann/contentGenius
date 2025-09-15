@@ -3495,6 +3495,8 @@ const ViralClipGenerator = () => {
                                   }}
                                   onError={(e) => {
                                     console.error(`❌ Video error for moment ${moment.id}:`, e);
+                                    console.error(`❌ Video src:`, e.target.src);
+                                    console.error(`❌ Video error details:`, e.target.error);
                                   }}
                                   onClick={(e) => {
                                     // Toggle play/pause on click like TikTok
