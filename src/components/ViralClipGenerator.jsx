@@ -3329,49 +3329,64 @@ const ViralClipGenerator = () => {
                                           const segmentDuration = moment.endTimeSeconds - moment.startTimeSeconds;
                                           console.log(`🕐 Video currentTime: ${currentTime.toFixed(3)}s | Segment duration: ${segmentDuration.toFixed(3)}s`);
                                           
-                                          // PRIORITY 1: RESPONSIVE SUBTITLE TIMING
+                                          // PRIORITY 1: PRECISE WORD-BASED TIMING
                                           if (moment.words && moment.words.length > 0) {
-                                            console.log(`🎯 Using responsive subtitle timing for ${moment.title}`);
+                                            console.log(`🎯 Using precise word timing for ${moment.title}`);
                                             
                                             // Current time is already relative to clip start
                                             const relativeTime = currentTime;
-                                            const wordsPerChunk = 6; // Show 6 words per chunk
                                             
-                                            // Calculate progress through the clip (0 to 1)
-                                            const clipProgress = Math.max(0, Math.min(1, relativeTime / segmentDuration));
+                                            // Convert word timings to be relative to clip start
+                                            const relativeWords = moment.words.map(word => ({
+                                              ...word,
+                                              relativeStart: (word.start || 0) - moment.startTimeSeconds,
+                                              relativeEnd: (word.end || 0) - moment.startTimeSeconds
+                                            }));
                                             
-                                            // Determine which chunk to show based on progress
-                                            const totalChunks = Math.ceil(moment.words.length / wordsPerChunk);
-                                            const currentChunkIndex = Math.floor(clipProgress * totalChunks);
-                                            const chunkIndex = Math.min(currentChunkIndex, totalChunks - 1);
+                                            // Find current word index based on timing
+                                            let currentWordIndex = -1;
+                                            for (let i = 0; i < relativeWords.length; i++) {
+                                              if (relativeTime >= relativeWords[i].relativeStart && relativeTime <= relativeWords[i].relativeEnd) {
+                                                currentWordIndex = i;
+                                                break;
+                                              }
+                                            }
                                             
-                                            const startWordIndex = chunkIndex * wordsPerChunk;
-                                            const endWordIndex = Math.min(startWordIndex + wordsPerChunk - 1, moment.words.length - 1);
-                                            
-                                            if (startWordIndex < moment.words.length) {
-                                              const chunkWords = [];
-                                              for (let i = startWordIndex; i <= endWordIndex; i++) {
-                                                if (moment.words[i]) {
-                                                  chunkWords.push(moment.words[i]);
+                                            // If no exact match, find the closest word that should be active
+                                            if (currentWordIndex === -1) {
+                                              for (let i = 0; i < relativeWords.length; i++) {
+                                                if (relativeTime >= relativeWords[i].relativeStart) {
+                                                  currentWordIndex = i;
+                                                } else {
+                                                  break;
                                                 }
                                               }
+                                            }
+                                            
+                                            if (currentWordIndex >= 0) {
+                                              // Create stable subtitle chunks that fit within the background
+                                              const wordsPerChunk = 6;
+                                              const chunkIndex = Math.floor(currentWordIndex / wordsPerChunk);
+                                              const startIndex = chunkIndex * wordsPerChunk;
+                                              const endIndex = Math.min(startIndex + wordsPerChunk - 1, relativeWords.length - 1);
                                               
-                                              console.log(`📝 Responsive timing: chunk ${chunkIndex}/${totalChunks-1}, words ${startWordIndex}-${endWordIndex}, progress: ${(clipProgress*100).toFixed(1)}%`);
+                                              const chunkWords = relativeWords.slice(startIndex, endIndex + 1);
+                                              console.log(`📝 Stable subtitles: chunk ${chunkIndex}, words ${startIndex}-${endIndex}, current word: ${currentWordIndex}, time: ${relativeTime.toFixed(2)}s`);
                                               
-                                              // Simple text display without word highlighting for better reliability
                                               const chunkText = chunkWords.map(wordObj => wordObj.word || wordObj.text || '').join(' ');
                                               
                                               subtitleOverlay.innerHTML = `
                                                 <div style="
                                                   background: rgba(0,0,0,0.85); 
-                                                  padding: 10px 14px; 
+                                                  padding: 8px 16px; 
                                                   border-radius: 6px; 
                                                   text-align: center; 
-                                                  line-height: 1.4;
+                                                  white-space: nowrap;
+                                                  overflow: hidden;
                                                   max-width: 90%;
-                                                  word-wrap: break-word;
+                                                  box-sizing: border-box;
                                                   color: white;
-                                                  font-size: 18px;
+                                                  font-size: 14px;
                                                   font-weight: 500;
                                                   text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
                                                 ">
@@ -3379,7 +3394,7 @@ const ViralClipGenerator = () => {
                                                 </div>
                                               `;
                                             } else {
-                                              console.log(`❌ No chunk found for progress ${(clipProgress*100).toFixed(1)}%`);
+                                              console.log(`❌ No word found for time ${relativeTime.toFixed(2)}s`);
                                               subtitleOverlay.innerHTML = '';
                                             }
                                           } else {
