@@ -19,7 +19,6 @@ const Pricing = () => {
       { text: "10-minute video limit", included: true, icon: Clock },
       { text: "Maximum 3 clips per video", included: true, icon: Download },
       { text: "Basic viral score", included: true, icon: BarChart3 },
-      { text: "Watermark on clips", included: false, icon: X, note: '"Made with ClipGenius"' },
       { text: "Detailed analytics", included: false, icon: X },
       { text: "Unlimited processing", included: false, icon: X },
     ],
@@ -27,8 +26,6 @@ const Pricing = () => {
       { text: "Unlimited video length", included: true, icon: Clock },
       { text: "Unlimited clips per video", included: true, icon: Download },
       { text: "Detailed viral analytics", included: true, icon: BarChart3 },
-      { text: "No watermarks", included: true, icon: Shield },
-      { text: "Extract every viral moment", included: true, icon: Sparkles },
       { text: "Priority processing", included: true, icon: Zap },
     ]
   };
