@@ -874,10 +874,11 @@ function findTextInTranscript(targetText, fullTranscript, videoDuration) {
     
     // Calculate more precise segment duration based on text length and speaking rate with padding
     const targetWordCount = cleanTarget.split(' ').filter(w => w.length > 0).length;
-    // Use more realistic speaking rate: 120-150 words per minute (0.4-0.5 seconds per word)
-    const estimatedSpeechDuration = Math.max(5, targetWordCount * 0.5); // 0.5 seconds per word (slightly slower)
-    // Add aggressive safety padding of 3 seconds to prevent cut-offs
-    const paddedDuration = estimatedSpeechDuration + 3;
+    // Use realistic speaking rate: 120-150 words per minute (0.4-0.5 seconds per word)
+    const estimatedSpeechDuration = Math.max(15, targetWordCount * 0.45); // Target 15-30 second clips
+    // Add safety padding to ensure complete sentences aren't cut off
+    const paddingSeconds = Math.min(5, estimatedSpeechDuration * 0.2); // 20% padding, max 5 seconds
+    const paddedDuration = estimatedSpeechDuration + paddingSeconds;
     const estimatedEndTime = Math.min(videoDuration, estimatedStartTime + paddedDuration);
     
     console.log(`📍 Text position: ${position}/${cleanTranscript.length} (${(relativePosition * 100).toFixed(1)}%)`);
@@ -911,8 +912,10 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
         
         CRITICAL INSTRUCTIONS:
         - Focus on finding the EXACT TEXT QUOTES from the transcript that would make great viral clips
-        - Each transcript quote should be 10-30 words long for optimal clip length
-        - Find complete sentences or compelling phrases that stand alone
+        - Each transcript quote should be 30-80 words long for 15-30 second clips
+        - MUST start and end at complete sentences - never cut off mid-sentence
+        - Find complete thoughts, compelling narratives, or powerful statements that form a cohesive story
+        - Each clip should tell a complete story with a clear beginning, middle, and end
         - DO NOT provide timestamps - we will calculate those precisely later
         - Return EXACTLY ${clipCount} moments (no more, no less)
         
@@ -973,7 +976,7 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
         Analyze each moment individually for unique characteristics.`
       }, {
         role: 'user',
-        content: `Full Transcript (${transcript.length} characters):\n\n"${transcript}"\n\nUser Tier: ${userTier}\n\nINSTRUCTIONS:\n1. Find the most engaging, quotable, or compelling EXACT TEXT from this transcript\n2. Each moment's transcript field must contain the EXACT words from above (copy-paste precision)\n3. Focus on complete sentences or powerful phrases that would make great standalone clips\n4. Look for hooks, emotional moments, key insights, or surprising statements\n\nReturn JSON with moments array containing ${userTier === 'pro' ? 'detailed analytics' : 'basic analysis'}.`
+        content: `Full Transcript (${transcript.length} characters):\n\n"${transcript}"\n\nUser Tier: ${userTier}\n\nINSTRUCTIONS:\n1. Find the most engaging, quotable, or compelling EXACT TEXT from this transcript\n2. Each moment's transcript field must contain the EXACT words from above (copy-paste precision)\n3. CRITICAL: Each clip must be 15-30 seconds long (30-80 words) and start/end at complete sentences\n4. Look for complete stories, full explanations, or powerful multi-sentence segments\n5. Ensure each clip has a clear narrative arc with beginning, middle, and end\n6. Never cut off mid-sentence - always find natural sentence boundaries\n\nReturn JSON with moments array containing ${userTier === 'pro' ? 'detailed analytics' : 'basic analysis'}.`
       }],
       response_format: { type: 'json_object' },
       temperature: 0.8,

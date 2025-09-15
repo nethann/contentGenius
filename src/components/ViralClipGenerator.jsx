@@ -3358,76 +3358,28 @@ const ViralClipGenerator = () => {
                                           if (moment.words && moment.words.length > 0) {
                                             console.log(`🎯 Using PRECISE word timing for ${moment.title}`);
                                             
-                                            // Find the EXACT current word with precise timing
-                                            let currentWord = null;
-                                            let currentWordIndex = -1;
+                                            // Create responsive subtitle chunks (5-6 words per chunk for better flow)
+                                            const segmentDuration = moment.endTimeSeconds - moment.startTimeSeconds;
+                                            const wordsPerChunk = 6; // Show 6 words at a time for better sentence flow
+                                            const chunkDuration = segmentDuration / Math.ceil(moment.words.length / wordsPerChunk); // Responsive timing
                                             
-                                            for (let i = 0; i < moment.words.length; i++) {
-                                              const wordObj = moment.words[i];
-                                              // Convert absolute word timing to relative clip timing
-                                              const wordStart = (wordObj.start || 0) - moment.startTimeSeconds;
-                                              const wordEnd = (wordObj.end || wordObj.start + 0.3) - moment.startTimeSeconds;
-                                              
-                                              // Debug every word comparison for first few words
-                                              if (i < 5) {
-                                                console.log(`🔍 Word ${i}: "${wordObj.word || wordObj.text}" | originalStart:${wordObj.start.toFixed(3)} clipStart:${wordStart.toFixed(3)} clipEnd:${wordEnd.toFixed(3)} | currentTime:${currentTime.toFixed(3)} | match: ${currentTime >= wordStart && currentTime <= wordEnd}`);
-                                              }
-                                              
-                                              if (currentTime >= wordStart && currentTime <= wordEnd) {
-                                                currentWord = wordObj;
-                                                currentWordIndex = i;
-                                                console.log(`🗣️ CURRENT WORD FOUND:`, {
-                                                  word: wordObj.word || wordObj.text,
-                                                  originalStart: wordObj.start.toFixed(3),
-                                                  clipStart: wordStart.toFixed(3),
-                                                  clipEnd: wordEnd.toFixed(3),
-                                                  currentTime: currentTime.toFixed(3),
-                                                  index: i
-                                                });
-                                                break;
-                                              }
-                                            }
+                                            // Find which chunk we should be showing based on time
+                                            const chunkIndex = Math.floor(currentTime / chunkDuration);
+                                            const startWordIndex = chunkIndex * wordsPerChunk;
+                                            const endWordIndex = Math.min(startWordIndex + wordsPerChunk - 1, moment.words.length - 1);
                                             
-                                            if (currentWord || moment.words.length > 0) {
-                                              // Show context words (current + surrounding)
-                                              const contextRange = 5; // Show 5 words before and after
-                                              const startIndex = Math.max(0, currentWordIndex - contextRange);
-                                              const endIndex = Math.min(moment.words.length - 1, currentWordIndex + contextRange);
-                                              
-                                              const contextWords = [];
-                                              for (let i = startIndex; i <= endIndex; i++) {
+                                            if (startWordIndex < moment.words.length) {
+                                              const chunkWords = [];
+                                              for (let i = startWordIndex; i <= endWordIndex; i++) {
                                                 if (moment.words[i]) {
-                                                  contextWords.push({ ...moment.words[i], index: i });
+                                                  chunkWords.push(moment.words[i]);
                                                 }
                                               }
                                               
-                                              console.log(`📝 Showing ${contextWords.length} context words (${startIndex}-${endIndex})`);
+                                              console.log(`📝 Showing chunk ${chunkIndex}: words ${startWordIndex}-${endWordIndex} (${chunkWords.length} words)`);
                                               
-                                              // Create clean word highlighting - current word slightly bigger
-                                              const wordElements = contextWords.map((wordObj, relativeIndex) => {
-                                                const word = wordObj.word || wordObj.text || '';
-                                                const wordStart = wordObj.start || 0;
-                                                const wordEnd = wordObj.end || wordStart + 0.3;
-                                                const isCurrentWord = wordObj.index === currentWordIndex;
-                                                
-                                                if (isCurrentWord && currentWord) {
-                                                  // Currently speaking - yellow highlight
-                                                  return `<span style="
-                                                    color: #FFFF00; 
-                                                    font-size: 18px; 
-                                                    font-weight: 600; 
-                                                    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-                                                  ">${word}</span>`;
-                                                } else {
-                                                  // All other words - normal white
-                                                  return `<span style="
-                                                    color: white; 
-                                                    font-size: 18px; 
-                                                    font-weight: 500;
-                                                    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-                                                  ">${word}</span>`;
-                                                }
-                                              }).join(' ');
+                                              // Create simple text without individual word highlighting
+                                              const chunkText = chunkWords.map(wordObj => wordObj.word || wordObj.text || '').join(' ');
                                               
                                               subtitleOverlay.innerHTML = `
                                                 <div style="
@@ -3438,12 +3390,16 @@ const ViralClipGenerator = () => {
                                                   line-height: 1.4;
                                                   max-width: 90%;
                                                   word-wrap: break-word;
+                                                  color: white;
+                                                  font-size: 18px;
+                                                  font-weight: 500;
+                                                  text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
                                                 ">
-                                                  ${wordElements}
+                                                  ${chunkText}
                                                 </div>
                                               `;
                                             } else {
-                                              console.log(`❌ No current or context words found for time ${currentTime.toFixed(3)}`);
+                                              console.log(`❌ No chunk found for time ${currentTime.toFixed(3)}`);
                                               subtitleOverlay.innerHTML = '';
                                             }
                                           } else {
