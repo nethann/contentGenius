@@ -30,7 +30,8 @@
       "mcp__ide__getDiagnostics",
       "Bash(dir \"C:\\Users\\netha\\Documents\\Programming\\ReactApps\\content-scalar\\server\\uploads\" /s)",
       "Bash(netstat:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(copy .env server.env)"
     ],
     "deny": [],
     "ask": [],
