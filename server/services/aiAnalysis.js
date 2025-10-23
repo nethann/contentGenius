@@ -907,26 +907,28 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
     console.log('🔍 Words count:', transcriptionData.words?.length || 0);
     
     const clipCount = userTier === 'guest' ? 3 : 5;
-    const basePrompt = `You are an expert at identifying viral moments in video content. 
+    const basePrompt = `You are an expert at identifying viral moments in video content.
         Analyze the transcript and identify ${clipCount} segments with the highest viral potential.
-        
+
         CRITICAL INSTRUCTIONS:
         - Focus on finding the EXACT TEXT QUOTES from the transcript that would make great viral clips
-        - Each transcript quote should be 30-80 words long for 15-30 second clips
+        - Each transcript quote should be 120-250 words long for complete 60-90 second story segments
         - MUST start and end at complete sentences - never cut off mid-sentence
         - Find complete thoughts, compelling narratives, or powerful statements that form a cohesive story
-        - Each clip should tell a complete story with a clear beginning, middle, and end
+        - Each clip should tell a COMPLETE STORY with a clear beginning, middle, and end
+        - The segments should contain full concepts, explanations, or narratives - NOT just short quotes
+        - Look for segments that introduce a concept, explain it, and provide examples or conclusions
         - DO NOT provide timestamps - we will calculate those precisely later
         - Return EXACTLY ${clipCount} moments (no more, no less)
-        
+
         Return a JSON object with a "moments" array, each moment having:
-        - title (descriptive name)
+        - title (descriptive name for the complete story)
         - viralScore (0-100)
         - category (engaging/educational/funny/emotional)
-        - reasoning (why this moment is viral)
-        - transcript (EXACT text from the original transcript - must match word for word)
-        
-        IMPORTANT: The 'transcript' field must contain the EXACT words from the provided transcript text, with precise punctuation and capitalization. This will be used for precise timing alignment.`;
+        - reasoning (why this complete story segment is viral)
+        - transcript (EXACT text from the original transcript - must match word for word and tell a complete story)
+
+        IMPORTANT: The 'transcript' field must contain the EXACT words from the provided transcript text, with precise punctuation and capitalization. This will be used for precise timing alignment. Focus on COMPLETE STORIES, not short snippets.`;
     
     const proAnalytics = userTier === 'pro' ? `
         
@@ -976,11 +978,11 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
         Analyze each moment individually for unique characteristics.`
       }, {
         role: 'user',
-        content: `Full Transcript (${transcript.length} characters):\n\n"${transcript}"\n\nUser Tier: ${userTier}\n\nINSTRUCTIONS:\n1. Find the most engaging, quotable, or compelling EXACT TEXT from this transcript\n2. Each moment's transcript field must contain the EXACT words from above (copy-paste precision)\n3. CRITICAL: Each clip must be 15-30 seconds long (30-80 words) and start/end at complete sentences\n4. Look for complete stories, full explanations, or powerful multi-sentence segments\n5. Ensure each clip has a clear narrative arc with beginning, middle, and end\n6. Never cut off mid-sentence - always find natural sentence boundaries\n\nReturn JSON with moments array containing ${userTier === 'pro' ? 'detailed analytics' : 'basic analysis'}.`
+        content: `Full Transcript (${transcript.length} characters):\n\n"${transcript}"\n\nUser Tier: ${userTier}\n\nINSTRUCTIONS:\n1. Find the most engaging, quotable, or compelling EXACT TEXT from this transcript\n2. Each moment's transcript field must contain the EXACT words from above (copy-paste precision)\n3. CRITICAL: Each clip must be 60-90 seconds long (120-250 words) and tell a COMPLETE STORY\n4. Look for complete thoughts, full explanations, or powerful multi-paragraph segments\n5. Ensure each clip has a clear narrative arc with beginning, middle, and end - complete concepts, not snippets\n6. Never cut off mid-sentence - always find natural sentence boundaries\n7. Focus on segments that introduce, explain, and conclude ideas - full stories from start to finish\n\nReturn JSON with moments array containing ${userTier === 'pro' ? 'detailed analytics' : 'basic analysis'}.`
       }],
       response_format: { type: 'json_object' },
       temperature: 0.8,
-      max_tokens: userTier === 'pro' ? 3000 : 2000
+      max_tokens: userTier === 'pro' ? 5000 : 4000
     });
 
     const responseContent = completion.choices[0].message.content;

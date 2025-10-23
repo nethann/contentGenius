@@ -482,6 +482,9 @@ async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitl
 
     if (!subtitles || subtitles.length === 0) {
       console.log('⚠️ No subtitles provided, creating video without subtitles');
+      console.log('🔍 DEBUG: subtitles value:', subtitles);
+      console.log('🔍 DEBUG: subtitles type:', typeof subtitles);
+      console.log('🔍 DEBUG: subtitles is array:', Array.isArray(subtitles));
       
       // Calculate duration based on when the last word actually ends (for precise ending)
       let calculatedDuration = endTime - startTime;
@@ -542,6 +545,7 @@ async function generateVideoWithSubtitles(videoPath, startTime, endTime, subtitl
 
     // Create ASS file with word-by-word highlighting to match preview
     console.log(`📝 Creating ASS file with word highlighting for ${subtitles.length} subtitle segments`);
+    console.log('🔍 DEBUG: About to process subtitles:', JSON.stringify(subtitles.slice(0, 2), null, 2));
     
     let assContent = `[Script Info]
 Title: Generated Subtitles with Word Highlighting
@@ -1123,6 +1127,11 @@ app.post('/api/download-video', async (req, res) => {
       hasSubtitles: !!subtitles?.length,
       hasWords: !!words?.length
     });
+
+    // Debug: Log the actual subtitles data
+    console.log('🔍 DEBUG: Received subtitles array:', JSON.stringify(subtitles, null, 2));
+    console.log('🔍 DEBUG: Subtitles length:', subtitles?.length);
+    console.log('🔍 DEBUG: First subtitle sample:', subtitles?.[0]);
 
     if (!filename || startTime === undefined || endTime === undefined) {
       return res.status(400).json({ error: 'Missing required parameters' });

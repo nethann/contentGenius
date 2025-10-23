@@ -792,8 +792,8 @@ const ViralClipGenerator = () => {
     captionsOverlay.id = 'subtitles-overlay-' + Date.now(); // Unique ID for debugging
     captionsOverlay.style.cssText = `
       position: absolute; bottom: 20px; left: 10px; right: 10px;
-      color: #FFFF00; padding: 8px 12px; border-radius: 6px; 
-      font-size: 18px; font-weight: 600; text-align: center; 
+      color: #FFFF00; padding: 8px 12px; border-radius: 6px;
+      font-size: 18px; font-weight: 600; text-align: center;
       line-height: 1.4; letter-spacing: 0.3px;
       text-shadow: 2px 2px 4px rgba(0,0,0,1), -1px -1px 2px rgba(0,0,0,1);
       opacity: 1; transition: opacity 0.2s ease;
@@ -807,6 +807,10 @@ const ViralClipGenerator = () => {
       display: flex;
       align-items: center;
       justify-content: center;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+      max-width: calc(100% - 20px);
     `;
     
     console.log('🎯 Created captions overlay with ID:', captionsOverlay.id);
@@ -1003,10 +1007,12 @@ const ViralClipGenerator = () => {
             }).join(' ');
             
             captionsOverlay.innerHTML = `
-              <div style="color: #FFFFFF; font-size: 18px; font-weight: 500; font-family: Arial, sans-serif; 
-                          background: rgba(0,0,0,0.85); padding: 8px 12px; border-radius: 6px; 
-                          text-align: center; line-height: 1.4; max-width: 80%; margin: 0 auto;
-                          box-shadow: 0 2px 8px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2);">
+              <div style="color: #FFFFFF; font-size: 18px; font-weight: 500; font-family: Arial, sans-serif;
+                          background: rgba(0,0,0,0.85); padding: 8px 12px; border-radius: 6px;
+                          text-align: center; line-height: 1.4; max-width: 90%; margin: 0 auto;
+                          box-shadow: 0 2px 8px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2);
+                          word-wrap: break-word; overflow-wrap: break-word; white-space: normal;
+                          hyphens: auto; word-break: break-word;"
                 ${subtitleText}
               </div>
             `;
@@ -1047,10 +1053,12 @@ const ViralClipGenerator = () => {
           if (currentChunk) {
             console.log('🎯 Showing chunk:', currentChunk.text);
             captionsOverlay.innerHTML = `
-              <div style="color: #FFFFFF; font-size: 18px; font-weight: 500; font-family: Arial, sans-serif; 
-                          background: rgba(0,0,0,0.85); padding: 8px 12px; border-radius: 6px; 
-                          text-align: center; line-height: 1.4; max-width: 80%; margin: 0 auto;
-                          box-shadow: 0 2px 8px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2);">
+              <div style="color: #FFFFFF; font-size: 18px; font-weight: 500; font-family: Arial, sans-serif;
+                          background: rgba(0,0,0,0.85); padding: 8px 12px; border-radius: 6px;
+                          text-align: center; line-height: 1.4; max-width: 90%; margin: 0 auto;
+                          box-shadow: 0 2px 8px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2);
+                          word-wrap: break-word; overflow-wrap: break-word; white-space: normal;
+                          hyphens: auto; word-break: break-word;"
                 ${currentChunk.text}
               </div>
             `;
@@ -1605,6 +1613,130 @@ const ViralClipGenerator = () => {
     }
     
     return subtitles;
+  };
+
+  // Silent download function that doesn't change UI state
+  const downloadVideoWithSubtitlesQuiet = async (moment, customAspectRatio = null, buttonElement = null) => {
+    console.log('🔥🔥🔥 SILENT DOWNLOAD FUNCTION CALLED! 🔥🔥🔥');
+    console.log('🔥 Moment:', moment);
+    console.log('🔥 Selected aspect ratio:', customAspectRatio || selectedAspectRatio);
+
+    // Update button to show loading state
+    if (buttonElement) {
+      buttonElement.innerHTML = '⏳ Generating...';
+      buttonElement.disabled = true;
+      buttonElement.style.opacity = '0.7';
+    }
+
+    // Check if we have the necessary file info
+    if (!uploadedFileInfo) {
+      console.error('❌ No uploadedFileInfo available for download');
+      alert('File not available. Please re-upload your file.');
+      if (buttonElement) {
+        buttonElement.innerHTML = '⬇️ Download Short';
+        buttonElement.disabled = false;
+        buttonElement.style.opacity = '1';
+      }
+      return;
+    }
+
+    const activeFileInfo = uploadedFileInfo;
+    console.log('🔥 Active file info:', activeFileInfo);
+
+    // Check if we have transcript data (which we use for subtitles)
+    if (!moment.transcript || moment.transcript.length === 0) {
+      alert('No transcript data available for subtitles');
+      if (buttonElement) {
+        buttonElement.innerHTML = '⬇️ Download Short';
+        buttonElement.disabled = false;
+        buttonElement.style.opacity = '1';
+      }
+      return;
+    }
+
+    console.log('🎯 Creating subtitles from transcript for download:', moment.transcript.substring(0, 100) + '...');
+
+    // Create subtitles and log them for debugging
+    const generatedSubtitles = createSubtitlesFromTranscript(moment);
+    console.log('🎯 Generated subtitles for server:', generatedSubtitles);
+
+    // Check tier restrictions for clip downloads
+    const tierLimits = getTierLimits();
+    if (downloadedClipsCount >= tierLimits.maxClipsPerVideo) {
+      alert(`You've reached your ${tierLimits.name} tier limit of ${tierLimits.maxClipsPerVideo} clips per video. Please upgrade to Pro for unlimited clips.`);
+      if (buttonElement) {
+        buttonElement.innerHTML = '⬇️ Download Short';
+        buttonElement.disabled = false;
+        buttonElement.style.opacity = '1';
+      }
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/download-video`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          filename: activeFileInfo.filename,
+          startTime: moment.startTimeSeconds,
+          endTime: moment.endTimeSeconds,
+          subtitles: generatedSubtitles,
+          words: moment.words || [], // Include word-level timestamps for karaoke highlighting
+          segmentId: moment.id,
+          userTier: userTier,
+          hasWatermark: userTier === 'guest',
+          aspectRatio: customAspectRatio || selectedAspectRatio || '9:16',
+          cropPosition: selectedCropPosition || 'center'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+
+      // Create a blob from the response and trigger download
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `segment-${moment.id}-with-subtitles.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      console.log('✅ Video downloaded successfully');
+
+      // Increment downloaded clips count for tier restrictions
+      setDownloadedClipsCount(prev => prev + 1);
+
+      // Show success state briefly
+      if (buttonElement) {
+        buttonElement.innerHTML = '✅ Downloaded!';
+        buttonElement.style.background = 'linear-gradient(45deg, #10b981, #059669)';
+        setTimeout(() => {
+          buttonElement.innerHTML = '⬇️ Download Short';
+          buttonElement.style.background = 'linear-gradient(45deg, #0ea5e9, #3b82f6)';
+          buttonElement.disabled = false;
+          buttonElement.style.opacity = '1';
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      alert(`Download failed: ${error.message}`);
+      if (buttonElement) {
+        buttonElement.innerHTML = '❌ Failed';
+        buttonElement.style.background = 'linear-gradient(45deg, #ef4444, #dc2626)';
+        setTimeout(() => {
+          buttonElement.innerHTML = '⬇️ Download Short';
+          buttonElement.style.background = 'linear-gradient(45deg, #0ea5e9, #3b82f6)';
+          buttonElement.disabled = false;
+          buttonElement.style.opacity = '1';
+        }, 2000);
+      }
+    }
   };
 
   const downloadVideoWithSubtitles = async (moment, customAspectRatio = null) => {
@@ -3595,7 +3727,7 @@ const ViralClipGenerator = () => {
                                       const selectElement = document.getElementById(`aspect-select-${moment.id}`);
                                       const selectedRatio = selectElement.value;
                                       console.log('📥 Downloading with aspect ratio:', selectedRatio);
-                                      downloadVideoWithSubtitles(moment, selectedRatio);
+                                      downloadVideoWithSubtitlesQuiet(moment, selectedRatio, e.target);
                                     }}
                                     style={{
                                       padding: '12px 24px',
