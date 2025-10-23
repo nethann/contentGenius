@@ -897,6 +897,260 @@ function findTextInTranscript(targetText, fullTranscript, videoDuration) {
 }
 
 /**
+ * Detect sentence boundaries in transcript for better clip extraction
+ * Identifies natural break points: sentence endings, long pauses, paragraph breaks
+ *
+ * @param {string} transcript - Full transcript text
+ * @param {Array} words - Word-level timing data from Whisper
+ * @returns {Array} Array of boundary objects with {position, timestamp, type, confidence}
+ */
+function detectSentenceBoundaries(transcript, words) {
+  console.log('📍 Detecting sentence boundaries in transcript...');
+  const boundaries = [];
+
+  // 1. SENTENCE ENDING DETECTION (. ! ? followed by space and capital letter)
+  const sentenceEndingRegex = /[.!?]+[\s]+(?=[A-Z])/g;
+  let match;
+  while ((match = sentenceEndingRegex.exec(transcript)) !== null) {
+    const position = match.index + match[0].length;
+    boundaries.push({
+      position: position,
+      type: 'sentence_end',
+      confidence: 1.0,
+      context: transcript.substring(Math.max(0, position - 20), Math.min(transcript.length, position + 20))
+    });
+  }
+
+  // 2. LONG PAUSE DETECTION (>1.5s gaps between words in Whisper data)
+  if (words && words.length > 1) {
+    for (let i = 0; i < words.length - 1; i++) {
+      const currentWord = words[i];
+      const nextWord = words[i + 1];
+
+      if (currentWord.end && nextWord.start) {
+        const pauseDuration = nextWord.start - currentWord.end;
+
+        // Significant pause indicates natural break (speaker paused to think/breathe)
+        if (pauseDuration > 1.5) {
+          boundaries.push({
+            position: null, // Will be mapped to text position
+            timestamp: currentWord.end,
+            type: 'long_pause',
+            pauseDuration: pauseDuration,
+            confidence: Math.min(0.9, pauseDuration / 3.0), // Higher confidence for longer pauses
+            wordBefore: currentWord.word,
+            wordAfter: nextWord.word
+          });
+        }
+      }
+    }
+  }
+
+  // 3. PARAGRAPH/LINE BREAK DETECTION (double newlines)
+  const paragraphBreaks = /\n\n+/g;
+  while ((match = paragraphBreaks.exec(transcript)) !== null) {
+    boundaries.push({
+      position: match.index,
+      type: 'paragraph_break',
+      confidence: 0.8,
+      context: transcript.substring(Math.max(0, match.index - 20), Math.min(transcript.length, match.index + 20))
+    });
+  }
+
+  // Sort boundaries by position/timestamp
+  boundaries.sort((a, b) => {
+    const posA = a.position !== null ? a.position : (a.timestamp || 0) * 100;
+    const posB = b.position !== null ? b.position : (b.timestamp || 0) * 100;
+    return posA - posB;
+  });
+
+  console.log(`📍 Found ${boundaries.length} sentence boundaries:`, {
+    sentence_ends: boundaries.filter(b => b.type === 'sentence_end').length,
+    long_pauses: boundaries.filter(b => b.type === 'long_pause').length,
+    paragraph_breaks: boundaries.filter(b => b.type === 'paragraph_break').length
+  });
+
+  return boundaries;
+}
+
+/**
+ * Validate and fix clip boundaries to ensure clean starts/ends
+ * Checks for mid-sentence starts/ends and auto-extends to nearest sentence boundary
+ *
+ * @param {Object} moment - Viral moment object with transcript, startTime, endTime
+ * @param {string} fullTranscript - Complete video transcript
+ * @param {Array} words - Word-level timing data
+ * @param {Array} boundaries - Detected sentence boundaries
+ * @param {number} videoDuration - Total video duration in seconds
+ * @returns {Object} Validated moment with adjustedStartTime, adjustedEndTime, and quality metrics
+ */
+function validateClipBoundaries(moment, fullTranscript, words, boundaries, videoDuration) {
+  console.log(`\n🔍 VALIDATING CLIP BOUNDARIES: "${moment.title}"`);
+
+  const issues = [];
+  let adjustedStartTime = moment.startTime || moment.startTimeSeconds;
+  let adjustedEndTime = moment.endTime || moment.endTimeSeconds;
+  const originalDuration = adjustedEndTime - adjustedStartTime;
+
+  // VALIDATION 1: Check if clip starts mid-sentence (lowercase first character after trimming)
+  const clipText = (moment.transcript || '').trim();
+  const firstChar = clipText.charAt(0);
+  const startsWithLowercase = firstChar === firstChar.toLowerCase() && /[a-z]/.test(firstChar);
+
+  if (startsWithLowercase) {
+    issues.push({
+      type: 'starts_mid_sentence',
+      severity: 'high',
+      detail: `Starts with lowercase: "${clipText.substring(0, 30)}..."`
+    });
+  }
+
+  // VALIDATION 2: Check if clip ends mid-sentence (no ending punctuation)
+  const lastChar = clipText.charAt(clipText.length - 1);
+  const endsWithoutPunctuation = !['.', '!', '?', '"', "'"].includes(lastChar);
+
+  if (endsWithoutPunctuation) {
+    issues.push({
+      type: 'ends_mid_sentence',
+      severity: 'high',
+      detail: `Ends without punctuation: "...${clipText.substring(clipText.length - 30)}"`
+    });
+  }
+
+  // VALIDATION 3: Check for missing context (Q&A detection)
+  // If clip starts with "So", "Well", "Because", "That's" - might be missing question
+  const contextWords = ['so', 'well', 'because', "that's", 'it', 'this', 'they', 'he', 'she'];
+  const firstWord = clipText.split(' ')[0]?.toLowerCase();
+
+  if (contextWords.includes(firstWord) && clipText.length < 200) {
+    issues.push({
+      type: 'missing_context',
+      severity: 'medium',
+      detail: `May be missing context (starts with "${firstWord}")`
+    });
+  }
+
+  // VALIDATION 4: Check clip duration (should be 50-100 seconds ideally)
+  if (originalDuration < 30) {
+    issues.push({
+      type: 'too_short',
+      severity: 'medium',
+      detail: `Duration ${originalDuration.toFixed(1)}s is very short`
+    });
+  } else if (originalDuration > 120) {
+    issues.push({
+      type: 'too_long',
+      severity: 'low',
+      detail: `Duration ${originalDuration.toFixed(1)}s is quite long`
+    });
+  }
+
+  console.log(`📊 Issues found: ${issues.length}`, issues.map(i => i.type));
+
+  // AUTO-FIX: Extend boundaries to nearest sentence if there are issues
+  const maxExtension = 15; // Maximum 15 seconds extension in either direction
+
+  if (startsWithLowercase || issues.some(i => i.type === 'missing_context')) {
+    // Find previous sentence boundary and extend start time backward
+    console.log('🔧 Attempting to extend START boundary backward...');
+
+    // Find the word at current start time
+    const startWord = words?.find(w => Math.abs(w.start - adjustedStartTime) < 2);
+
+    if (startWord) {
+      // Look backward for a sentence boundary (word ending with . ! ?)
+      for (let i = words.indexOf(startWord) - 1; i >= 0; i--) {
+        const word = words[i];
+        const hasEndPunctuation = /[.!?]$/.test(word.word);
+
+        if (hasEndPunctuation) {
+          const potentialNewStart = word.end;
+          const extension = adjustedStartTime - potentialNewStart;
+
+          if (extension <= maxExtension && extension > 0) {
+            console.log(`✅ Extended START by ${extension.toFixed(1)}s to sentence boundary at "${word.word}"`);
+            adjustedStartTime = potentialNewStart;
+            issues.push({
+              type: 'auto_fix_start',
+              severity: 'info',
+              detail: `Extended start by ${extension.toFixed(1)}s to include complete sentence`
+            });
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (endsWithoutPunctuation) {
+    // Find next sentence boundary and extend end time forward
+    console.log('🔧 Attempting to extend END boundary forward...');
+
+    // Find the word at current end time
+    const endWord = words?.find(w => Math.abs(w.end - adjustedEndTime) < 2);
+
+    if (endWord) {
+      // Look forward for a sentence boundary
+      for (let i = words.indexOf(endWord) + 1; i < words.length; i++) {
+        const word = words[i];
+        const hasEndPunctuation = /[.!?]$/.test(word.word);
+
+        if (hasEndPunctuation) {
+          const potentialNewEnd = word.end;
+          const extension = potentialNewEnd - adjustedEndTime;
+
+          if (extension <= maxExtension && potentialNewEnd <= videoDuration) {
+            console.log(`✅ Extended END by ${extension.toFixed(1)}s to sentence boundary at "${word.word}"`);
+            adjustedEndTime = potentialNewEnd;
+            issues.push({
+              type: 'auto_fix_end',
+              severity: 'info',
+              detail: `Extended end by ${extension.toFixed(1)}s to complete sentence`
+            });
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Calculate quality metrics
+  const finalDuration = adjustedEndTime - adjustedStartTime;
+  const durationChange = finalDuration - originalDuration;
+  const wasAdjusted = Math.abs(durationChange) > 0.1;
+
+  const qualityScore = 100 - (issues.filter(i => i.severity === 'high').length * 30)
+                           - (issues.filter(i => i.severity === 'medium').length * 15)
+                           - (issues.filter(i => i.severity === 'low').length * 5);
+
+  console.log(`📊 VALIDATION RESULTS:`, {
+    originalDuration: `${originalDuration.toFixed(1)}s`,
+    adjustedDuration: `${finalDuration.toFixed(1)}s`,
+    durationChange: `${durationChange > 0 ? '+' : ''}${durationChange.toFixed(1)}s`,
+    wasAdjusted,
+    qualityScore: `${qualityScore}/100`,
+    issuesFound: issues.length
+  });
+
+  return {
+    ...moment,
+    startTime: adjustedStartTime,
+    endTime: adjustedEndTime,
+    startTimeSeconds: adjustedStartTime,
+    endTimeSeconds: adjustedEndTime,
+    originalStartTime: moment.startTime || moment.startTimeSeconds,
+    originalEndTime: moment.endTime || moment.endTimeSeconds,
+    boundaryAdjustment: {
+      wasAdjusted,
+      startExtension: adjustedStartTime - (moment.startTime || moment.startTimeSeconds),
+      endExtension: adjustedEndTime - (moment.endTime || moment.endTimeSeconds),
+      issues,
+      qualityScore
+    }
+  };
+}
+
+/**
  * Identify best moments in transcript for viral clips with individual analytics
  */
 export async function identifyViralMoments(transcript, transcriptionData, userTier = 'guest', videoDuration = null) {
@@ -907,28 +1161,65 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
     console.log('🔍 Words count:', transcriptionData.words?.length || 0);
     
     const clipCount = userTier === 'guest' ? 3 : 5;
-    const basePrompt = `You are an expert at identifying viral moments in video content.
+    const basePrompt = `You are an expert at identifying viral moments in video content for PODCASTERS.
         Analyze the transcript and identify ${clipCount} segments with the highest viral potential.
 
-        CRITICAL INSTRUCTIONS:
-        - Focus on finding the EXACT TEXT QUOTES from the transcript that would make great viral clips
-        - Each transcript quote should be 120-250 words long for complete 60-90 second story segments
-        - MUST start and end at complete sentences - never cut off mid-sentence
-        - Find complete thoughts, compelling narratives, or powerful statements that form a cohesive story
-        - Each clip should tell a COMPLETE STORY with a clear beginning, middle, and end
-        - The segments should contain full concepts, explanations, or narratives - NOT just short quotes
-        - Look for segments that introduce a concept, explain it, and provide examples or conclusions
+        🎯 SENTENCE BOUNDARY RULES (CRITICAL - This fixes OpusClip's #1 problem):
+
+        1. ALWAYS START CLIPS AT SENTENCE BEGINNINGS:
+           ✅ GOOD: "So I was walking down the street when..."
+           ❌ BAD: "walking down the street when..." (mid-sentence)
+           - First character MUST be capitalized (capital letter after a period/question mark/exclamation)
+           - If it's a response/answer, include the QUESTION too for context
+
+        2. ALWAYS END CLIPS AT SENTENCE ENDINGS:
+           ✅ GOOD: "...and that's how I learned to code."
+           ❌ BAD: "...and that's how I learned to" (incomplete thought)
+           - Last character should be punctuation: . ! ? " '
+           - Complete the thought fully - don't cut off mid-sentence
+
+        3. INCLUDE CONTEXT FOR Q&A:
+           ✅ GOOD: "Host: What's your biggest mistake? Guest: Well, I once deleted production..."
+           ❌ BAD: "Well, I once deleted production..." (missing question setup)
+           - If clip is an answer, include the question that prompted it
+           - If it's a punchline, include the setup
+
+        4. FLEXIBLE DURATION (50-100 seconds):
+           - Target 120-250 words but prioritize COMPLETENESS over strict word count
+           - 50-100 seconds of content is ideal (150-250 words usually)
+           - It's OK to go shorter (30s+) or longer (up to 120s) if needed for sentence boundaries
+           - NEVER sacrifice story completeness for hitting exact duration targets
+
+        📝 CONTENT SELECTION CRITERIA:
+        - Find complete thoughts, compelling narratives, or powerful statements
+        - Each clip should tell a COMPLETE STORY with beginning, middle, and end
+        - Look for segments that introduce a concept, explain it, and provide examples/conclusions
+        - Strong hooks, emotional peaks, surprising revelations, quotable moments
+        - Educational insights, funny/entertaining segments with full context
+
+        ⚙️ TECHNICAL REQUIREMENTS:
         - DO NOT provide timestamps - we will calculate those precisely later
         - Return EXACTLY ${clipCount} moments (no more, no less)
+        - The 'transcript' field must contain EXACT words from the provided transcript
+        - Copy-paste precision with accurate punctuation and capitalization
+        - Each transcript should be standalone and make sense without the full video
 
         Return a JSON object with a "moments" array, each moment having:
         - title (descriptive name for the complete story)
         - viralScore (0-100)
         - category (engaging/educational/funny/emotional)
-        - reasoning (why this complete story segment is viral)
-        - transcript (EXACT text from the original transcript - must match word for word and tell a complete story)
+        - reasoning (why this complete story segment is viral AND why boundaries are clean)
+        - transcript (EXACT text from original - MUST start with capital letter and end with punctuation)
 
-        IMPORTANT: The 'transcript' field must contain the EXACT words from the provided transcript text, with precise punctuation and capitalization. This will be used for precise timing alignment. Focus on COMPLETE STORIES, not short snippets.`;
+        🏆 QUALITY EXAMPLES:
+
+        GOOD CLIP (starts at sentence beginning, ends at sentence end, includes context):
+        "Host: What was your biggest failure in business? Guest: Oh man, so I once invested $50,000 into a product without testing the market first. Within three months, I had 10,000 units sitting in a warehouse that nobody wanted. But here's what I learned - that failure taught me more about customer validation than any success ever could. Now I never launch anything without talking to at least 100 potential customers first."
+
+        BAD CLIP (missing context, starts mid-sentence, ends incomplete):
+        "invested $50,000 into a product without testing the market first. Within three months, I had 10,000 units sitting in a warehouse that nobody wanted. But here's what I"
+
+        Focus on COMPLETE STORIES with CLEAN BOUNDARIES. This is what makes clips shareable and professional.`;
     
     const proAnalytics = userTier === 'pro' ? `
         
@@ -978,7 +1269,7 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
         Analyze each moment individually for unique characteristics.`
       }, {
         role: 'user',
-        content: `Full Transcript (${transcript.length} characters):\n\n"${transcript}"\n\nUser Tier: ${userTier}\n\nINSTRUCTIONS:\n1. Find the most engaging, quotable, or compelling EXACT TEXT from this transcript\n2. Each moment's transcript field must contain the EXACT words from above (copy-paste precision)\n3. CRITICAL: Each clip must be 60-90 seconds long (120-250 words) and tell a COMPLETE STORY\n4. Look for complete thoughts, full explanations, or powerful multi-paragraph segments\n5. Ensure each clip has a clear narrative arc with beginning, middle, and end - complete concepts, not snippets\n6. Never cut off mid-sentence - always find natural sentence boundaries\n7. Focus on segments that introduce, explain, and conclude ideas - full stories from start to finish\n\nReturn JSON with moments array containing ${userTier === 'pro' ? 'detailed analytics' : 'basic analysis'}.`
+        content: `Full Transcript (${transcript.length} characters):\n\n"${transcript}"\n\nUser Tier: ${userTier}\n\n🎯 YOUR MISSION:\n1. Find ${clipCount} COMPLETE, STANDALONE stories from this transcript\n2. Each must START with a capital letter (sentence beginning) and END with punctuation (. ! ? " ')\n3. Include context: If it's an answer, include the question. If it's a punchline, include the setup.\n4. Target 50-100 seconds (150-250 words) but prioritize COMPLETENESS over exact duration\n5. NEVER start mid-sentence or end incomplete - this is the #1 quality issue to avoid\n6. Copy exact text with precise capitalization and punctuation\n\n⚠️ REMEMBER: Clean boundaries = professional clips = higher viral potential\n\nReturn JSON with moments array containing ${userTier === 'pro' ? 'detailed analytics' : 'basic analysis'}.`
       }],
       response_format: { type: 'json_object' },
       temperature: 0.8,
@@ -1013,14 +1304,20 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
       }
       
       console.log('🔍 Processing', moments.length, 'moments for precise timing');
-      
+
       // Enforce clip limits based on user tier
       const maxClips = userTier === 'guest' ? 3 : 5;
       if (moments.length > maxClips) {
         console.log(`🔒 Limiting ${userTier} tier to ${maxClips} clips (was ${moments.length})`);
         moments = moments.slice(0, maxClips);
       }
-      
+
+      // STEP 1: Detect sentence boundaries in the full transcript for validation
+      console.log('\n📍 STEP 1: Detecting sentence boundaries for validation...');
+      const sentenceBoundaries = detectSentenceBoundaries(transcript, transcriptionData.words);
+
+      // STEP 2: Find precise timestamps for each moment
+      console.log('\n🎯 STEP 2: Finding precise timestamps for all moments...');
       // MULTI-LAYERED timing search with priority order for better accuracy
       const preciselyTimedMoments = moments.map((moment, index) => {
         console.log(`🔍 Processing moment ${index + 1}: "${moment.transcript?.substring(0, 50)}..."`);
@@ -1151,9 +1448,76 @@ export async function identifyViralMoments(transcript, transcriptionData, userTi
           preciseTimingUsed: confidence > 0.6
         };
       });
-      
-      console.log('✅ Processed all moments with timing data');
-      return preciselyTimedMoments;
+
+      // STEP 3: Validate and fix clip boundaries
+      console.log('\n🔍 STEP 3: Validating clip boundaries and auto-fixing issues...');
+      const validatedMoments = preciselyTimedMoments.map((moment, index) => {
+        return validateClipBoundaries(
+          moment,
+          transcript,
+          transcriptionData.words,
+          sentenceBoundaries,
+          videoDuration
+        );
+      });
+
+      // STEP 4: Calculate and log quality metrics
+      console.log('\n📊 STEP 4: Quality metrics summary:');
+      console.log('═══════════════════════════════════════════════════════════');
+
+      const qualityMetrics = {
+        totalClips: validatedMoments.length,
+        adjusted: validatedMoments.filter(m => m.boundaryAdjustment.wasAdjusted).length,
+        averageQualityScore: validatedMoments.reduce((sum, m) => sum + m.boundaryAdjustment.qualityScore, 0) / validatedMoments.length,
+        totalIssuesFound: validatedMoments.reduce((sum, m) => sum + m.boundaryAdjustment.issues.length, 0),
+        issuesByType: {},
+        averageStartExtension: 0,
+        averageEndExtension: 0
+      };
+
+      // Group issues by type
+      validatedMoments.forEach(m => {
+        m.boundaryAdjustment.issues.forEach(issue => {
+          qualityMetrics.issuesByType[issue.type] = (qualityMetrics.issuesByType[issue.type] || 0) + 1;
+        });
+
+        if (m.boundaryAdjustment.wasAdjusted) {
+          qualityMetrics.averageStartExtension += m.boundaryAdjustment.startExtension;
+          qualityMetrics.averageEndExtension += m.boundaryAdjustment.endExtension;
+        }
+      });
+
+      qualityMetrics.averageStartExtension = qualityMetrics.averageStartExtension / Math.max(1, qualityMetrics.adjusted);
+      qualityMetrics.averageEndExtension = qualityMetrics.averageEndExtension / Math.max(1, qualityMetrics.adjusted);
+
+      console.log('📈 QUALITY METRICS:');
+      console.log(`   Total Clips: ${qualityMetrics.totalClips}`);
+      console.log(`   Clips Adjusted: ${qualityMetrics.adjusted} (${(qualityMetrics.adjusted / qualityMetrics.totalClips * 100).toFixed(1)}%)`);
+      console.log(`   Average Quality Score: ${qualityMetrics.averageQualityScore.toFixed(1)}/100`);
+      console.log(`   Total Issues Found: ${qualityMetrics.totalIssuesFound}`);
+      console.log(`   Issues by Type:`, qualityMetrics.issuesByType);
+      console.log(`   Avg Start Extension: ${qualityMetrics.averageStartExtension.toFixed(2)}s`);
+      console.log(`   Avg End Extension: ${qualityMetrics.averageEndExtension.toFixed(2)}s`);
+
+      // Log individual clip details
+      console.log('\n📋 INDIVIDUAL CLIP DETAILS:');
+      validatedMoments.forEach((moment, index) => {
+        const adj = moment.boundaryAdjustment;
+        console.log(`\n   Clip ${index + 1}: "${moment.title}"`);
+        console.log(`      Duration: ${(moment.endTime - moment.startTime).toFixed(1)}s`);
+        console.log(`      Quality Score: ${adj.qualityScore}/100`);
+        console.log(`      Adjusted: ${adj.wasAdjusted ? 'YES' : 'NO'}`);
+        if (adj.wasAdjusted) {
+          console.log(`      Start Extension: ${adj.startExtension.toFixed(2)}s`);
+          console.log(`      End Extension: ${adj.endExtension.toFixed(2)}s`);
+        }
+        console.log(`      Issues: ${adj.issues.length > 0 ? adj.issues.map(i => i.type).join(', ') : 'None'}`);
+      });
+
+      console.log('\n═══════════════════════════════════════════════════════════');
+      console.log('✅ All moments validated and optimized for clean boundaries');
+
+      return validatedMoments;
     } catch (parseError) {
       console.error('❌ JSON parse error:', parseError.message);
       console.log('⚠️ Invalid JSON from GPT, returning empty array');
